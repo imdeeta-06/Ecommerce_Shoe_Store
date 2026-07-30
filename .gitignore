@@ -1,0 +1,26 @@
+# 1. Các file rác do Hệ điều hành tự sinh ra
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 2. Các thư mục cấu hình của Trình soạn thảo (IDE/Editor)
+.vscode/
+.idea/
+*.suo
+*.sw?
+
+# 3. Các thư viện bên thứ 3 (Nếu sau này bạn dùng Composer để cài thêm)
+/vendor/
+composer.phar
+
+# 4. Gỡ comment file nếu không muốn push ảnh trong upload lên git
+# /public/uploads/*
+# !/public/uploads/.gitkeep
+
+# 5. Các file ghi lỗi (Logs) của hệ thống hoặc server
+*.log
+error_log

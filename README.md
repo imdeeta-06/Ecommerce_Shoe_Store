@@ -1,5 +1,4 @@
-# Ecommerce_Shoe_Store
-# Accessories
+# PaceUP Accessories
 
 `PaceUP Accessories` là một dự án web thương mại điện tử dùng `PHP` và `MySQL`, phục vụ bán giày và đồ thể thao.
 Dự án đã có xem sản phẩm, giỏ hàng, thanh toán, tài khoản người dùng, trang quản trị, mã giảm giá, đơn hàng, kho hàng và wishlist.
@@ -31,6 +30,7 @@ Kiến trúc dự án đi theo mô hình đơn giản kiểu MVC:
 ## Trạng Thái Hiện Tại
 
 Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều chỗ cần sửa và hoàn thiện.
+Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà phải hướng tới deploy lên môi trường thật để mọi người truy cập qua internet.
 
 ### Các Phần Đã Có
 - Danh sách sản phẩm và trang chi tiết sản phẩm
@@ -84,7 +84,7 @@ Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều ch
 ### Rủi Ro Giao Diện
 - Một số trang còn thiếu trạng thái rỗng rõ ràng
 - Thông báo lỗi chưa thống nhất
-- Giao diện mobile cần kiểm tra lại lần cuối
+- Giao diện responsive đa thiết bị, đặc biệt mobile và tablet, cần kiểm tra lại lần cuối
 - Một số màn hình admin chạy được nhưng chưa đẹp hoặc chưa dễ dùng
 
 ## Chức Năng Còn Thiếu Hoặc Chưa Hoàn Chỉnh
@@ -118,6 +118,8 @@ Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều ch
 - Bảo mật upload file tốt hơn
 - Có test cho các luồng quan trọng
 - Chuẩn hóa error handling và logging
+- Chuẩn bị cấu hình để deploy thật thay vì chỉ test local
+- Kiểm tra base URL, session, upload path và quyền file khi đưa lên internet
 
 ## Sơ Đồ File Chính
 
@@ -160,6 +162,8 @@ Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều ch
 - [ ] Mở controller và model liên quan đến phần mình phụ trách
 - [ ] Xem `Database/paceup_db.sql` để hiểu bảng dữ liệu
 - [ ] Xác định đang làm theo flow controller mới hay code legacy trong `public/views/admin.php`
+- [ ] Kiểm tra giao diện trên desktop, tablet và mobile
+- [ ] Xác định sẵn môi trường deploy, không chỉ chạy local bằng XAMPP
 
 ### Checklist Chất Lượng Code
 - [ ] Business logic phải được xử lý ở server
@@ -177,7 +181,58 @@ Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều ch
 - [ ] Admin cập nhật trạng thái đơn được
 - [ ] Kho thay đổi đúng khi đơn đổi trạng thái
 - [ ] Cập nhật profile và địa chỉ vẫn chạy
-- [ ] Giao diện mobile vẫn dùng được
+- [ ] Giao diện responsive chạy ổn trên desktop, tablet và mobile
+- [ ] Dự án chạy đúng sau khi deploy lên internet
+
+## Phân Công 8 Thành Viên
+
+### 1. Nền Tảng Hệ Thống
+- Mục tiêu: làm cho project ổn định, ít lỗi nền tảng.
+- Việc cần làm: rà route, session, base URL, autoload, lỗi chạy chung, chuẩn hóa cách đặt tên và luồng xử lý cơ bản.
+- Deliverable: danh sách bug nền tảng + file đã sửa + ghi chú ngắn về kiến trúc.
+- Cần đọc trước: `index.php`, `app/Core/*`, `README.md`.
+
+### 2. Auth Và Tài Khoản
+- Mục tiêu: hoàn thiện đăng ký, đăng nhập, quên mật khẩu, hồ sơ cá nhân.
+- Việc cần làm: sửa login/register/logout, đổi mật khẩu, OTP reset, cập nhật profile, avatar, địa chỉ.
+- Deliverable: luồng tài khoản chạy ổn + checklist test.
+- Cần đọc trước: `app/Controller/AuthController.php`, `app/Controller/User/ProfileController.php`, `app/Models/UserModel.php`.
+
+### 3. Catalog Và Sản Phẩm
+- Mục tiêu: hiển thị sản phẩm rõ ràng, dễ tìm, dễ xem.
+- Việc cần làm: sửa shop list, filter, sort, search, trang chi tiết sản phẩm, sản phẩm liên quan, ảnh, size, màu, tồn kho.
+- Deliverable: trang shop và product hoàn chỉnh.
+- Cần đọc trước: `app/Controller/ShopController.php`, `app/Controller/ProductController.php`, `app/Models/Product.php`, `app/Views/shop.php`, `app/Views/product.php`.
+
+### 4. Cart Và Checkout
+- Mục tiêu: hoàn thiện luồng mua hàng từ giỏ đến đặt đơn.
+- Việc cần làm: sửa thêm/xóa/cập nhật giỏ, xử lý guest/user cart, checkout, áp coupon, kiểm tra tổng tiền, xác nhận đơn.
+- Deliverable: giỏ hàng và checkout end-to-end chạy đúng.
+- Cần đọc trước: `app/Controller/CartController.php`, `app/Controller/CheckoutController.php`, `app/Models/Cart.php`, `app/Models/Coupons.php`, `app/Views/cart.php`, `app/Views/checkout.php`.
+
+### 5. Order Và Inventory
+- Mục tiêu: đơn hàng và kho phải đồng bộ.
+- Việc cần làm: kiểm tra tạo đơn, trạng thái đơn, hủy đơn, trừ kho, hoàn kho, log trạng thái.
+- Deliverable: luồng order chuẩn + stock không lệch.
+- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_db.sql`.
+
+### 6. Admin Sản Phẩm
+- Mục tiêu: quản lý sản phẩm đầy đủ trong admin.
+- Việc cần làm: CRUD sản phẩm, ảnh, biến thể size/màu, cập nhật giá, ẩn/hiện sản phẩm, danh mục liên quan.
+- Deliverable: trang admin sản phẩm hoàn chỉnh.
+- Cần đọc trước: `app/Controller/Admin/ProductController.php`, `app/Controller/Admin/CategoryController.php`, `app/Views/admin/products/*`, `app/Models/Product.php`.
+
+### 7. Admin Đơn Hàng Và User
+- Mục tiêu: quản lý vận hành shop.
+- Việc cần làm: xem danh sách đơn, đổi trạng thái đơn, xem chi tiết đơn, quản lý user, khóa/mở tài khoản, theo dõi hoạt động.
+- Deliverable: bộ quản trị đơn hàng và người dùng.
+- Cần đọc trước: `app/Controller/Admin/UserController.php`, `app/Controller/Admin/OrderController.php`, `app/Models/UserModel.php`, `app/Models/Order.php`.
+
+### 8. UI/UX Và QA
+- Mục tiêu: giao diện dễ dùng, ổn định trên nhiều thiết bị.
+- Việc cần làm: sửa layout, responsive, thông báo lỗi, empty state, test flow chính, viết tài liệu hướng dẫn chạy project.
+- Deliverable: bộ test tay + tài liệu chạy project + chỉnh giao diện.
+- Cần đọc trước: `app/Views/*`, `public/assets/css/style.css`, `README.md`.
 
 ## Thứ Tự Nên Làm
 
@@ -189,6 +244,20 @@ Nếu nhóm đang sửa project theo hướng hoàn thiện dần, thứ tự an
 5. Sửa business logic của order, stock và coupon
 6. Hoàn thiện admin product và order
 7. Polish giao diện và kiểm thử cuối
+
+## Gợi Ý Chia Việc Theo Phụ Thuộc
+
+- Nên cho `Nền Tảng Hệ Thống` đi trước vì các bạn khác sẽ dựa vào route, session và cấu trúc chung.
+- `Auth Và Tài Khoản`, `Catalog Và Sản Phẩm`, và `UI/UX Và QA` có thể làm song song sau khi nền tảng ổn.
+- `Cart Và Checkout` nên bắt đầu sau khi catalog và product đã ổn định để dữ liệu hiển thị đúng.
+- `Order Và Inventory` phụ thuộc mạnh vào checkout vì đây là nơi tạo đơn và cập nhật tồn kho.
+- `Admin Sản Phẩm` và `Admin Đơn Hàng Và User` có thể làm song song, nhưng phải thống nhất schema và rule của `Order` trước.
+
+## Kết Luận Nhanh
+
+- Checklist hiện tại phù hợp cho một project chưa hoàn thiện.
+- Phân công nên tách theo feature/role để mỗi người có đầu việc rõ ràng và không chờ nhau quá nhiều.
+- Với project này, ưu tiên lớn nhất vẫn là: `responsive đa thiết bị`, `deploy internet`, `checkout đúng`, `order đúng`, và `inventory đúng`.
 
 ## Cấu Trúc Thư Mục
 
@@ -210,4 +279,5 @@ Nếu nhóm đang sửa project theo hướng hoàn thiện dần, thứ tự an
 - Khi sửa bug, cần kiểm tra cả PHP lẫn SQL vì nhiều vấn đề đến từ việc code và schema không khớp nhau.
 - Nếu thêm tính năng mới, hãy đảm bảo route, controller, model, view và database đều hỗ trợ đầy đủ.
 - Nếu refactor một feature, luôn để ý luồng cũ để không làm hỏng cart, checkout hoặc admin.
-
+- Giao diện phải ưu tiên responsive đa thiết bị, không chỉ đẹp trên màn hình máy tính.
+- Mục tiêu cuối là đưa project lên hosting hoặc server thật để truy cập được qua internet.
