@@ -17,7 +17,8 @@ class Wishlist extends BaseModel {
             FROM {$this->table} w
             JOIN product p ON w.product_id = p.id
             LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
-            WHERE w.user_id = :user_id
+            LEFT JOIN categories c ON c.id = p.category_id
+            WHERE w.user_id = :user_id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
         ");
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

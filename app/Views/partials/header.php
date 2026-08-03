@@ -16,7 +16,9 @@ if (!function_exists('productAssetPath')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PaceUp - Chuyên phân phối sản phẩm Nike</title>
+    <title><?= htmlspecialchars($metaTitle ?? 'PaceUp - Chuyên phân phối sản phẩm Nike', ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription ?? 'Mua giày Nike chính hãng online tại PaceUp.', ENT_QUOTES, 'UTF-8') ?>">
+    <?php if (!empty($canonicalUrl)): ?><link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') ?>"><?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -50,7 +52,7 @@ if (!function_exists('productAssetPath')) {
                         <img src="<?= !empty($_SESSION['user_avatar']) ? BASE_URL . $_SESSION['user_avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['user_name'] ?? 'User').'&background=2A9D8F&color=fff&size=40' ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
                     </a>
                     <div class="dropdown-menu">
-                        <span class="dropdown-name"><?= htmlspecialchars($_SESSION['user_name']) ?></span>
+                        <span class="dropdown-name"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Tài khoản') ?></span>
                         <?php if ($_SESSION['user_role'] === 'admin'): ?>
                             <a href="<?= BASE_URL ?>admin">Admin Panel</a>
                         <?php endif; ?>

@@ -2,6 +2,8 @@
 
 namespace App\Helpers;
 
+use App\Core\App;
+
 class SessionHelper {
     public static function setFlash($type, $message) {
         $_SESSION['flash'][$type] = $message;
@@ -26,7 +28,7 @@ class SessionHelper {
     }
 
     public static function redirect($path) {
-        header('Location: ' . BASE_URL . ltrim($path, '/'));
+        header('Location: ' . App::url($path));
         exit;
     }
 }

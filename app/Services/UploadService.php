@@ -7,7 +7,7 @@ use Exception;
 class UploadService {
     public static function image($file, $folder = 'products') {
         if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
-            throw new Exception('Upload file failed.');
+            throw new Exception('Tải ảnh lên thất bại.');
         }
 
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif'];
@@ -15,23 +15,23 @@ class UploadService {
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
         if (!in_array($extension, $allowedExtensions, true)) {
-            throw new Exception('Only jpg, jpeg, png, webp, and avif images are allowed.');
+            throw new Exception('Chỉ chấp nhận ảnh JPG, JPEG, PNG, WEBP hoặc AVIF.');
         }
 
         if ((int)$file['size'] > $maxSize) {
-            throw new Exception('Image size must not exceed 2MB.');
+            throw new Exception('Dung lượng ảnh không được vượt quá 2MB.');
         }
 
         $uploadDir = __DIR__ . '/../../public/uploads/' . trim($folder, '/') . '/';
         if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) {
-            throw new Exception('Cannot create upload directory.');
+            throw new Exception('Không thể tạo thư mục lưu ảnh.');
         }
 
         $fileName = uniqid('img_', true) . '.' . $extension;
         $target = $uploadDir . $fileName;
 
         if (!move_uploaded_file($file['tmp_name'], $target)) {
-            throw new Exception('Cannot save uploaded file.');
+            throw new Exception('Không thể lưu ảnh đã tải lên.');
         }
 
         return 'public/uploads/' . trim($folder, '/') . '/' . $fileName;

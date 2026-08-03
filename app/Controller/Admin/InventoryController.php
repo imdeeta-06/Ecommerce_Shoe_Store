@@ -28,16 +28,19 @@ class InventoryController {
         $priceModifier = (float)($_POST['price_modifier'] ?? 0);
 
         if ($productId > 0 && $size !== '' && $color !== '') {
-            $this->productModel->createProductVariant([
+            $variantId = $this->productModel->createProductVariant([
                 'product_id' => $productId,
                 'size' => $size,
                 'color' => $color,
-                'stock_quantity' => $stockQuantity,
+                'stock_quantity' => 0,
                 'price_modifier' => $priceModifier
             ]);
-            $this->setFlash('success', 'Variant created. You can choose it now.');
+            if ($stockQuantity > 0) {
+                $this->productModel->updateStock($variantId, $stockQuantity, 'Tồn đầu kỳ khi tạo phân loại sản phẩm');
+            }
+            $this->setFlash('success', 'Đã tạo phân loại sản phẩm.');
         } else {
-            $this->setFlash('error', 'Please choose product, size, and color to create a variant.');
+            $this->setFlash('error', 'Vui lòng chọn sản phẩm, size và màu để tạo phân loại.');
         }
 
         $this->redirect('admin/inventory');
@@ -51,10 +54,14 @@ class InventoryController {
 
         if ($variantId > 0 && $quantity > 0) {
             $quantityChanged = $type === 'out' ? -$quantity : $quantity;
-            $this->productModel->updateStock($variantId, $quantityChanged, $reason ?: 'Manual inventory update');
-            $this->setFlash('success', 'Inventory updated.');
+            try {
+                $this->productModel->updateStock($variantId, $quantityChanged, $reason ?: 'Nhập/xuất kho thủ công');
+                $this->setFlash('success', 'Đã cập nhật tồn kho và lưu lịch sử nhập/xuất.');
+            } catch (\Throwable $e) {
+                $this->setFlash('error', $e->getMessage());
+            }
         } else {
-            $this->setFlash('error', 'Please choose a variant and quantity.');
+            $this->setFlash('error', 'Vui lòng chọn phân loại và nhập số lượng hợp lệ.');
         }
 
         $this->redirect('admin/inventory');
@@ -101,4 +108,3 @@ class InventoryController {
         return $flash;
     }
 }
-

@@ -1,185 +1,151 @@
 <?php
+
 namespace App\Controller;
 
+use App\Helpers\SessionHelper;
+use App\Middleware\AuthMiddleware;
 use App\Models\Coupons;
-use App\Models\Database;
 use App\Models\Order;
 
 class CheckoutController {
     public function index() {
+        AuthMiddleware::requireLogin();
         require __DIR__ . '/../Views/checkout.php';
     }
 
     public function success() {
+        AuthMiddleware::requireLogin();
         require __DIR__ . '/../Views/checkout-success.php';
     }
 
     public function placeOrder() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         header('Content-Type: application/json');
+        AuthMiddleware::requireLogin();
 
-        if (!isset($_SESSION['user_id'])) {
-            http_response_code(401);
-            echo json_encode(['success' => false, 'message' => 'Vui lòng đăng nhập để đặt hàng.']);
-            return;
-        }
-
-        $input = json_decode(file_get_contents('php://input'), true);
-        
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
         $cartModel = new \App\Models\Cart();
         $items = $cartModel->getCartByUserId($_SESSION['user_id']);
 
         if (empty($items)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Giỏ hàng đang trống.']);
+            $this->jsonError('Giỏ hàng đang trống.', 400);
             return;
         }
 
-        $shippingName = trim($input['shipping_name'] ?? '');
-        $shippingPhone = trim($input['shipping_phone'] ?? '');
-        $shippingAddress = trim($input['shipping_address'] ?? '');
-        $shippingEmail = trim($input['shipping_email'] ?? '');
-        $couponId = isset($input['coupon_id']) && $input['coupon_id'] !== '' ? (int) $input['coupon_id'] : null;
-        $discount = max(0, (float) ($input['discount'] ?? 0));
+        $shippingName = trim((string)($input['shipping_name'] ?? ''));
+        $shippingPhone = trim((string)($input['shipping_phone'] ?? ''));
+        $shippingAddress = trim((string)($input['shipping_address'] ?? ''));
+        $shippingEmail = trim((string)($input['shipping_email'] ?? ''));
+        $couponCode = trim((string)($input['coupon_code'] ?? ''));
+
+        if (!filter_var($input['terms_accepted'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $this->jsonError('Bạn cần đồng ý với Điều khoản mua hàng và Chính sách đổi trả trước khi đặt hàng.', 400);
+            return;
+        }
 
         if ($shippingName === '' || $shippingPhone === '' || $shippingAddress === '') {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Vui lòng nhập đầy đủ thông tin giao hàng.']);
+            $this->jsonError('Vui lòng nhập đầy đủ thông tin giao hàng.', 400);
+            return;
+        }
+        if (!preg_match('/^[0-9+\-\s().]{7,20}$/', $shippingPhone)) {
+            $this->jsonError('Số điện thoại giao hàng không hợp lệ.', 400);
             return;
         }
 
-        $totalAmount = 0;
         $preparedItems = [];
-        $db = Database::getInstance()->getConnection();
-
         foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['quantity'] ?? 0));
-            $price = max(0, (float) ($item['price'] ?? 0));
-            $totalAmount += $quantity * $price;
-
-            if ($quantity <= 0 || $price < 0) {
-                continue;
-            }
-
-            $variantId = $this->resolveVariantId($db, $item, $quantity);
-            if (!$variantId) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Sản phẩm "' . ($item['name'] ?? 'trong giỏ hàng') . '" chưa có biến thể hoặc không đủ tồn kho.'
-                ]);
+            $variantId = (int)($item['variant_id'] ?? 0);
+            $quantity = (int)($item['quantity'] ?? 0);
+            if ($variantId <= 0 || $quantity <= 0) {
+                $this->jsonError('Giỏ hàng có sản phẩm chưa gắn đúng size/màu. Vui lòng chọn lại.', 400);
                 return;
             }
-
-            $preparedItems[] = [
-                'variant_id' => $variantId,
-                'quantity' => $quantity,
-                'price' => $price
-            ];
+            $preparedItems[] = ['variant_id' => $variantId, 'quantity' => $quantity];
         }
 
-        if ($totalAmount <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Tổng đơn hàng không hợp lệ.']);
+        $couponId = null;
+        if ($couponCode !== '') {
+            $couponModel = new Coupons();
+            $subtotal = array_reduce($items, static function ($total, $item) {
+                return $total + (float)$item['price'] * (int)$item['quantity'];
+            }, 0.0);
+            $couponResult = $couponModel->validateCoupon($couponCode, $subtotal, $_SESSION['user_id'], $items);
+            if (!$couponResult['is_valid']) {
+                $this->jsonError($couponResult['message'], 400);
+                return;
+            }
+            $couponId = (int)$couponResult['data']['id'];
+        }
+
+        $paymentMethod = (string)($input['payment_method'] ?? 'cod');
+        if ($paymentMethod !== 'cod') {
+            $this->jsonError('Hiện tại PaceUp chỉ hỗ trợ thanh toán khi nhận hàng (COD). Chuyển khoản và ví điện tử sẽ được bổ sung sau.', 400);
             return;
         }
 
-        $finalAmount = max(0, $totalAmount - $discount);
         $orderModel = new Order();
         $result = $orderModel->placeOrder([
             'order_code' => $orderModel->generateUniqueOrderCode(),
-            'user_id' => $_SESSION['user_id'],
-            'total_amount' => $totalAmount,
+            'user_id' => (int)$_SESSION['user_id'],
             'coupon_id' => $couponId,
-            'final_amount' => $finalAmount,
             'shipping_name' => $shippingName,
             'shipping_phone' => $shippingPhone,
             'shipping_address' => $shippingAddress,
             'shipping_email' => $shippingEmail !== '' ? $shippingEmail : null,
-            'status' => 'pending'
+            'customer_note' => trim((string)($input['customer_note'] ?? '')),
+            'payment_method' => $paymentMethod,
+            'terms_accepted' => true,
+            'contract_version' => 'v1.0',
+            'terms_accepted_ip' => substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45),
+            'terms_accepted_user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 1000)
         ], $preparedItems);
 
         if (!$result['success']) {
-            http_response_code(400);
-            echo json_encode($result);
+            $this->jsonError($result['message'], 400);
             return;
         }
-        
+
         $cartModel->clearCart($_SESSION['user_id']);
-
         echo json_encode(['success' => true, 'order_id' => $result['order_id']]);
-    }
-
-    private function resolveVariantId(\PDO $db, array $item, int $quantity): ?int {
-        $variantId = (int) ($item['variant_id'] ?? 0);
-        if ($variantId > 0) {
-            return $variantId;
-        }
-
-        $productId = (int) ($item['product_id'] ?? 0);
-        if ($productId <= 0) {
-            return null;
-        }
-
-        $stmt = $db->prepare("
-            SELECT id
-            FROM product_variants
-            WHERE product_id = :product_id
-              AND stock_quantity >= :quantity
-            ORDER BY stock_quantity DESC, id ASC
-            LIMIT 1
-        ");
-        $stmt->execute([
-            'product_id' => $productId,
-            'quantity' => $quantity
-        ]);
-
-        $id = $stmt->fetchColumn();
-        return $id ? (int) $id : null;
     }
 
     public function applyCoupon() {
         header('Content-Type: application/json');
-        $input = json_decode(file_get_contents('php://input'), true);
-        $code = trim($input['code'] ?? '');
-        $orderTotal = floatval($input['order_total'] ?? 0);
+        if (empty($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Vui lòng đăng nhập để sử dụng mã giảm giá.']);
+            return;
+        }
 
-        if (!$code) {
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
+        $code = trim((string)($input['code'] ?? ''));
+        if ($code === '') {
             echo json_encode(['success' => false, 'message' => 'Vui lòng nhập mã giảm giá.']);
             return;
         }
 
-        $model = new Coupons();
-        $result = $model->validateCoupon($code, $orderTotal);
+        $cartModel = new \App\Models\Cart();
+        $items = $cartModel->getCartByUserId($_SESSION['user_id']);
+        $orderTotal = array_reduce($items, static function ($total, $item) {
+            return $total + (float)$item['price'] * (int)$item['quantity'];
+        }, 0.0);
 
+        $result = (new Coupons())->validateCoupon($code, $orderTotal, $_SESSION['user_id'], $items);
         if (!$result['is_valid']) {
             echo json_encode(['success' => false, 'message' => $result['message']]);
             return;
         }
 
         $coupon = $result['data'];
-        $discount = 0;
-        $discountPercent = floatval($coupon['discount_percent'] ?? 0);
-        $maxDiscount = floatval($coupon['max_discount'] ?? 0);
-
-        if ($discountPercent > 0) {
-            $discount = $orderTotal * ($discountPercent / 100);
-            if ($maxDiscount > 0 && $discount > $maxDiscount) {
-                $discount = $maxDiscount;
-            }
-        } elseif ($maxDiscount > 0) {
-            $discount = $maxDiscount;
-        }
-
         echo json_encode([
             'success' => true,
-            'discount' => $discount,
-            'discount_percent' => floatval($coupon['discount_percent']),
+            'discount' => (float)$result['discount'],
+            'discount_percent' => (float)($coupon['discount_percent'] ?? 0),
             'code' => $coupon['code'],
-            'coupon_id' => $coupon['id']
+            'coupon_id' => (int)$coupon['id']
         ]);
+    }
+
+    private function jsonError(string $message, int $status): void {
+        http_response_code($status);
+        echo json_encode(['success' => false, 'message' => $message]);
     }
 }

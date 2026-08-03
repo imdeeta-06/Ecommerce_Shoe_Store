@@ -20,37 +20,42 @@ unset($_SESSION['register_old']);
 <main class="auth-page">
     <div class="auth-form-wrapper">
         <div class="auth-form">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <h2>Create Account</h2>
-                <p class="subtitle">Join PaceUp today.</p>
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h2 style="font-family: var(--font-heading); font-size: 2rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;">Đăng ký</h2>
+                <p style="color: #666; font-size: 0.9rem;">Tạo tài khoản mới cùng PaceUp.</p>
             </div>
 
             <?php if ($error): ?>
-                <div style="background: #fee; color: #c00; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
+                <div class="client-flash error">
                     <?= htmlspecialchars($error) ?>
                 </div>
             <?php endif; ?>
             <form action="<?= BASE_URL ?>register" method="POST">
-                <div class="form-group">
-                    <input type="text" name="full_name" placeholder="Họ và tên" required value="<?= htmlspecialchars($old['full_name'] ?? '') ?>">
+                <div class="client-form-group">
+                    <label class="client-label">Họ và tên</label>
+                    <input type="text" name="full_name" class="client-input" required value="<?= htmlspecialchars($old['full_name'] ?? '') ?>">
                 </div>
-                <div class="form-group">
-                    <input type="text" name="email" placeholder="Email" required value="<?= htmlspecialchars($old['email'] ?? '') ?>">
+                <div class="client-form-group">
+                    <label class="client-label">Email</label>
+                    <input type="text" name="email" class="client-input" required value="<?= htmlspecialchars($old['email'] ?? '') ?>">
                 </div>
-                <div class="form-group">
-                    <input type="tel" name="phone" placeholder="Số điện thoại" maxlength="20" value="<?= htmlspecialchars($old['phone'] ?? '') ?>">
+                <div class="client-form-group">
+                    <label class="client-label">Số điện thoại</label>
+                    <input type="tel" name="phone" class="client-input" maxlength="20" value="<?= htmlspecialchars($old['phone'] ?? '') ?>">
                 </div>
-                <div class="form-group">
-                    <input type="password" name="password" placeholder="Mật khẩu" required>
+                <div class="client-form-group">
+                    <label class="client-label">Mật khẩu</label>
+                    <input type="password" name="password" class="client-input" required>
                 </div>
-                <div class="form-group">
-                    <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu" required>
+                <div class="client-form-group" style="margin-bottom: 2.5rem;">
+                    <label class="client-label">Xác nhận mật khẩu</label>
+                    <input type="password" name="confirm_password" class="client-input" required>
                 </div>
 
-                <button type="submit" class="btn-login">Sign Up</button>
+                <button type="submit" class="client-btn" style="width: 100%;">Đăng ký</button>
 
-                <p style="text-align: center; margin-top: 1.5rem; font-size: 14px; color: #888;">
-                    Already have an account? <a href="<?= BASE_URL ?>login" style="color: #000; font-weight: 600;">Login</a>
+                <p style="text-align: center; margin-top: 2rem; font-size: 0.85rem; color: #666;">
+                    Đã có tài khoản? <a href="<?= BASE_URL ?>login" class="client-text-link">Đăng nhập</a>
                 </p>
             </form>
         </div>

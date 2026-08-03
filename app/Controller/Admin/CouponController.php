@@ -2,6 +2,7 @@
 namespace App\Controller\Admin;
 
 use App\Models\Coupons;
+use App\Models\Product;
 
 class CouponController {
     public function index() {
@@ -18,22 +19,28 @@ class CouponController {
     }
     
     public function create() {
+        $productModel = new Product();
+        $categories = $productModel->getAllCategories();
+        $products = $productModel->getAllProducts(['status' => 1]);
         require __DIR__ . '/../../Views/admin/coupons/create.php';
     }
     
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
         
-        $code = trim($_POST['code'] ?? '');
+        $code = strtoupper(trim($_POST['code'] ?? ''));
         $discountPercent = max(0, floatval($_POST['discount_percent'] ?? 0));
         $maxDiscount = max(0, floatval($_POST['max_discount'] ?? 0));
         $minOrderAmount = max(0, floatval($_POST['min_order_amount'] ?? 0));
         $usageLimit = max(0, intval($_POST['usage_limit'] ?? 0));
+        $usageLimitPerUser = max(1, intval($_POST['usage_limit_per_user'] ?? 1));
+        $categoryId = (int)($_POST['category_id'] ?? 0) ?: null;
+        $productId = (int)($_POST['product_id'] ?? 0) ?: null;
         $startDate = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
         $expiryDate = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
         
-        if (empty($code) || empty($expiryDate)) {
-            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Mã và Ngày hết hạn là bắt buộc.'];
+        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId)) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ và chỉ chọn một phạm vi áp dụng.'];
             header('Location: ' . BASE_URL . 'admin/coupons/create');
             exit;
         }
@@ -52,8 +59,12 @@ class CouponController {
             'max_discount' => $maxDiscount > 0 ? $maxDiscount : null,
             'min_order_amount' => $minOrderAmount,
             'usage_limit' => $usageLimit,
+            'usage_limit_per_user' => $usageLimitPerUser,
             'start_date' => $startDate,
-            'expiry_date' => $expiryDate
+            'expiry_date' => $expiryDate,
+            'category_id' => $categoryId,
+            'product_id' => $productId,
+            'status' => 1
         ]);
         
         $_SESSION['flash'] = ['type' => 'success', 'message' => 'Đã thêm mã giảm giá thành công.'];
@@ -70,6 +81,10 @@ class CouponController {
             header('Location: ' . BASE_URL . 'admin/coupons');
             exit;
         }
+
+        $productModel = new Product();
+        $categories = $productModel->getAllCategories();
+        $products = $productModel->getAllProducts(['status' => 1]);
         
         require __DIR__ . '/../../Views/admin/coupons/edit.php';
     }
@@ -78,16 +93,19 @@ class CouponController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
         
         $id = (int)($_POST['id'] ?? 0);
-        $code = trim($_POST['code'] ?? '');
+        $code = strtoupper(trim($_POST['code'] ?? ''));
         $discountPercent = max(0, floatval($_POST['discount_percent'] ?? 0));
         $maxDiscount = max(0, floatval($_POST['max_discount'] ?? 0));
         $minOrderAmount = max(0, floatval($_POST['min_order_amount'] ?? 0));
         $usageLimit = max(0, intval($_POST['usage_limit'] ?? 0));
+        $usageLimitPerUser = max(1, intval($_POST['usage_limit_per_user'] ?? 1));
+        $categoryId = (int)($_POST['category_id'] ?? 0) ?: null;
+        $productId = (int)($_POST['product_id'] ?? 0) ?: null;
         $startDate = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
         $expiryDate = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
         
-        if (empty($code) || empty($expiryDate)) {
-            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Mã và Ngày hết hạn là bắt buộc.'];
+        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId)) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ và chỉ chọn một phạm vi áp dụng.'];
             header('Location: ' . BASE_URL . 'admin/coupons/edit?id=' . $id);
             exit;
         }
@@ -106,8 +124,11 @@ class CouponController {
             'max_discount' => $maxDiscount > 0 ? $maxDiscount : null,
             'min_order_amount' => $minOrderAmount,
             'usage_limit' => $usageLimit,
+            'usage_limit_per_user' => $usageLimitPerUser,
             'start_date' => $startDate,
-            'expiry_date' => $expiryDate
+            'expiry_date' => $expiryDate,
+            'category_id' => $categoryId,
+            'product_id' => $productId
         ]);
         
         $_SESSION['flash'] = ['type' => 'success', 'message' => 'Đã cập nhật mã giảm giá thành công.'];

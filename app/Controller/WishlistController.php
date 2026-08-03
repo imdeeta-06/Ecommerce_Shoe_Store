@@ -30,6 +30,18 @@ class WishlistController {
 
         if ($productId > 0) {
             $wishlistModel = new Wishlist();
+            $db = \App\Models\Database::getInstance()->getConnection();
+            $stmt = $db->prepare('SELECT p.id FROM product p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1) LIMIT 1');
+            $stmt->execute(['id' => $productId]);
+            if (!$stmt->fetchColumn()) {
+                $message = 'Sản phẩm không còn được bán hoặc danh mục đã ẩn.';
+                if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'message' => $message]);
+                    return;
+                }
+                header('Location: ' . BASE_URL . 'wishlist');
+                exit;
+            }
             $exists = $wishlistModel->checkExists($userId, $productId);
 
             if (!$exists) {

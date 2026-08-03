@@ -4,6 +4,7 @@ namespace App\Controller;
 use App\Helpers\SessionHelper;
 use App\Middleware\AuthMiddleware;
 use App\Models\UserModel;
+use App\Models\Cart;
 use App\Services\LoggingService;
 
 class AuthController {
@@ -15,6 +16,7 @@ class AuthController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim($_POST['email'] ?? '');
             $password = trim($_POST['password'] ?? '');
+            $_SESSION['login_old'] = ['email' => $email];
 
             if ($email === '' || $password === '') {
                 SessionHelper::setFlash('error', 'Vui lòng nhập email và mật khẩu');
@@ -39,9 +41,18 @@ class AuthController {
                 SessionHelper::redirect('/login');
             }
 
+            $guestSessionId = session_id();
+            session_regenerate_id(true);
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['user_name'] = !empty($user['display_name']) ? $user['display_name'] : $user['full_name'];
+            $_SESSION['user_avatar'] = $user['avatar'] ?? null;
+            unset($_SESSION['login_old']);
+
+            if ($guestSessionId !== '') {
+                (new Cart())->mergeGuestCartIntoUser($guestSessionId, (int)$user['id']);
+            }
 
             LoggingService::write($user['id'], 'login', 'Đăng nhập thành công');
 
@@ -122,6 +133,21 @@ class AuthController {
     public function logout() {
         if (isset($_SESSION['user_id'])) {
             LoggingService::write($_SESSION['user_id'], 'logout', 'Đăng xuất');
+        }
+
+        $_SESSION = [];
+
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'] ?? '/',
+                $params['domain'] ?? '',
+                $params['secure'] ?? false,
+                $params['httponly'] ?? true
+            );
         }
 
         session_destroy();

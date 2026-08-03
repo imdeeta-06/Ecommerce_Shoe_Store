@@ -19,15 +19,27 @@ class CategoryController {
     }
 
     public function create() {
-        $name = trim($_POST['name'] ?? '');
-        if ($name !== '') {
+        try {
+            $name = trim($_POST['name'] ?? '');
+            if ($name === '') {
+                throw new \RuntimeException('Vui lòng nhập tên danh mục.');
+            }
+
+            $slug = $this->slugify($_POST['slug'] ?? $name);
+            if ($this->productModel->categorySlugExists($slug)) {
+                throw new \RuntimeException('Slug danh mục đã tồn tại. Vui lòng chọn slug khác.');
+            }
+
             $this->productModel->createCategory([
                 'name' => $name,
-                'slug' => $this->slugify($_POST['slug'] ?? $name),
-                'status' => (int)($_POST['status'] ?? 1)
+                'slug' => $slug,
+                'status' => (int)($_POST['status'] ?? 1) === 0 ? 0 : 1
             ]);
-            $this->setFlash('success', 'Category created.');
+            $this->setFlash('success', 'Thêm danh mục thành công.');
+        } catch (\Throwable $e) {
+            $this->setFlash('error', $e->getMessage());
         }
+
         $this->redirect('admin/categories');
     }
 
@@ -38,13 +50,18 @@ class CategoryController {
             if ($category) {
                 $newStatus = (int)$category['status'] === 1 ? 0 : 1;
                 $this->productModel->updateCategory($id, ['status' => $newStatus]);
-                $this->setFlash('success', $newStatus === 1 ? 'Category shown.' : 'Category hidden.');
+                $this->setFlash('success', $newStatus === 1 ? 'Đã hiển thị danh mục.' : 'Đã ẩn danh mục.');
             }
         }
         $this->redirect('admin/categories');
     }
 
     private function slugify($value) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string)$value);
+        if ($ascii !== false) {
+            $value = $ascii;
+        }
+
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $value), '-'));
         return $slug ?: strtolower(uniqid('category-'));
     }

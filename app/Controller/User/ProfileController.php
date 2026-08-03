@@ -5,6 +5,8 @@ namespace App\Controller\User;
 use App\Helpers\SessionHelper;
 use App\Middleware\AuthMiddleware;
 use App\Models\UserModel;
+use App\Models\Order;
+use App\Models\AfterSale;
 use App\Services\LoggingService;
 
 class ProfileController {
@@ -14,6 +16,13 @@ class ProfileController {
         $userModel = new UserModel();
         $user = $userModel->findById($_SESSION['user_id']);
         $addresses = $userModel->getAddresses($_SESSION['user_id']);
+        $orderModel = new Order();
+        $orders = $orderModel->getOrdersByUserId($_SESSION['user_id']);
+        foreach ($orders as &$order) {
+            $order['items'] = $orderModel->getOrderItems((int)$order['id']);
+        }
+        unset($order);
+        $afterSaleRequests = (new AfterSale())->getByUser($_SESSION['user_id']);
 
         require __DIR__ . '/../../Views/account/profile.php';
     }
@@ -167,6 +176,17 @@ class ProfileController {
 
         LoggingService::write($_SESSION['user_id'], 'delete_address', 'Xóa địa chỉ');
         SessionHelper::setFlash('success', 'Đã xóa địa chỉ');
+        SessionHelper::redirect('/account');
+    }
+
+    public function cancelOrder() {
+        AuthMiddleware::requireLogin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            SessionHelper::redirect('/account');
+        }
+
+        $result = (new Order())->cancelOrder((int)($_POST['order_id'] ?? 0), (int)$_SESSION['user_id']);
+        SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
         SessionHelper::redirect('/account');
     }
 }
