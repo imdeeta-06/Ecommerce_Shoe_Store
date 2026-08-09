@@ -154,6 +154,80 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 ### Database
 - `Database/paceup_db.sql` chứa schema và dữ liệu mẫu
 
+## Cập Nhật P0 Nền Tảng
+
+Ngày cập nhật: 01/08/2026
+
+### Bug Nền Tảng Đã Xử Lý
+- `index.php` trước đây vừa start session, vừa autoload, vừa khai báo toàn bộ route và parse URL. Đã chuyển logic khởi tạo sang `app/Core/App.php`, còn `index.php` chỉ giữ vai trò entrypoint.
+- `app/Core/App.php` đang rỗng. Đã bổ sung bootstrap chung cho `BASE_URL`, session, autoload, route registry và xử lý lỗi khởi động.
+- `BASE_URL` trước đây dễ sai khi chạy ở root domain, subfolder, MAMP symlink hoặc URL có `index.php`. Đã chuẩn hóa cơ chế tự nhận diện base path và hỗ trợ override bằng biến môi trường `APP_BASE_URL`.
+- Route `/account` bị khai báo hai lần, làm `User/ProfileController@index` bị ghi đè bởi controller legacy. Đã giữ route mới `User/ProfileController` để đồng bộ với các route `/account/update`, `/account/avatar`, `/account/addresses/*`.
+- `Router` trước đây chỉ match exact string và silent overwrite khi route trùng. Đã normalize path, bỏ query/trailing slash, phát hiện route trùng, kiểm tra controller/action tồn tại và trả lỗi rõ hơn.
+- Session trước đây được start rải rác ở nhiều nơi. Bootstrap mới start session tập trung, cấu hình cookie `HttpOnly`, `SameSite=Lax` và path theo `BASE_URL`.
+- Login view trước đây tự require database và xử lý POST, tạo logic đăng nhập song song với `AuthController`. Đã đưa view về đúng vai trò hiển thị form/flash message.
+- Sau login đã regenerate session id và lưu avatar vào session; logout xóa dữ liệu session/cookie rõ ràng hơn.
+- Admin dashboard legacy trước đây redirect sai sang `login.php` và require DB bằng relative path. Đã đổi về route `/login` và require DB theo absolute path.
+- Một số view dùng `str_starts_with`, dễ lỗi nếu môi trường PHP cũ hơn 8. Đã thêm polyfill ở bootstrap.
+- `test_db.php` trước đây hardcode DB local và tự chạy `ALTER TABLE` khi mở file. Đã đổi sang đọc `config/database.php` và chỉ chạy migration khi truyền flag CLI rõ ràng.
+
+### File Đã Sửa
+- `index.php`
+- `app/Core/App.php`
+- `app/Core/Router.php`
+- `app/Helpers/SessionHelper.php`
+- `app/Controller/AuthController.php`
+- `app/Controller/AdminController.php`
+- `app/Views/login.php`
+- `app/Views/admin.php`
+- `test_db.php`
+- `README.md`
+
+### Ghi Chú Kiến Trúc
+- Route mới nên được thêm trong `App::registerRoutes()` để tránh `index.php` phình to trở lại.
+- View không nên tự xử lý POST, gọi database hoặc quyết định redirect nghiệp vụ. Việc đó thuộc controller/model.
+- `public/views/*` và `app/Views/admin.php` vẫn là vùng legacy. Không nên mở rộng thêm logic mới ở đây nếu có controller mới tương ứng.
+- Khi deploy vào subfolder, có thể set `APP_BASE_URL=/ten-thu-muc/` hoặc full URL như `https://domain.com/ten-thu-muc/`.
+- Các bug business như cart, checkout, order, inventory, coupon và admin product vẫn cần được xử lý trong task feature tương ứng sau khi nền tảng đã ổn.
+
+## Cập Nhật Admin Product Management
+
+Ngày cập nhật: 01/08/2026
+
+### Bug Và Logic Đã Sửa
+- `Product::destroyProduct()` không còn xóa cứng trực tiếp bản ghi `product`. Hàm mới kiểm tra sản phẩm đã phát sinh trong `order_items` hay chưa; nếu đã có đơn hàng thì chặn xóa vĩnh viễn và yêu cầu admin dùng chức năng ẩn sản phẩm.
+- Khi sản phẩm chưa có đơn hàng, xóa vĩnh viễn sẽ chạy theo transaction và xóa dữ liệu liên quan theo thứ tự an toàn: `inventory_logs`, `product_sales_reports`, `cart`, `wishlist`, `reviews`, `product_images`, `product_variants`, rồi mới xóa `product`.
+- Bổ sung kiểm tra schema linh hoạt cho `order_items.product_id` hoặc `order_items.variant_id`, vì một số máy có thể đang lệch schema giữa product và variant.
+- Chặn slug sản phẩm/danh mục bị trùng trước khi insert/update.
+- Chặn phân loại trùng cùng `size + màu` trong một sản phẩm.
+- Chặn sửa/xóa ảnh hoặc variant không thuộc sản phẩm đang thao tác.
+- Chuẩn hóa tồn kho và phần cộng giá không nhận số âm trong admin product.
+
+### UI/UX Đã Nâng Cấp
+- Việt hóa màn danh sách sản phẩm, form thêm/sửa sản phẩm và màn danh mục.
+- Nâng cấp giao diện admin theo tông trắng, đen, xám; panel rõ ràng, bảng dễ đọc, badge trạng thái đồng bộ.
+- Form sản phẩm được chia thành thông tin chung, nội dung/ảnh, thư viện ảnh và phân loại size/màu.
+- Variant có hiển thị chấm màu trực quan cho Đen, Đỏ, Trắng.
+
+### File Đã Sửa
+- `app/Models/Product.php`
+- `app/Controller/Admin/ProductController.php`
+- `app/Controller/Admin/CategoryController.php`
+- `app/Services/UploadService.php`
+- `app/Views/admin/_helpers.php`
+- `app/Views/admin/products/index.php`
+- `app/Views/admin/products/form.php`
+- `app/Views/admin/categories/index.php`
+- `README.md`
+
+### Checklist Kiểm Thử
+- Tạo sản phẩm mới, nhập tên tiếng Việt, kiểm tra slug tự sinh.
+- Upload ảnh sản phẩm, đặt ảnh đại diện, xóa ảnh.
+- Thêm, sửa, xóa variant size/màu; thử thêm trùng size/màu để kiểm tra báo lỗi.
+- Ẩn/hiện sản phẩm và danh mục.
+- Xóa vĩnh viễn sản phẩm chưa có đơn hàng.
+- Thử xóa sản phẩm đã có đơn hàng, hệ thống phải chặn và hiển thị thông báo yêu cầu ẩn sản phẩm.
+
 ## Checklist Cho Thành Viên Mới
 
 ### Trước Khi Bắt Đầu
@@ -258,6 +332,28 @@ Nếu nhóm đang sửa project theo hướng hoàn thiện dần, thứ tự an
 - Checklist hiện tại phù hợp cho một project chưa hoàn thiện.
 - Phân công nên tách theo feature/role để mỗi người có đầu việc rõ ràng và không chờ nhau quá nhiều.
 - Với project này, ưu tiên lớn nhất vẫn là: `responsive đa thiết bị`, `deploy internet`, `checkout đúng`, `order đúng`, và `inventory đúng`.
+
+## Hoàn Thiện Nghiệp Vụ Thương Mại Điện Tử
+
+Đã triển khai trục nghiệp vụ B2C: `PRODUCT → VARIANT → CART → ORDER → INVENTORY → SHIPPING → AFTER-SALE`.
+
+- Giỏ hàng và đơn hàng lưu `variant_id`; khách phải chọn đúng size/màu. Giá được đọc lại từ database khi đặt hàng.
+- Checkout kiểm tra tồn kho, tính phí ship ở server (miễn phí từ 1.000.000đ, dưới mức này 30.000đ), tính lại coupon và không tin tổng tiền từ trình duyệt.
+- Vòng đời đơn: `pending → confirmed → preparing → shipping → delivered → completed`; nhánh hủy có kiểm soát. Xác nhận đơn mới trừ kho, hủy đơn đã trừ kho mới hoàn kho, mọi thay đổi lưu `inventory_logs` và `order_status_logs`.
+- Bổ sung vận chuyển: đơn vị vận chuyển, mã vận đơn, phí ship, trạng thái giao, thời điểm giao.
+- Bổ sung đổi trả, đổi sản phẩm, hoàn tiền và bảo hành; chỉ áp dụng sau khi đơn giao thành công.
+- Review chỉ được tạo khi người dùng sở hữu `order_item` trong đơn `delivered/completed`.
+- Coupon có hạn dùng, đơn tối thiểu, lượt dùng toàn hệ thống, lượt dùng mỗi tài khoản, phạm vi theo sản phẩm/danh mục và bảng `coupon_usages`.
+- Marketing: banner động, sản phẩm nổi bật do admin bật `is_featured`, sản phẩm bán chạy theo số lượng đã giao thành công, SEO title/description/canonical và hàng đợi giỏ bỏ quên có retry, trạng thái gửi và link hủy nhận email.
+- Checkout lưu xác nhận thỏa thuận điện tử theo phiên bản điều khoản, thời điểm, IP và user-agent; đơn cũ không có dữ liệu sẽ được hiển thị là chưa ghi nhận.
+- Thông báo giao dịch cho đơn mới và từng lần đổi trạng thái được đưa vào `order_notifications`, có retry tối đa 3 lần và chạy qua SMTP.
+- CSKH có form tạo ticket, mã yêu cầu, trạng thái xử lý ở admin và email xác nhận tự động qua hàng đợi `support_tickets`.
+
+Ứng dụng tự chạy migration idempotent trong `app/Models/Database.php` để nâng CSDL cũ: thêm `variant_id`, snapshot giá/size/màu, trường vận chuyển, trạng thái giữ kho/bán/trả, bảng usage/review/hậu mãi/bằng chứng và giỏ bỏ quên. Hiện checkout chỉ hỗ trợ COD; chuyển khoản và ví điện tử sẽ tích hợp sau khi có gateway/callback/đối soát.
+
+Migration `ecommerce_business_v8` cũng đồng bộ các sản phẩm cũ chưa có `product_variants`, sửa bộ đếm bán/giữ/trả, trạng thái thanh toán, thỏa thuận điện tử, thông báo đơn hàng và hỗ trợ khách hàng; sản phẩm không có variant sẽ không được hiển thị ngoài shop cho đến khi admin thiết lập phân loại.
+
+Để bật email, cấu hình `PACEUP_SMTP_ENABLED=1` cùng các biến môi trường `PACEUP_SMTP_HOST`, `PACEUP_SMTP_PORT`, `PACEUP_SMTP_USERNAME`, `PACEUP_SMTP_PASSWORD`, `PACEUP_SMTP_ENCRYPTION`, `PACEUP_MAIL_FROM`, `PACEUP_MAIL_FROM_NAME` và `APP_BASE_URL` là URL đầy đủ. Có thể chạy các hàng đợi bằng cron: `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_abandoned_cart_reminders.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_order_notifications.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_customer_care_replies.php`.
 
 ## Cấu Trúc Thư Mục
 

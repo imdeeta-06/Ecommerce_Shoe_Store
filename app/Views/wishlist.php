@@ -105,32 +105,7 @@ function showToast(message) {
 }
 
 function addToCartFromWishlist(productId) {
-    const formData = new FormData();
-    formData.append('product_id', productId);
-    formData.append('qty', 1);
-
-    fetch(BASE_URL + 'cart/add', {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Đã thêm vào giỏ hàng!');
-            if (typeof window.updateBadgeGlobal === 'function') {
-                window.updateBadgeGlobal(data.cart_count);
-            }
-        } else {
-            showToast(data.message || 'Có lỗi xảy ra!');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('Có lỗi xảy ra, vui lòng thử lại!');
-    });
+    window.location.href = BASE_URL + 'product?id=' + productId;
 }
 </script>
 

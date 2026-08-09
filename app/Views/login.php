@@ -1,36 +1,10 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once 'config/db.php';
-
-$error = $_SESSION['flash']['error'] ?? '';
-unset($_SESSION['flash']['error']);
-$success = isset($_GET['registered']) ? 'Đăng ký thành công, vui lòng đăng nhập.' : '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    
-    $stmt = $pdo->prepare("SELECT * FROM user WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_name'] = $user['full_name'];
-        $_SESSION['user_role'] = $user['role'];
-        $_SESSION['user_avatar'] = $user['avatar'] ?? null;
-        
-        if ($user['role'] === 'admin') {
-            header('Location: ' . (defined('BASE_URL') ? BASE_URL : '/') . 'admin');
-        } else {
-            header('Location: ' . (defined('BASE_URL') ? BASE_URL : '/'));
-        }
-        exit;
-    } else {
-        $error = 'Email hoặc mật khẩu không đúng.';
-    }
-}
+$error = \App\Helpers\SessionHelper::getFlash('error') ?? '';
+$success = isset($_GET['registered'])
+    ? 'Đăng ký thành công, vui lòng đăng nhập.'
+    : (\App\Helpers\SessionHelper::getFlash('success') ?? '');
+$oldEmail = $_SESSION['login_old']['email'] ?? '';
+unset($_SESSION['login_old']);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -48,44 +22,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <main class="auth-page">
     <div class="auth-form-wrapper">
         <div class="auth-form">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <h2>Welcome</h2>
-                <p class="subtitle">Please enter your details.</p>
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h2 style="font-family: var(--font-heading); font-size: 2rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;">Đăng nhập</h2>
+                <p style="color: #666; font-size: 0.9rem;">Vui lòng nhập thông tin của bạn.</p>
             </div>
             
             <?php if ($error): ?>
-                <div style="background: #fee; color: #c00; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
+                <div class="client-flash error">
                     <?= htmlspecialchars($error) ?>
                 </div>
             <?php endif; ?>
             <?php if ($success): ?>
-                <div style="background: #efe; color: #070; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
+                <div class="client-flash success">
                     <?= htmlspecialchars($success) ?>
                 </div>
             <?php endif; ?>
             
             <form action="<?= BASE_URL ?>login" method="POST">
-                <div class="form-group">
-                    <input type="text" id="email" name="email" placeholder="Email" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                <div class="client-form-group">
+                    <label class="client-label">Email</label>
+                    <input type="email" id="email" name="email" class="client-input" required value="<?= htmlspecialchars($oldEmail) ?>">
                 </div>
-                <div class="form-group" style="position: relative;">
-                    <input type="password" id="password" name="password" placeholder="Password" required style="padding-right: 40px; width: 100%;">
-                    <button type="button" id="togglePassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #888; display: flex; align-items: center; justify-content: center; padding: 0;">
-                        <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    </button>
+                <div class="client-form-group" style="position: relative;">
+                    <label class="client-label">Mật khẩu</label>
+                    <input type="password" id="password" name="password" class="client-input" required style="padding-right: 60px;">
+                    <button type="button" id="togglePassword" style="position: absolute; right: 0; top: 35px; background: none; border: none; cursor: pointer; color: #111; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Hiện</button>
                 </div>
                 
-                <div class="auth-options">
-                    <label>
-                        <input type="checkbox" name="remember"> Remember for 30 days
+                <div class="client-auth-options">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="remember" style="accent-color: #111;"> Ghi nhớ tôi
                     </label>
-                    <a href="#">Forgot password?</a>
+                    <a href="<?= BASE_URL ?>forgot-password" class="client-text-link">Quên mật khẩu?</a>
                 </div>
 
-                <button type="submit" class="btn-login">Login</button>
+                <button type="submit" class="client-btn" style="width: 100%;">Đăng nhập</button>
 
-                <p style="text-align: center; margin-top: 1.5rem; font-size: 14px; color: #888;">
-                    Don't have an account? <a href="<?= BASE_URL ?>register" style="color: #000; font-weight: 600;">Sign up</a>
+                <p style="text-align: center; margin-top: 2rem; font-size: 0.85rem; color: #666;">
+                    Chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="client-text-link">Đăng ký ngay</a>
                 </p>
             </form>
         </div>
@@ -97,16 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     document.addEventListener('DOMContentLoaded', function() {
         const togglePassword = document.getElementById('togglePassword');
         const passwordInput = document.getElementById('password');
-        const eyeIcon = document.getElementById('eyeIcon');
         
         if(togglePassword) {
             togglePassword.addEventListener('click', function() {
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
-                    eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                    togglePassword.textContent = 'Ẩn';
                 } else {
                     passwordInput.type = 'password';
-                    eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+                    togglePassword.textContent = 'Hiện';
                 }
             });
         }

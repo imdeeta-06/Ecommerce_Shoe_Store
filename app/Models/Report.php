@@ -32,9 +32,9 @@ class Report extends BaseModel {
 
     // --- DASHBOARD STATISTICS ---
 
-    // 1. Tính tổng doanh thu linh động theo khoảng thời gian (Bỏ qua các đơn hàng bị 'canceled')
+    // 1. Doanh thu thực nhận: chỉ tính đơn đã giao/hoàn thành và trừ hoàn tiền.
     public function calculateTotalRevenue($startDate = null, $endDate = null) {
-        $query = "SELECT SUM(final_amount) as total_revenue FROM orders WHERE status != 'canceled'";
+        $query = "SELECT COALESCE(SUM(final_amount), 0) as total_revenue FROM orders WHERE status IN ('delivered', 'completed')";
         $params = [];
 
         if ($startDate) {
@@ -50,7 +50,25 @@ class Report extends BaseModel {
         $stmt->execute($params);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $result['total_revenue'] ? (float)$result['total_revenue'] : 0.00;
+        $revenue = (float)($result['total_revenue'] ?? 0);
+
+        $refundQuery = "SELECT COALESCE(SUM(r.refund_amount), 0)
+            FROM after_sale_requests r
+            JOIN orders o ON o.id = r.order_id
+            WHERE r.status IN ('refunded', 'completed')";
+        $refundParams = [];
+        if ($startDate) {
+            $refundQuery .= " AND DATE(COALESCE(r.refund_processed_at, o.delivered_at, o.created_at)) >= :refund_start_date";
+            $refundParams['refund_start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $refundQuery .= " AND DATE(COALESCE(r.refund_processed_at, o.delivered_at, o.created_at)) <= :refund_end_date";
+            $refundParams['refund_end_date'] = $endDate;
+        }
+        $refundStmt = $this->db->prepare($refundQuery);
+        $refundStmt->execute($refundParams);
+
+        return max(0, $revenue - (float)$refundStmt->fetchColumn());
     }
 
     // 2. Thống kê / Lọc các sản phẩm bị hủy nhiều nhất (Nằm trong các đơn hàng 'canceled')

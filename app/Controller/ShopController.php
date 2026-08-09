@@ -21,6 +21,8 @@ class ShopController {
         ]);
 
         $categories = $productModel->getActiveCategories();
+        $metaTitle = 'Cửa hàng giày Nike chính hãng - PaceUp';
+        $metaDescription = 'Tìm kiếm và lọc giày Nike theo giới tính, danh mục, giá và sản phẩm phù hợp.';
 
         require __DIR__ . '/../Views/shop.php';
     }

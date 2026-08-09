@@ -611,15 +611,20 @@ ul {
     background-size: cover;
     background-position: center;
     opacity: 0;
-    transition: opacity 1s ease-in-out;
+    transition: opacity 1s ease-in-out, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     color: #fff;
+    cursor: pointer;
 }
 
-.hero-slide::after {
+.hero-slide.active:hover {
+    transform: scale(1.04);
+}
+
+/* .hero-slide::after {
     content: '';
     position: absolute;
     top: 0;
@@ -627,7 +632,7 @@ ul {
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.35);
-}
+} */
 
 .hero-slide.active {
     opacity: 1;
@@ -1804,4 +1809,293 @@ ul {
     .acc-responsive-address {
         grid-template-columns: 1fr !important;
     }
+}
+
+/* =========================================
+   CLIENT MINIMALIST DESIGN SYSTEM
+   ========================================= */
+
+.client-page {
+  max-width: 1200px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  font-family: var(--font-body);
+  color: #111;
+}
+
+.client-title {
+  font-family: var(--font-heading);
+  font-size: 2.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.client-section-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #111;
+}
+
+/* Layout Grids */
+.client-layout-2 {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .client-layout-2 { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+/* Sidebar Menu */
+.client-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid #ddd;
+}
+.client-menu li {
+  border-bottom: 1px solid #ddd;
+}
+.client-menu a {
+  display: block;
+  padding: 1rem 0;
+  color: #666;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: color 0.3s;
+}
+.client-menu a:hover,
+.client-menu a.active {
+  color: #111;
+}
+
+/* Forms & Inputs */
+.client-form-group {
+  margin-bottom: 1.5rem;
+}
+.client-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.client-input {
+  width: 100%;
+  padding: 1rem 0;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  background: transparent;
+  font-size: 1rem;
+  font-family: var(--font-body);
+  color: #111;
+  transition: border-color 0.3s;
+  border-radius: 0;
+}
+.client-input:focus {
+  outline: none;
+  border-bottom-color: #111;
+}
+
+/* Buttons */
+.client-btn {
+  display: inline-block;
+  background: #111;
+  color: #fff;
+  border: 1px solid #111;
+  padding: 1rem 2rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  border-radius: 0;
+}
+.client-btn:hover {
+  background: #fff;
+  color: #111;
+}
+.client-btn-outline {
+  background: transparent;
+  color: #111;
+}
+.client-btn-outline:hover {
+  background: #111;
+  color: #fff;
+}
+.client-btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+.client-btn-danger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+.client-btn-danger:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Address Cards & Blocks */
+.client-card {
+  border: 1px solid #ddd;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+.client-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.client-card-body p {
+  margin: 0 0 0.5rem 0;
+  color: #555;
+  font-size: 0.95rem;
+}
+.client-text-link {
+  color: #111;
+  text-decoration: underline;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  transition: opacity 0.3s;
+}
+.client-text-link:hover {
+  opacity: 0.7;
+}
+
+/* Flash Messages */
+.client-flash {
+  padding: 1rem;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+  border: 1px solid #111;
+  text-align: center;
+}
+.client-flash.error {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fffafa;
+}
+.client-flash.success {
+  border-color: #10b981;
+  color: #10b981;
+  background: #f0fdf4;
+}
+
+/* Auth Pages (Login/Register) */
+.client-auth-wrapper {
+  max-width: 400px;
+  margin: 6rem auto;
+  padding: 0 1.5rem;
+}
+.client-auth-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  font-size: 0.85rem;
+}
+.client-auth-options a {
+  color: #111;
+  text-decoration: underline;
+}
+
+/* Tabs */
+.client-tabs {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+.client-tab {
+  padding: 1rem 0;
+  color: #888;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+.client-tab:hover {
+  color: #111;
+}
+.client-tab.active {
+  color: #111;
+  border-bottom-color: #111;
+}
+
+/* Avatar Upload minimal */
+.client-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+}
+.client-avatar-img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 0;
+  border: 1px solid #ddd;
+  margin-bottom: 1rem;
+}
+.client-avatar-label {
+  cursor: pointer;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: underline;
+}
+
+/* Data Lists (Orders) */
+.client-data-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.client-data-item {
+  border: 1px solid #ddd;
+  padding: 1.5rem;
+}
+.client-data-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.client-data-label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.client-data-val {
+  font-weight: 500;
 }

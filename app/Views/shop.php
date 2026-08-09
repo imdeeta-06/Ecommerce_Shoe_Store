@@ -95,8 +95,8 @@ function productDisplayType($product): string {
                                 <img src="<?= BASE_URL . htmlspecialchars($imagePath) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
                             <?php endif; ?>
                             <div class="product-actions" onclick="event.preventDefault(); event.stopPropagation()">
-                                <button class="btn-add-cart" onclick="addToCart(<?= (int)$product['id'] ?>)">
-                                    Thêm vào giỏ
+                                <button class="btn-add-cart" onclick="goToProduct(<?= (int)$product['id'] ?>)">
+                                    Chọn size & màu
                                 </button>
                                 <button class="btn-quick-view" onclick="openQuickView(<?= $index ?>)">Xem nhanh</button>
                             </div>
@@ -222,6 +222,9 @@ function loadCart() {
                 cart = data.items.map(item => ({
                     cart_id: item.id,
                     product_id: item.product_id,
+                    variant_id: item.variant_id,
+                    size: item.size,
+                    color: item.color,
                     name: item.name,
                     price: parseFloat(item.price),
                     qty: parseInt(item.quantity),
@@ -233,24 +236,11 @@ function loadCart() {
 }
 
 function addToCart(productId) {
-    const formData = new FormData();
-    formData.append('product_id', productId);
-    formData.append('qty', 1);
+    goToProduct(productId);
+}
 
-    fetch(BASE_URL + 'cart/add', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: formData
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            showToast('Đã thêm vào giỏ hàng!');
-            loadCart();
-            toggleCart(true);
-            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
-        } else {
-            showToast(data.message || 'Lỗi!');
-        }
-    });
+function goToProduct(productId) {
+    window.location.href = BASE_URL + 'product?id=' + productId;
 }
 
 function removeFromCart(cartId) {
@@ -313,7 +303,7 @@ function updateCartUI(totalItems = 0) {
             <img src="${imgUrl}" alt="${item.name}">
             <div class="cart-item-info">
                 <div class="item-name">${item.name}</div>
-                <div class="item-price">${formatPrice(item.price)}</div>
+                    <div class="item-price">${formatPrice(item.price)}<br><small>Size: ${item.size || 'Mặc định'} · Màu: ${item.color || 'Mặc định'}</small></div>
                 <div class="cart-item-qty">
                     <button onclick="updateQty(${item.cart_id}, ${item.qty - 1})">-</button>
                     <span>${item.qty}</span>

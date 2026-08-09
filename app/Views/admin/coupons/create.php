@@ -1,4 +1,7 @@
-<?php adminStart('Thêm mã giảm giá', 'coupons'); ?>
+<?php
+require_once __DIR__ . '/../_helpers.php';
+adminStart('Thêm mã giảm giá', 'coupons'); 
+?>
 
 <div class="admin-panel" style="max-width: 800px;">
     <form method="post" action="<?= BASE_URL ?>admin/coupons/store">
@@ -7,6 +10,22 @@
                 <label>Mã giảm giá (Code) *</label>
                 <input type="text" name="code" required placeholder="VD: TET2024">
             </div>
+        </div>
+
+        <div class="admin-grid" style="margin-bottom: 1.25rem;">
+            <div class="admin-field">
+                <label>Giới hạn mỗi khách hàng</label>
+                <input type="number" name="usage_limit_per_user" min="1" step="1" value="1">
+                <small style="color:#666;">Mỗi tài khoản được dùng mã tối đa bao nhiêu lần.</small>
+            </div>
+            <div class="admin-field">
+                <label>Phạm vi áp dụng</label>
+                <select name="category_id"><option value="">Tất cả danh mục</option><?php foreach (($categories ?? []) as $category): ?><option value="<?= (int)$category['id'] ?>"><?= adminE($category['name']) ?></option><?php endforeach; ?></select>
+            </div>
+        </div>
+        <div class="admin-field">
+            <label>Hoặc chỉ áp dụng cho sản phẩm</label>
+            <select name="product_id"><option value="">Tất cả sản phẩm</option><?php foreach (($products ?? []) as $product): ?><option value="<?= (int)$product['id'] ?>"><?= adminE($product['name']) ?></option><?php endforeach; ?></select>
         </div>
 
         <div class="admin-grid" style="margin-bottom: 1.25rem;">

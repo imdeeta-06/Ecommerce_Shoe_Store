@@ -1,21 +1,32 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
+<?php
+function homeAssetUrl($image): string {
+    $image = trim((string)$image);
+    if ($image === '') return BASE_URL . 'assets/images/placeholder.jpg';
+    if (preg_match('/^https?:\/\//i', $image)) return $image;
+    if (str_starts_with($image, 'public/')) return BASE_URL . $image;
+    if (str_starts_with($image, 'uploads/')) return BASE_URL . 'public/' . $image;
+    if (str_starts_with($image, 'assets/')) return BASE_URL . $image;
+    return BASE_URL . 'assets/images/' . $image;
+}
+?>
+
 <main>
     <!-- Hero Slideshow -->
     <section class="hero-slideshow" id="heroSlideshow">
-        <div class="hero-slide active" style="background-image: url('<?= BASE_URL ?>assets/images/hero1.jpg')"></div>
-        <div class="hero-slide" style="background-image: url('<?= BASE_URL ?>assets/images/hero2..avif')"></div>
-        <div class="hero-slide" style="background-image: url('<?= BASE_URL ?>assets/images/hero3.avif')"></div>
-        <div class="hero-slide" style="background-image: url('<?= BASE_URL ?>assets/images/hero4.avif')"></div>
-        <div class="hero-slide" style="background-image: url('<?= BASE_URL ?>assets/images/hero5.avif')"></div>
+        <?php $heroBanners = !empty($banners) ? $banners : [
+            ['image_url' => 'assets/images/hero2..avif'],
+            ['image_url' => 'assets/images/hero3.avif'],
+            ['image_url' => 'assets/images/hero4.avif']
+        ]; ?>
+        <?php foreach ($heroBanners as $index => $banner): ?>
+            <div class="hero-slide <?= $index === 0 ? 'active' : '' ?>" data-link="<?= htmlspecialchars($banner['link_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background-image: url('<?= htmlspecialchars(homeAssetUrl($banner['image_url'] ?? ''), ENT_QUOTES, 'UTF-8') ?>');<?= !empty($banner['link_url']) ? 'cursor:pointer;' : '' ?>"></div>
+        <?php endforeach; ?>
 
         <!-- Dots -->
         <div class="hero-dots">
-            <button class="hero-dot active" data-slide="0"></button>
-            <button class="hero-dot" data-slide="1"></button>
-            <button class="hero-dot" data-slide="2"></button>
-            <button class="hero-dot" data-slide="3"></button>
-            <button class="hero-dot" data-slide="4"></button>
+            <?php foreach ($heroBanners as $index => $banner): ?><button class="hero-dot <?= $index === 0 ? 'active' : '' ?>" data-slide="<?= $index ?>"></button><?php endforeach; ?>
         </div>
 
         <!-- Arrows -->
@@ -29,9 +40,9 @@
         <p>Chúng tôi chuyên phân phối giày Nike chính hãng — cam kết nguồn gốc rõ ràng, chất lượng đảm bảo và bảo hành đầy đủ. Mang đến cho bạn trải nghiệm mua sắm uy tín cùng các bộ sưu tập mới nhất.</p>
     </section>
 
-    <!-- Sản phẩm mới -->
+    <!-- Sản phẩm nổi bật do admin lựa chọn -->
     <section class="products-section">
-        <h2>Sản phẩm mới</h2>
+        <h2>Sản phẩm nổi bật</h2>
         <div class="product-grid">
             <?php foreach ($featuredProducts as $product): ?>
             <div class="product-card">
@@ -42,10 +53,29 @@
                     <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" style="text-decoration: none; color: inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category']) ?></span>
                     <div class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
-                    <button class="btn-buy" onclick="addToCart(<?= $product['id'] ?>)">Mua ngay</button>
+                    <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem size & màu</button>
                 </div>
             </div>
             <?php endforeach; ?>
+            <?php if (empty($featuredProducts)): ?><p style="grid-column:1/-1;text-align:center;color:#666;">Chưa có sản phẩm nổi bật.</p><?php endif; ?>
+        </div>
+    </section>
+
+    <section class="products-section">
+        <h2>Sản phẩm bán chạy</h2>
+        <div class="product-grid">
+            <?php foreach ($bestSellingProducts as $product): ?>
+            <div class="product-card">
+                <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper" style="display:block;"><img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img"></a>
+                <div class="product-info">
+                    <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" style="text-decoration:none;color:inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
+                    <span class="product-category"><?= htmlspecialchars($product['category'] ?? '') ?></span>
+                    <div class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+                    <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem sản phẩm</button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+            <?php if (empty($bestSellingProducts)): ?><p style="grid-column:1/-1;text-align:center;color:#666;">Chưa có dữ liệu sản phẩm bán chạy.</p><?php endif; ?>
         </div>
     </section>
 
@@ -142,6 +172,11 @@
     function nextSlide() { goToSlide(current + 1); }
     function prevSlide() { goToSlide(current - 1); }
 
+    slides.forEach(slide => slide.addEventListener('click', () => {
+        const link = slide.dataset.link || '';
+        if (link) window.location.href = link.match(/^https?:\/\//i) ? link : BASE_URL + link.replace(/^\//, '');
+    }));
+
     function startAuto() {
         autoSlide = setInterval(nextSlide, 5000);
     }
@@ -177,6 +212,9 @@ function loadCart() {
                 cart = data.items.map(item => ({
                     cart_id: item.id,
                     product_id: item.product_id,
+                    variant_id: item.variant_id,
+                    size: item.size,
+                    color: item.color,
                     name: item.name,
                     price: parseFloat(item.price),
                     qty: parseInt(item.quantity),
@@ -187,25 +225,8 @@ function loadCart() {
         });
 }
 
-function addToCart(productId) {
-    const formData = new FormData();
-    formData.append('product_id', productId);
-    formData.append('qty', 1);
-
-    fetch(BASE_URL + 'cart/add', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: formData
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            showToast('Đã thêm vào giỏ hàng!');
-            loadCart();
-            toggleCart(true);
-            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
-        } else {
-            showToast(data.message || 'Lỗi!');
-        }
-    });
+function goToProduct(productId) {
+    window.location.href = BASE_URL + 'product?id=' + productId;
 }
 
 function removeFromCart(cartId) {
@@ -273,7 +294,7 @@ function updateCartUI(totalItems = 0) {
                 <img src="${imgUrl}" alt="${item.name}">
                 <div class="cart-item-info">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-price">${formatPrice(item.price)}</div>
+                    <div class="item-price">${formatPrice(item.price)}<br><small>Size: ${item.size || 'Mặc định'} · Màu: ${item.color || 'Mặc định'}</small></div>
                     <div class="cart-item-qty">
                         <button onclick="updateQty(${item.cart_id}, ${item.qty - 1})">−</button>
                         <span>${item.qty}</span>

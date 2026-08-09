@@ -63,7 +63,8 @@
             </svg>
         </div>
         <h1 class="success-title">Đặt hàng thành công!</h1>
-        <p class="success-desc">Cảm ơn bạn đã mua sắm tại Paceup. Đơn hàng của bạn đã được ghi nhận và đang chờ xử lý. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.</p>
+        <p class="success-desc">Cảm ơn bạn đã mua sắm tại PaceUp. Đơn hàng đã được ghi nhận và đang chờ xử lý. Việc đồng ý điều khoản mua hàng đã được lưu cùng đơn; nếu email hợp lệ, PaceUp sẽ gửi thông báo xác nhận và các thay đổi trạng thái.</p>
+        <p style="margin:-1rem 0 2rem;color:#777;font-size:.9rem;">Bạn có thể xem đơn trong tài khoản hoặc <a href="<?= BASE_URL ?>tracking">tra cứu đơn hàng</a>.</p>
         <a href="<?= BASE_URL ?>shop" class="btn-continue">Tiếp tục mua sắm</a>
     </div>
 </div>
