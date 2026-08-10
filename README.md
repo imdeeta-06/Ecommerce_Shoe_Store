@@ -152,7 +152,9 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 - `public/assets/css/style.css` chứa CSS chính
 
 ### Database
-- `Database/paceup_db.sql` chứa schema và dữ liệu mẫu
+- `Database/paceup_lam_catalog_data.sql` chứa dữ liệu catalog đồ lam/phụ kiện để cập nhật vào database `paceup_db`; schema hiện tại được giữ nguyên
+- `Database/paceup_lam_reset_legacy_transactions.sql` là cleanup một lần cho order/report/cart mẫu của ngành giày cũ
+- `assets/images/lam-placeholder.svg` là ảnh minh họa trung tính dùng khi chưa có ảnh sản phẩm thật
 
 ## Cập Nhật P0 Nền Tảng
 
@@ -234,7 +236,7 @@ Ngày cập nhật: 01/08/2026
 - [ ] Đọc hết README này
 - [ ] Mở `index.php` để hiểu cấu trúc route
 - [ ] Mở controller và model liên quan đến phần mình phụ trách
-- [ ] Xem `Database/paceup_db.sql` để hiểu bảng dữ liệu
+- [ ] Xem `Database/paceup_lam_catalog_data.sql` để hiểu dữ liệu catalog hiện tại
 - [ ] Xác định đang làm theo flow controller mới hay code legacy trong `public/views/admin.php`
 - [ ] Kiểm tra giao diện trên desktop, tablet và mobile
 - [ ] Xác định sẵn môi trường deploy, không chỉ chạy local bằng XAMPP
@@ -288,7 +290,7 @@ Ngày cập nhật: 01/08/2026
 - Mục tiêu: đơn hàng và kho phải đồng bộ.
 - Việc cần làm: kiểm tra tạo đơn, trạng thái đơn, hủy đơn, trừ kho, hoàn kho, log trạng thái.
 - Deliverable: luồng order chuẩn + stock không lệch.
-- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_db.sql`.
+- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_lam_catalog_data.sql`.
 
 ### 6. Admin Sản Phẩm
 - Mục tiêu: quản lý sản phẩm đầy đủ trong admin.

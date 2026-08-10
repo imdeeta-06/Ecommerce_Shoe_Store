@@ -134,7 +134,7 @@ if (!function_exists('adminStart')) {
         }
         .admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { border-color: #111; outline: none; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
 
-        .admin-table-wrapper { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .admin-table-wrapper { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         .admin-table { width: 100%; border-collapse: collapse; text-align: left; }
         .admin-table th, .admin-table td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--admin-border); font-size: 0.9rem; }
         .admin-table th { background: #f9fafb; font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }

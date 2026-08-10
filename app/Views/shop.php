@@ -1,7 +1,14 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
-$gender = isset($_GET['gender']) ? $_GET['gender'] : 'all';
+$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
+$gender = [
+    'mens' => 'men',
+    'womens' => 'women',
+][$gender] ?? $gender;
+if (!in_array($gender, ['all', 'men', 'women'], true)) {
+    $gender = 'all';
+}
 $genderLabel = 'Tất cả sản phẩm';
 if ($gender === 'men') $genderLabel = 'Sản phẩm Nam';
 if ($gender === 'women') $genderLabel = 'Sản phẩm Nữ';

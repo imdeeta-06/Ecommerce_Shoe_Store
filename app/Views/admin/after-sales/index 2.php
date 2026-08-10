@@ -14,7 +14,7 @@ $refundLabels = ['not_requested' => 'Không áp dụng', 'pending' => 'Chờ ho�
             <?php foreach ($requests as $request): ?>
                 <?php $evidence = !empty($request['evidence_images']) ? array_filter(explode('||', $request['evidence_images'])) : []; ?>
                 <tr>
-                    <td style="white-space:nowrap;"><strong><?= adminE($request['order_code']) ?></strong><br><?= adminE($request['full_name']) ?><br><small><?= adminE($request['email']) ?></small></td>
+                    <td><strong><?= adminE($request['order_code']) ?></strong><br><?= adminE($request['full_name']) ?><br><small><?= adminE($request['email']) ?></small></td>
                     <td><?= adminE($request['product_name'] ?? 'Sản phẩm') ?></td>
                     <td><?= adminE($typeLabels[$request['request_type']] ?? $request['request_type']) ?><br>Yêu cầu: <?= (int)$request['requested_quantity'] ?><br>Duyệt: <?= (int)$request['approved_quantity'] ?></td>
                     <td style="max-width:260px;"><?= nl2br(adminE($request['reason'])) ?><br><small>Hạn: <?= adminE($request['return_deadline'] ?? 'Không xác định') ?></small><?php if ($evidence): ?><div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem;"><?php foreach ($evidence as $image): ?><a href="<?= adminE(adminImageUrl($image)) ?>" target="_blank"><img src="<?= adminE(adminImageUrl($image)) ?>" alt="Bằng chứng" style="width:46px;height:46px;object-fit:cover;border:1px solid #ddd;border-radius:4px;"></a><?php endforeach; ?></div><?php endif; ?></td>
