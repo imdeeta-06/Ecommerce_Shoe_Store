@@ -16,22 +16,41 @@ if (!function_exists('productAssetPath')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($metaTitle ?? 'PaceUp - Đồ lam và pháp phục đi chùa', ENT_QUOTES, 'UTF-8') ?></title>
-    <meta name="description" content="<?= htmlspecialchars($metaDescription ?? 'Mua đồ lam, pháp phục, túi đi chùa và chuỗi hạt tại PaceUp.', ENT_QUOTES, 'UTF-8') ?>">
+    <title><?= htmlspecialchars($metaTitle ?? 'Liên Hoa - Pháp phục & Đồ lam Phật giáo cao cấp', ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription ?? 'Mua đồ lam đi chùa, pháp phục Tăng – Ni, túi đeo đi chùa, vòng tay trầm hương và tràng hạt tại Liên Hoa.', ENT_QUOTES, 'UTF-8') ?>">
     <?php if (!empty($canonicalUrl)): ?><link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') ?>"><?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css?v=<?= time() ?>">
 </head>
 <body>
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span>🌸 Kính chào quý Phật tử — Giao hàng miễn phí đơn từ 500.000đ</span>
+        </div>
+        <div class="top-bar-right">
+            <a href="<?= BASE_URL ?>admin">Khu vực Người bán</a>
+            <span class="divider">|</span>
+            <a href="<?= BASE_URL ?>admin">Quản trị</a>
+        </div>
+    </div>
     <header class="header">
         <div class="logo">
-            <a href="<?= BASE_URL ?>">PACEUP</a>
+            <a href="<?= BASE_URL ?>" class="logo-wrapper">
+                <span class="logo-icon">🌸</span>
+                <div class="logo-text-group">
+                    <span class="logo-main">Liên Hoa</span>
+                    <span class="logo-sub">ĐỒ LAM PHẬT GIÁO</span>
+                </div>
+            </a>
         </div>
         <nav class="nav-links">
-            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=men') ?>">Nam</a>
-            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=women') ?>">Nữ</a>
+            <a href="<?= BASE_URL ?>">Trang Chủ</a>
+            <a href="<?= BASE_URL ?>shop">Sản Phẩm</a>
+            <a href="<?= BASE_URL ?>about">Giới Thiệu</a>
+            <a href="<?= BASE_URL ?>faqs">Hỏi Đáp</a>
+            <a href="<?= BASE_URL ?>support">Liên Hệ</a>
         </nav>
         <div class="nav-actions">
             <form class="search-bar" action="<?= BASE_URL ?>shop" method="GET">
@@ -61,7 +80,7 @@ if (!function_exists('productAssetPath')) {
                     </div>
                 </div>
             <?php else: ?>
-                <a href="<?= BASE_URL ?>login" style="display: inline-flex; align-items: center; background: #111; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-family: var(--font-ui); font-size: 0.9rem;">
+                <a href="<?= BASE_URL ?>login" class="btn-login-nav">
                     Đăng nhập
                 </a>
             <?php endif; ?>

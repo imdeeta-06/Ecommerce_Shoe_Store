@@ -13,47 +13,123 @@ function homeAssetUrl($image): string {
 ?>
 
 <main>
-    <!-- Hero Slideshow -->
-    <section class="hero-slideshow" id="heroSlideshow">
-        <?php $heroBanners = !empty($banners) ? $banners : [
-            ['image_url' => 'assets/images/hero2..avif'],
-            ['image_url' => 'assets/images/hero3.avif'],
-            ['image_url' => 'assets/images/hero4.avif']
-        ]; ?>
-        <?php foreach ($heroBanners as $index => $banner): ?>
-            <div class="hero-slide <?= $index === 0 ? 'active' : '' ?>" data-link="<?= htmlspecialchars($banner['link_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background-image: url('<?= htmlspecialchars(homeAssetUrl($banner['image_url'] ?? ''), ENT_QUOTES, 'UTF-8') ?>');<?= !empty($banner['link_url']) ? 'cursor:pointer;' : '' ?>"></div>
-        <?php endforeach; ?>
-
-        <!-- Dots -->
-        <div class="hero-dots">
-            <?php foreach ($heroBanners as $index => $banner): ?><button class="hero-dot <?= $index === 0 ? 'active' : '' ?>" data-slide="<?= $index ?>"></button><?php endforeach; ?>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-container">
+            <div class="hero-content">
+                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH</span>
+                <h1 class="hero-title">Pháp Phục<br>Phật Giáo<br>Cao Cấp</h1>
+                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, tượng thờ và vật phẩm tâm linh Phật giáo chất lượng cao. Phục vụ quý Phật tử với tâm từ bi và sự tận tâm.</p>
+                <div class="hero-buttons">
+                    <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá ngay</a>
+                    <a href="<?= BASE_URL ?>about" class="btn-secondary">Tìm hiểu thêm</a>
+                </div>
+            </div>
+            <div class="hero-image-wrapper">
+                <img src="<?= BASE_URL ?>assets/images/lam-hero-banner.webp" alt="Pháp phục Phật giáo Liên Hoa" class="hero-img">
+            </div>
         </div>
-
-        <!-- Arrows -->
-        <button class="hero-arrow prev" id="heroPrev">&#10094;</button>
-        <button class="hero-arrow next" id="heroNext">&#10095;</button>
     </section>
 
-    <!-- Giới thiệu -->
-    <section class="intro-section">
-        <h2>Đồ lam và pháp phục chọn lọc</h2>
-        <p>Gian hàng cung cấp đồ lam đi chùa, pháp phục Tăng – Ni, túi đi chùa, chuỗi hạt và vật dụng thực hành thiền. Thông tin, giá và hình ảnh sản phẩm được trình bày rõ ràng để bạn dễ chọn lựa.</p>
+    <!-- Features Bar -->
+    <section class="features-bar">
+        <div class="feature-item">
+            <span class="feature-icon">🚚</span>
+            <div class="feature-text">
+                <h4>Miễn phí vận chuyển</h4>
+                <p>Đơn từ 500.000đ</p>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">⭐</span>
+            <div class="feature-text">
+                <h4>Hàng chính hãng 100%</h4>
+                <p>Cam kết chất lượng</p>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">🔄</span>
+            <div class="feature-text">
+                <h4>Đổi trả 7 ngày</h4>
+                <p>Không câu nệ</p>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">📞</span>
+            <div class="feature-text">
+                <h4>Hỗ trợ 7:00 - 21:00</h4>
+                <p>Tận tâm phục vụ</p>
+            </div>
+        </div>
     </section>
 
-    <!-- Sản phẩm nổi bật do admin lựa chọn -->
+    <!-- Category Section -->
+    <section class="category-section">
+        <h2 class="section-title">Danh Mục Sản Phẩm</h2>
+        <div class="category-grid">
+            <a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Pháp Phục - Đồ Lam">
+                <div class="category-overlay">
+                    <h3>Pháp Phục - Đồ Lam</h3>
+                    <p>48 sản phẩm</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Tràng Hạt">
+                <div class="category-overlay">
+                    <h3>Tràng Hạt</h3>
+                    <p>32 sản phẩm</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Tượng Thờ">
+                <div class="category-overlay">
+                    <h3>Tượng Thờ</h3>
+                    <p>24 sản phẩm</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop" class="category-card">
+                <img src="<?= BASE_URL ?>assets/images/lam-hero-pagoda.jpg" alt="Kinh Sách">
+                <div class="category-overlay">
+                    <h3>Kinh Sách</h3>
+                    <p>15 sản phẩm</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop" class="category-card">
+                <img src="<?= BASE_URL ?>assets/images/lam-hero-lanterns.jpg" alt="Hương & Nến">
+                <div class="category-overlay">
+                    <h3>Hương & Nến</h3>
+                    <p>12 sản phẩm</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Vật Phẩm Khác">
+                <div class="category-overlay">
+                    <h3>Vật Phẩm Thờ</h3>
+                    <p>19 sản phẩm</p>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- Sản phẩm Mới -->
     <section class="products-section">
-        <h2>Sản phẩm nổi bật</h2>
+        <div class="section-header-flex">
+            <h2 class="section-title-elegant">Sản Phẩm Mới</h2>
+            <a href="<?= BASE_URL ?>shop" class="btn-text-link">Xem tất cả →</a>
+        </div>
         <div class="product-grid">
             <?php foreach ($featuredProducts as $product): ?>
-            <div class="product-card">
-                <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" class="product-img-wrapper" style="display: block;">
+            <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
+                <div class="product-img-wrapper" style="border-radius:16px;">
+                    <span class="badge-tag tag-new">MỚI</span>
                     <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
-                </a>
-                <div class="product-info">
-                    <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" style="text-decoration: none; color: inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
-                    <span class="product-category"><?= htmlspecialchars($product['category']) ?></span>
-                    <div class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
-                    <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem size & màu</button>
+                </div>
+                <div class="product-info-new">
+                    <span class="product-category-new"><?= htmlspecialchars($product['category']) ?></span>
+                    <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
+                    <div class="product-stars">★★★★★ <span class="stars-count">(28)</span></div>
+                    <div class="product-price-new"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -61,17 +137,34 @@ function homeAssetUrl($image): string {
         </div>
     </section>
 
-    <section class="products-section">
-        <h2>Sản phẩm bán chạy</h2>
+    <!-- Special Collection Full-Width Banner -->
+    <section class="promo-banner-section" style="background-image: linear-gradient(rgba(62, 39, 35, 0.65), rgba(62, 39, 35, 0.65)), url('<?= BASE_URL ?>assets/images/lam-hero-courtyard.jpg');">
+        <div class="promo-banner-content">
+            <span class="promo-subtitle">BỘ SƯU TẬP ĐẶC BIỆT</span>
+            <h2>Tràng Hạt & Pháp Cụ<br>Chính Hãng Cao Cấp</h2>
+            <p>Được chọn lọc kỹ lưỡng từ những nghệ nhân uy tín, mang đến nguồn năng lượng tích cực và thanh tịnh cho người sử dụng.</p>
+            <button class="btn-gold" onclick="window.location.href='<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt'">Khám phá bộ sưu tập</button>
+        </div>
+    </section>
+
+    <!-- Sản phẩm Bán Chạy -->
+    <section class="products-section bg-beige-light">
+        <div class="section-header-flex">
+            <h2 class="section-title-elegant">Sản Phẩm Bán Chạy</h2>
+            <a href="<?= BASE_URL ?>shop" class="btn-text-link">Xem tất cả →</a>
+        </div>
         <div class="product-grid">
             <?php foreach ($bestSellingProducts as $product): ?>
-            <div class="product-card">
-                <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper" style="display:block;"><img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img"></a>
-                <div class="product-info">
-                    <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" style="text-decoration:none;color:inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
-                    <span class="product-category"><?= htmlspecialchars($product['category'] ?? '') ?></span>
-                    <div class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
-                    <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem sản phẩm</button>
+            <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
+                <div class="product-img-wrapper" style="border-radius:16px;">
+                    <span class="badge-tag tag-hot">BÁN CHẠY</span>
+                    <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
+                </div>
+                <div class="product-info-new">
+                    <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? '') ?></span>
+                    <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
+                    <div class="product-stars">★★★★★ <span class="stars-count">(36)</span></div>
+                    <div class="product-price-new"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -79,127 +172,94 @@ function homeAssetUrl($image): string {
         </div>
     </section>
 
-    <!-- Bộ sưu tập đồ lam - Horizontal Image Slider -->
-    <section class="lifestyle-section">
-        <h2>Khám phá đồ lam đi chùa</h2>
-        <div class="lifestyle-slider-wrapper">
-            <div class="lifestyle-slider" id="lifestyleSlider">
-                <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Bộ pháp phục lễ chùa nữ">
-                    <div class="slide-overlay">
-                        <h3>Đồ lam nữ</h3>
-                        <p>Thanh lịch, trang nghiêm khi lễ chùa</p>
+    <!-- Testimonials Section -->
+    <section class="testimonials-section">
+        <span class="section-subtitle-center">PHẬT TỬ NÓI GÌ</span>
+        <h2 class="section-title-center">Cảm Nhận Khách Hàng</h2>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-user">
+                    <div class="user-avatar-text">NH</div>
+                    <div>
+                        <h4>Nguyễn Thị Hoa</h4>
+                        <span class="testimonial-date">15/07/2026</span>
                     </div>
                 </div>
-                <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1050.jpg" alt="Bộ pháp phục nam">
-                    <div class="slide-overlay">
-                        <h3>Đồ lam nam</h3>
-                        <p>Phù hợp đi chùa và thực hành thiền</p>
-                    </div>
-                </div>
-                <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Túi nải đi chùa">
-                    <div class="slide-overlay">
-                        <h3>Túi đi chùa</h3>
-                        <p>Gọn gàng cho vật dụng cá nhân</p>
-                    </div>
-                </div>
-                <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Vòng tay trầm hương">
-                    <div class="slide-overlay">
-                        <h3>Chuỗi hạt</h3>
-                        <p>Vòng tay và tràng hạt niệm Phật</p>
-                    </div>
-                </div>
-                <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Đệm ngồi thiền hoa sen">
-                    <div class="slide-overlay">
-                        <h3>Toạ cụ thiền</h3>
-                        <p>Đệm ngồi thiền và lễ Phật</p>
-                    </div>
-                </div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"Áo lam chất lượng rất tốt, may đẹp, vải mềm mịn. Mặc đi chùa rất trang nghiêm. Shop giao hàng nhanh, đóng gói cẩn thận. Sẽ ủng hộ shop dài dài!"</p>
+                <span class="testimonial-product">Sản phẩm: Áo lam nữ vải lanh cao cấp</span>
             </div>
-            <div class="lifestyle-nav">
-                <button onclick="scrollLifestyle(-1)" aria-label="Previous">&#10094;</button>
-                <button onclick="scrollLifestyle(1)" aria-label="Next">&#10095;</button>
+            <div class="testimonial-card">
+                <div class="testimonial-user">
+                    <div class="user-avatar-text">TM</div>
+                    <div>
+                        <h4>Trần Văn Minh</h4>
+                        <span class="testimonial-date">28/07/2026</span>
+                    </div>
+                </div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"Tràng hạt gỗ trầm hương tự nhiên rất dễ chịu. Hạt đều, dây bền. Đây là lần thứ 3 mình mua tại đây, lần nào cũng hài lòng với chất lượng và dịch vụ."</p>
+                <span class="testimonial-product">Sản phẩm: Tràng hạt gỗ trầm hương 108 hạt</span>
             </div>
+            <div class="testimonial-card">
+                <div class="testimonial-user">
+                    <div class="user-avatar-text">PL</div>
+                    <div>
+                        <h4>Phạm Thị Lan</h4>
+                        <span class="testimonial-date">01/08/2026</span>
+                    </div>
+                </div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"Website rất đẹp, sản phẩm phong phú. Tượng Quan Âm mình mua được đúc rất tinh xảo, đẹp hơn hình nhiều. Rất hài lòng với dịch vụ tại Liên Hoa!"</p>
+                <span class="testimonial-product">Sản phẩm: Tượng Phật Quan Âm Bồ Tát</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Blog Section -->
+    <section class="blog-section bg-beige-light">
+        <span class="section-subtitle-center">KIẾN THỨC PHẬT PHÁP</span>
+        <h2 class="section-title-center" style="margin-bottom:3rem;">Tin Tức & Blog</h2>
+        <div class="blog-grid">
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Hướng dẫn chọn áo lam">
+                    <span class="blog-tag">Hướng dẫn</span>
+                </div>
+                <div class="blog-info">
+                    <span class="blog-date">12/07/2026 · 3 phút đọc</span>
+                    <h3><a href="#">Hướng dẫn chọn áo lam đúng kích thước và phong cách</a></h3>
+                    <p>Áo lam là trang phục truyền thống của Phật tử tại gia Việt Nam. Bài viết này sẽ hướng dẫn bạn cách chọn áo lam phù hợp nhất với vóc dáng v...</p>
+                </div>
+            </article>
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Ý nghĩa tràng hạt">
+                    <span class="blog-tag">Kiến thức</span>
+                </div>
+                <div class="blog-info">
+                    <span class="blog-date">25/07/2026 · 5 phút đọc</span>
+                    <h3><a href="#">Ý nghĩa và công dụng của tràng hạt trong Phật giáo</a></h3>
+                    <p>Tràng hạt không chỉ là vật phẩm tâm linh mà còn là công cụ quan trọng trong thiền định và tụng kinh. Tìm hiểu ý nghĩa sâu sắc của tràng hạt...</p>
+                </div>
+            </article>
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Chăm sóc tượng Phật">
+                    <span class="blog-tag">Bảo quản</span>
+                </div>
+                <div class="blog-info">
+                    <span class="blog-date">02/08/2026 · 4 phút đọc</span>
+                    <h3><a href="#">Cách chăm sóc và bảo quản tượng Phật đúng cách</a></h3>
+                    <p>Tượng Phật cần được thờ phụng và chăm sóc đúng cách để giữ được vẻ đẹp và sự linh ứng. Những lưu ý quan trọng bạn cần biết khi thờ tượng t...</p>
+                </div>
+            </article>
         </div>
     </section>
 </main>
 
-<!-- Cart Sidebar -->
-<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
-<div class="cart-sidebar" id="cartSidebar">
-    <div class="cart-sidebar-header">
-        <h3>Giỏ hàng (<span id="cartCount">0</span>)</h3>
-        <button class="cart-close-btn" onclick="toggleCart()">✕</button>
-    </div>
-    <div class="cart-items" id="cartItems">
-        <div class="cart-empty" id="cartEmpty">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-            <p>Giỏ hàng trống</p>
-        </div>
-    </div>
-    <div class="cart-footer">
-        <div class="cart-total">
-            <span class="label">Tổng cộng</span>
-            <span class="amount" id="cartTotal">0 ₫</span>
-        </div>
-        <button class="btn-checkout" onclick="checkout()">Thanh toán</button>
-    </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
 <script>
-// ===== HERO SLIDESHOW =====
-(function() {
-    const slides = document.querySelectorAll('.hero-slide');
-    const dots = document.querySelectorAll('.hero-dot');
-    let current = 0;
-    let autoSlide;
-
-    function goToSlide(index) {
-        slides[current].classList.remove('active');
-        dots[current].classList.remove('active');
-        current = (index + slides.length) % slides.length;
-        slides[current].classList.add('active');
-        dots[current].classList.add('active');
-    }
-
-    function nextSlide() { goToSlide(current + 1); }
-    function prevSlide() { goToSlide(current - 1); }
-
-    slides.forEach(slide => slide.addEventListener('click', () => {
-        const link = slide.dataset.link || '';
-        if (link) window.location.href = link.match(/^https?:\/\//i) ? link : BASE_URL + link.replace(/^\//, '');
-    }));
-
-    function startAuto() {
-        autoSlide = setInterval(nextSlide, 2000);
-    }
-    function resetAuto() {
-        clearInterval(autoSlide);
-        startAuto();
-    }
-
-    document.getElementById('heroNext').addEventListener('click', () => { nextSlide(); resetAuto(); });
-    document.getElementById('heroPrev').addEventListener('click', () => { prevSlide(); resetAuto(); });
-    dots.forEach(dot => {
-        dot.addEventListener('click', () => { goToSlide(parseInt(dot.dataset.slide)); resetAuto(); });
-    });
-
-    startAuto();
-})();
-
-// ===== LIFESTYLE SLIDER =====
-function scrollLifestyle(direction) {
-    const slider = document.getElementById('lifestyleSlider');
-    const slideWidth = slider.querySelector('.lifestyle-slide').offsetWidth + 24;
-    slider.scrollBy({ left: direction * slideWidth, behavior: 'smooth' });
-}
+// ===== NO LIFESTYLE SLIDER OR HERO SLIDESHOW SCRIPTS NEEDED =====
 
 // ===== CART SYSTEM (Database) =====
 let cart = [];

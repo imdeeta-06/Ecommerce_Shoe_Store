@@ -3,27 +3,27 @@
 <style>
 .checkout-layout { display: flex; gap: 4rem; }
 .checkout-form-section { flex: 1.5; }
-.checkout-summary-section { flex: 1; background: #fff; padding: 2rem; border: 1px solid #ddd; align-self: flex-start; position: sticky; top: 20px; }
+.checkout-summary-section { flex: 1; background: var(--primary-light); padding: 2rem; border: 1px solid var(--border-color); border-radius: 16px; align-self: flex-start; position: sticky; top: 20px; box-shadow: 0 4px 15px rgba(74, 59, 50, 0.03); }
 
 .form-row { display: flex; gap: 1.5rem; }
 .form-row > .client-form-group { flex: 1; }
 
 .payment-methods { display: flex; flex-direction: column; gap: 1rem; }
-.payment-method { border: 1px solid #ddd; padding: 1rem; cursor: pointer; display: flex; align-items: center; gap: 1rem; transition: border-color 0.2s; }
-.payment-method:hover { border-color: #111; }
-.payment-method input[type="radio"] { margin: 0; width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #111; }
-.payment-method label { margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; flex: 1; text-transform: uppercase; letter-spacing: 1px; }
-.payment-method.active { border-color: #111; }
+.payment-method { border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; cursor: pointer; display: flex; align-items: center; gap: 1rem; transition: all 0.3s; background: #fff; }
+.payment-method:hover { border-color: var(--primary-color); }
+.payment-method input[type="radio"] { margin: 0; width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: var(--primary-dark); }
+.payment-method label { margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; flex: 1; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); }
+.payment-method.active { border-color: var(--primary-color); background: var(--primary-light); }
 
 .summary-item { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-.summary-item img { width: 70px; height: 70px; object-fit: cover; border: 1px solid #ddd; }
+.summary-item img { width: 70px; height: 70px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 8px; }
 .summary-item-info { flex: 1; }
-.summary-item-name { font-weight: 500; font-size: 0.9rem; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 1px; }
-.summary-item-qty { color: #888; font-size: 0.85rem; }
-.summary-item-price { font-weight: 600; font-size: 0.95rem; }
+.summary-item-name { font-weight: 500; font-size: 0.9rem; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); }
+.summary-item-qty { color: var(--text-muted); font-size: 0.85rem; }
+.summary-item-price { font-weight: 600; font-size: 0.95rem; color: var(--primary-dark); }
 
-.summary-row { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #666; }
-.summary-total { display: flex; justify-content: space-between; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #ddd; font-weight: 600; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; color: #111; }
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+.summary-total { display: flex; justify-content: space-between; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-weight: 600; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); }
 
 @media (max-width: 900px) {
     .checkout-layout { flex-direction: column; }
@@ -83,8 +83,8 @@
             </div>
 
             <label style="display:flex;gap:.7rem;align-items:flex-start;margin-top:1.5rem;color:#444;line-height:1.6;">
-                <input type="checkbox" id="termsAccepted" required style="margin-top:.35rem;width:1.1rem;height:1.1rem;accent-color:#111;">
-                <span>Tôi đồng ý với <a href="<?= BASE_URL ?>terms" target="_blank" rel="noopener">Điều khoản mua hàng</a> và <a href="<?= BASE_URL ?>privacy" target="_blank" rel="noopener">Chính sách bảo mật</a> của PaceUp.</span>
+                <input type="checkbox" id="termsAccepted" required style="margin-top:.35rem;width:1.1rem;height:1.1rem;accent-color:var(--primary-dark);">
+                <span>Tôi đồng ý với <a href="<?= BASE_URL ?>terms" target="_blank" rel="noopener">Điều khoản mua hàng</a> và <a href="<?= BASE_URL ?>privacy" target="_blank" rel="noopener">Chính sách bảo mật</a> của Liên Hoa.</span>
             </label>
 
             <button type="submit" class="client-btn" style="width: 100%; margin-top: 2rem;">Hoàn tất đặt hàng</button>

@@ -29,8 +29,8 @@ class ShopController {
         ]);
 
         $categories = $productModel->getActiveCategories();
-        $metaTitle = 'Cửa hàng giày Nike chính hãng - PaceUp';
-        $metaDescription = 'Tìm kiếm và lọc giày Nike theo giới tính, danh mục, giá và sản phẩm phù hợp.';
+        $metaTitle = 'Cửa hàng Pháp phục & Đồ lam Phật giáo - Liên Hoa';
+        $metaDescription = 'Mua sắm áo lam, tràng hạt, tượng thờ và các vật phẩm Phật giáo chọn lọc tại Liên Hoa.';
 
         require __DIR__ . '/../Views/shop.php';
     }

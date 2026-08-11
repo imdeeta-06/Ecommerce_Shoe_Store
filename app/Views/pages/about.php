@@ -5,7 +5,7 @@ include __DIR__ . '/../partials/header.php';
 <main class="client-page">
     <h1 class="client-title" style="text-align: center; margin-bottom: 2rem;">Về chúng tôi</h1>
     <div class="client-main-content" style="max-width: 800px; margin: 0 auto; line-height: 1.8; color: #333; font-size: 1rem;">
-        <p style="margin-bottom: 1.5rem;">PaceUp được xây dựng với mong muốn giúp khách hàng dễ dàng chọn đồ lam, pháp phục và vật dụng đi chùa phù hợp. Chúng tôi hướng đến trải nghiệm mua sắm rõ ràng, trang trọng và thuận tiện.</p>
+        <p style="margin-bottom: 1.5rem;">Liên Hoa được xây dựng với mong muốn giúp khách hàng dễ dàng chọn đồ lam, pháp phục và vật dụng đi chùa phù hợp. Chúng tôi hướng đến trải nghiệm mua sắm rõ ràng, trang trọng và thuận tiện.</p>
         
         <h2 class="client-section-title" style="margin-top: 3rem;">Tầm nhìn & Sứ mệnh</h2>
         <p style="margin-bottom: 1.5rem;">Trở thành gian hàng trực tuyến đáng tin cậy về đồ lam, pháp phục, túi đi chùa và chuỗi hạt, mang sản phẩm phù hợp đến gần hơn với khách hàng qua dịch vụ tận tâm.</p>

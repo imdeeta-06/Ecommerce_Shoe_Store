@@ -10,8 +10,8 @@ if (!in_array($gender, ['all', 'men', 'women'], true)) {
     $gender = 'all';
 }
 $genderLabel = 'Tất cả sản phẩm';
-if ($gender === 'men') $genderLabel = 'Sản phẩm Nam';
-if ($gender === 'women') $genderLabel = 'Sản phẩm Nữ';
+if ($gender === 'men') $genderLabel = 'Pháp phục Nam';
+if ($gender === 'women') $genderLabel = 'Pháp phục Nữ';
 
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
@@ -86,9 +86,9 @@ function productDisplayType($product): string {
                     <summary>Giá</summary>
                     <ul>
                         <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'all'])) ?>" class="<?= $priceRange === 'all' ? 'active' : '' ?>">Tất cả</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt3'])) ?>" class="<?= $priceRange === 'lt3' ? 'active' : '' ?>">Dưới 3.000.000 VNĐ</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '3to5'])) ?>" class="<?= $priceRange === '3to5' ? 'active' : '' ?>">3.000.000 - 5.000.000 VNĐ</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt5'])) ?>" class="<?= $priceRange === 'gt5' ? 'active' : '' ?>">Trên 5.000.000 VNĐ</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt500k'])) ?>" class="<?= $priceRange === 'lt500k' ? 'active' : '' ?>">Dưới 500.000 ₫</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '500kto1m5'])) ?>" class="<?= $priceRange === '500kto1m5' ? 'active' : '' ?>">500.000 ₫ - 1.500.000 ₫</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt1m5'])) ?>" class="<?= $priceRange === 'gt1m5' ? 'active' : '' ?>">Trên 1.500.000 ₫</a></li>
                     </ul>
                 </details>
             </aside>

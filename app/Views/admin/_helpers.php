@@ -86,19 +86,19 @@ if (!function_exists('adminStart')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= adminE($title) ?> - PACEUP Admin</title>
+    <title><?= adminE($title) ?> - Liên Hoa Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --admin-bg: #f9f9fb;
-            --admin-sidebar: #111111;
-            --admin-primary: #000000;
-            --admin-text: #1a1a1a;
-            --admin-text-light: #6b7280;
-            --admin-border: #e5e7eb;
-            --font-ui: 'Inter', sans-serif;
+            --admin-bg: #fcfaf6;
+            --admin-sidebar: #3e2723;
+            --admin-primary: #b8976b;
+            --admin-text: #3e2723;
+            --admin-text-light: #796e65;
+            --admin-border: #ebdcc6;
+            --font-ui: 'Outfit', sans-serif;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: var(--font-ui); background: var(--admin-bg); color: var(--admin-text); display: flex; min-height: 100vh; overflow-x: hidden; }
@@ -144,8 +144,8 @@ if (!function_exists('adminStart')) {
         .admin-actions { display: flex; gap: 0.5rem; align-items: center; }
         .admin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: var(--font-ui); }
         .admin-btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: 4px; }
-        .admin-btn.primary { background: #111; color: #fff; }
-        .admin-btn.primary:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .admin-btn.primary { background: var(--admin-sidebar); color: #fff; }
+        .admin-btn.primary:hover { background: var(--admin-primary); color: var(--admin-sidebar); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(74, 59, 50, 0.15); }
         .admin-btn.light { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
         .admin-btn.light:hover { background: #e5e7eb; }
         .admin-btn.danger { background: #ef4444; color: #fff; }
@@ -177,7 +177,7 @@ if (!function_exists('adminStart')) {
 </head>
 <body>
     <aside class="admin-sidebar">
-        <a href="<?= BASE_URL ?>admin" class="admin-brand">PACEUP</a>
+        <a href="<?= BASE_URL ?>admin" class="admin-brand">🌸 Liên Hoa</a>
         <nav class="admin-nav">
             <ul>
                 <li><a href="<?= BASE_URL ?>admin" class="<?= $active === 'dashboard' ? 'active' : '' ?>">Bảng điều khiển</a></li>

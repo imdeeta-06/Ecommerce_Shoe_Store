@@ -118,12 +118,12 @@ class Product extends BaseModel {
         }
 
         if (!empty($filters['price']) && $filters['price'] !== 'all') {
-            if ($filters['price'] === 'lt3') {
-                $sql .= " AND p.base_price < 3000000";
-            } elseif ($filters['price'] === '3to5') {
-                $sql .= " AND p.base_price >= 3000000 AND p.base_price <= 5000000";
-            } elseif ($filters['price'] === 'gt5') {
-                $sql .= " AND p.base_price > 5000000";
+            if ($filters['price'] === 'lt500k') {
+                $sql .= " AND p.base_price < 500000";
+            } elseif ($filters['price'] === '500kto1m5') {
+                $sql .= " AND p.base_price >= 500000 AND p.base_price <= 1500000";
+            } elseif ($filters['price'] === 'gt1m5') {
+                $sql .= " AND p.base_price > 1500000";
             }
         }
 

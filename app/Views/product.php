@@ -64,50 +64,51 @@ function productDetailColorHex($color): string {
 ?>
 
 <style>
-.product-detail-page { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; font-family: var(--font-body); }
+.product-detail-page { max-width: 1200px; margin: 3rem auto; padding: 0 2rem; font-family: var(--font-body); }
 .pd-layout { display: flex; gap: 4rem; }
-.pd-main-img { flex: 1.5; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.pd-main-img img { width: 100%; object-fit: contain; padding: 2rem; }
+.pd-main-img { flex: 1.5; background: var(--gray); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 20px rgba(74, 59, 50, 0.05); }
+.pd-main-img img { width: 100%; object-fit: contain; padding: 2rem; max-height: 500px; }
 .pd-info { flex: 1; display: flex; flex-direction: column; }
-.pd-title { font-size: 1.8rem; font-weight: 500; margin-bottom: 0.2rem; font-family: var(--font-ui); }
-.pd-category { font-size: 1rem; color: #111; margin-bottom: 1rem; }
-.pd-price { font-size: 1.2rem; font-weight: 500; margin-bottom: 2rem; }
+.pd-title { font-size: 2.2rem; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--primary-dark); }
+.pd-category { font-size: 1rem; color: var(--primary-color); font-weight: 600; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+.pd-price { font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 2rem; }
 .pd-size-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; }
 .pd-size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 2rem; }
-.pd-size-btn { padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
-.pd-size-btn:hover { border-color: #111; }
-.pd-size-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.pd-size-btn { padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; cursor: pointer; font-size: 1rem; font-family: var(--font-ui); transition: all 0.2s; }
+.pd-size-btn:hover { border-color: var(--primary-color); }
+.pd-size-btn.active { border-color: var(--primary-color); background: var(--primary-light); font-weight: 600; box-shadow: inset 0 0 0 1px var(--primary-color); }
 .pd-size-btn:disabled { color: #aaa; background: #f7f7f7; border-color: #eee; cursor: not-allowed; text-decoration: line-through; }
-.pd-size-guide { margin: -0.75rem 0 1.5rem; color: #555; font-size: 0.9rem; }
-.pd-size-guide summary { cursor: pointer; color: #111; font-weight: 500; }
+.pd-size-guide { margin: -0.75rem 0 1.5rem; color: var(--text-muted); font-size: 0.9rem; }
+.pd-size-guide summary { cursor: pointer; color: var(--primary-dark); font-weight: 600; }
 .pd-size-guide table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.85rem; }
-.pd-size-guide th, .pd-size-guide td { border-bottom: 1px solid #eee; padding: 0.45rem; text-align: left; }
+.pd-size-guide th, .pd-size-guide td { border-bottom: 1px solid var(--border-color); padding: 0.45rem; text-align: left; }
 .pd-color-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; }
 .pd-color-grid { display: flex; gap: 0.8rem; margin-bottom: 2rem; flex-wrap: wrap; }
-.pd-color-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
-.pd-color-btn:hover { border-color: #111; }
-.pd-color-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.pd-color-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+.pd-color-btn:hover { border-color: var(--primary-color); }
+.pd-color-btn.active { border-color: var(--primary-color); background: var(--primary-light); font-weight: 600; box-shadow: inset 0 0 0 1px var(--primary-color); }
 .color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #ddd; display: inline-block; }
 .pd-actions { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 3rem; }
-.btn-add-bag { padding: 1.2rem; background: #111; color: #fff; border: none; border-radius: 100px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-.btn-add-bag:hover { background: #333; }
+.btn-add-bag { padding: 1.2rem; background: var(--primary-dark); color: #fff; border: none; border-radius: 100px; font-size: 1rem; font-family: var(--font-ui); font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.btn-add-bag:hover { background: var(--primary-color); color: var(--primary-dark); box-shadow: 0 4px 15px rgba(184, 151, 107, 0.3); }
 .btn-add-bag:disabled { background: #d1d1d1; color: #777; cursor: not-allowed; }
-.btn-favourite { padding: 1.2rem; background: #fff; color: #111; border: 1px solid #ccc; border-radius: 100px; font-size: 1rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: border-color 0.2s; }
-.btn-favourite:hover { border-color: #111; }
-.btn-favourite.active svg { fill: #111; }
-.pd-desc { font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
-.pd-details { list-style: disc; padding-left: 1.5rem; font-size: 1rem; line-height: 1.8; }
-.related-section { margin-top: 5rem; }
-.related-section h2 { font-size: 1.5rem; margin-bottom: 2rem; text-transform: none; letter-spacing: normal; font-family: var(--font-ui); }
-.related-grid { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 2rem; scrollbar-width: none; }
+.btn-favourite { padding: 1.2rem; background: #fff; color: var(--primary-dark); border: 1px solid var(--border-color); border-radius: 100px; font-size: 1rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.3s; }
+.btn-favourite:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.btn-favourite.active svg { fill: var(--primary-color); stroke: var(--primary-color); }
+.pd-desc { font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; color: var(--text-muted); }
+.pd-details { list-style: disc; padding-left: 1.5rem; font-size: 1rem; line-height: 1.8; color: var(--text-muted); }
+.related-section { margin-top: 5rem; border-top: 1px solid var(--border-color); padding-top: 4rem; }
+.related-section h2 { font-size: 1.8rem; font-family: var(--font-heading); color: var(--primary-dark); margin-bottom: 2rem; }
+.related-grid { display: flex; gap: 2rem; overflow-x: auto; padding-bottom: 2rem; scrollbar-width: none; }
 .related-grid::-webkit-scrollbar { display: none; }
-.related-card { flex: 0 0 280px; }
-.related-img { background: #f5f5f5; margin-bottom: 1rem; border-radius: 8px; }
-.related-img img { width: 100%; height: 280px; object-fit: contain; }
-.related-info .r-title { font-weight: 500; margin-bottom: 0.2rem; display: block; }
-.related-info .r-cat { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; display: block; }
-.related-info .r-price { font-weight: 500; }
-@media(max-width: 900px) { .pd-layout { flex-direction: column; } }
+.related-card { flex: 0 0 280px; cursor: pointer; }
+.related-img { background: var(--gray); margin-bottom: 1rem; border-radius: 16px; overflow: hidden; }
+.related-img img { width: 100%; height: 280px; object-fit: contain; transition: transform 0.5s; }
+.related-card:hover .related-img img { transform: scale(1.05); }
+.related-info .r-title { font-family: var(--font-heading); font-size: 1.2rem; color: var(--primary-dark); margin-bottom: 0.2rem; display: block; }
+.related-info .r-cat { color: var(--primary-color); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+.related-info .r-price { font-weight: 700; color: var(--primary-dark); }
+@media(max-width: 900px) { .pd-layout { flex-direction: column; gap: 2rem; } }
 </style>
 
 <div class="product-detail-page">
