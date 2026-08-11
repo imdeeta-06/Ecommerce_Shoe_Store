@@ -3,10 +3,10 @@
             <div>
                 <h3>Sản phẩm</h3>
                 <ul>
-                    <li><a href="<?= BASE_URL ?>shop?gender=men">Giày Nam</a></li>
-                    <li><a href="<?= BASE_URL ?>shop?gender=women">Giày Nữ</a></li>
-                    <li><a href="<?= BASE_URL ?>shop?category=1">Thời trang & Phụ kiện</a></li>
-                    <li><a href="<?= BASE_URL ?>shop?sale=1">Sale-off</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa">Đồ lam đi chùa</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Quần+áo+Tăng+-+Ni">Pháp phục Tăng – Ni</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa">Túi đeo đi chùa</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt">Vòng tay – chuỗi hạt</a></li>
                 </ul>
             </div>
             <div>

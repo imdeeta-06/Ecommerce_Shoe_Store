@@ -28,7 +28,7 @@ function productDetailDescription($product): string {
     $category = trim((string)($product['category'] ?? ''));
 
     if ($description === '' || productDetailHasBrokenText($description)) {
-        return trim($product['name'] . ' chính hãng Nike. Sản phẩm thuộc dòng ' . $category . ', cam kết chất lượng 100% và bảo hành đầy đủ.');
+        return trim($product['name'] . '. Sản phẩm thuộc nhóm ' . $category . ', phù hợp đi chùa, lễ Phật hoặc thực hành thiền.');
     }
 
     return $description;
@@ -134,30 +134,21 @@ function productDetailColorHex($color): string {
             </div>
 
             <div class="pd-size-header">
-                <span>Chọn size <strong id="selectedSizeLabel"></strong></span>
-                <span style="color:#666;">Size EU</span>
+                <span>Chọn phân loại <strong id="selectedSizeLabel"></strong></span>
+                <span style="color:#666;">Kích cỡ / quy cách</span>
             </div>
             <div class="pd-size-grid">
                 <?php foreach ($productSizes as $size): ?>
                     <button type="button" class="pd-size-btn" data-size="<?= htmlspecialchars($size, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($size) ?></button>
                 <?php endforeach; ?>
                 <?php if (empty($productSizes)): ?>
-                    <p style="grid-column:1/-1; color:#b42318; margin:0;">Sản phẩm chưa được thiết lập size. Vui lòng liên hệ cửa hàng.</p>
+                    <p style="grid-column:1/-1; color:#b42318; margin:0;">Sản phẩm chưa được thiết lập phân loại. Vui lòng liên hệ cửa hàng.</p>
                 <?php endif; ?>
             </div>
 
             <details class="pd-size-guide">
-                <summary>Hướng dẫn chọn size giày</summary>
-                <p>Đo chiều dài bàn chân vào cuối ngày, chọn size lớn hơn nếu chân bè hoặc thường mang tất dày.</p>
-                <table>
-                    <thead><tr><th>Chiều dài chân</th><th>Size EU tham khảo</th></tr></thead>
-                    <tbody>
-                        <tr><td>23,0–24,0 cm</td><td>EU 36–38</td></tr>
-                        <tr><td>24,5–26,0 cm</td><td>EU 39–41</td></tr>
-                        <tr><td>26,5–28,0 cm</td><td>EU 42–44</td></tr>
-                        <tr><td>28,5 cm trở lên</td><td>EU 45</td></tr>
-                    </tbody>
-                </table>
+                <summary>Hướng dẫn chọn kích thước / quy cách</summary>
+                <p>Với áo và pháp phục, hãy chọn size theo thông tin ghi trên sản phẩm. Với túi, chuỗi hạt và toạ cụ, hãy kiểm tra kỹ màu sắc, đường kính hoặc kích thước trước khi đặt hàng.</p>
             </details>
 
             <div class="client-form-group" style="margin-bottom: 1.5rem;">

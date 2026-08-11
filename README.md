@@ -154,7 +154,11 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 ### Database
 - `Database/paceup_lam_catalog_data.sql` chứa dữ liệu catalog đồ lam/phụ kiện để cập nhật vào database `paceup_db`; schema hiện tại được giữ nguyên
 - `Database/paceup_lam_reset_legacy_transactions.sql` là cleanup một lần cho order/report/cart mẫu của ngành giày cũ
-- `assets/images/lam-placeholder.svg` là ảnh minh họa trung tính dùng khi chưa có ảnh sản phẩm thật
+- `scripts/sync_dolam_product_images.php` tải ảnh tham khảo phù hợp theo từng nhóm sản phẩm, lưu cục bộ vào `public/uploads/products/lam/` và cập nhật bảng `product_images`
+- `Database/paceup_lam_product_images.sql` là file mapping ảnh đã sinh sẵn để import sau catalog nếu không chạy script tải ảnh
+- `Database/paceup_lam_product_image_sources.json` lưu URL nguồn tương ứng của 150 ảnh để kiểm tra lại khi cần
+
+Sau khi import `paceup_lam_catalog_data.sql`, chạy `php scripts/sync_dolam_product_images.php` để lấy ảnh về máy và gán lại ảnh sản phẩm. Script có thể chạy lại; ảnh đã tải sẽ được tái sử dụng, không tải trùng.
 
 ## Cập Nhật P0 Nền Tảng
 

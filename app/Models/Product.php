@@ -85,9 +85,8 @@ class Product extends BaseModel {
         }
 
         if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // NULL is the catalog's unisex value, so shared items (bags,
-            // beads, accessories and Tăng-Ni apparel) appear for both filters.
-            $sql .= " AND (p.gender = :gender OR p.gender IS NULL)";
+            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
+            $sql .= " AND p.gender = :gender";
             $params['gender'] = $filters['gender'];
         }
 
@@ -108,9 +107,8 @@ class Product extends BaseModel {
         $params = [];
 
         if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // NULL is the catalog's unisex value, so shared items remain
-            // visible when the visitor selects Nam or Nữ.
-            $sql .= " AND (p.gender = :gender OR p.gender IS NULL)";
+            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
+            $sql .= " AND p.gender = :gender";
             $params['gender'] = $filters['gender'];
         }
 

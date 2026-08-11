@@ -11,7 +11,7 @@ include __DIR__ . '/../partials/header.php';
         <div style="border: 1px solid #eee; padding: 2rem; margin-bottom: 1.5rem;">
             <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Nhân viên Tư vấn Bán hàng (Full-time / Part-time)</h3>
             <p style="color: #666; margin-bottom: 1rem;">Địa điểm: TP. Hồ Chí Minh</p>
-            <p style="margin-bottom: 0;">Yêu cầu: Có kỹ năng giao tiếp tốt, yêu thích giày và thời trang.</p>
+            <p style="margin-bottom: 0;">Yêu cầu: Có kỹ năng giao tiếp tốt, yêu thích sản phẩm đồ lam và văn hoá Phật giáo.</p>
         </div>
         
         <div style="border: 1px solid #eee; padding: 2rem; margin-bottom: 3rem;">

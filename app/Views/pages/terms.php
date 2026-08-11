@@ -17,7 +17,7 @@ include __DIR__ . '/../partials/header.php';
         <p style="margin-bottom: 1.5rem;">Khi đặt hàng, khách hàng cần tích chọn đồng ý với các điều khoản áp dụng. PaceUp lưu phiên bản điều khoản, thời điểm xác nhận và thông tin kỹ thuật cần thiết để đối chiếu lịch sử giao dịch. Đây là bản ghi chấp thuận điện tử của đơn hàng, không thay thế chữ ký số khi pháp luật hoặc đối tác yêu cầu hình thức ký riêng.</p>
         
         <h2 class="client-section-title">4. Chính sách bảo hành</h2>
-        <p style="margin-bottom: 3rem;">Sản phẩm giày được bảo hành keo và chỉ miễn phí trong vòng 6 tháng kể từ ngày mua. Không bảo hành các trường hợp hao mòn tự nhiên hoặc bảo quản sai cách.</p>
+        <p style="margin-bottom: 3rem;">Đồ lam, pháp phục và phụ kiện được hỗ trợ theo chính sách của từng sản phẩm. Không áp dụng bảo hành với hao mòn tự nhiên, sản phẩm đã qua sử dụng hoặc hư hỏng do bảo quản, giặt ủi không đúng hướng dẫn.</p>
     </div>
 </main>
 

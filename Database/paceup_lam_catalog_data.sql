@@ -1,8 +1,11 @@
 -- =====================================================================
 -- PACEUP / paceup_db - Buddhist apparel & temple accessories catalog
 -- Data-only migration. Existing table structure is intentionally kept.
--- Existing shoe rows are retained for history/cart references and hidden.
+-- Legacy shoe catalog rows and their related cart/order/report rows are removed.
 -- Re-runnable because new catalog rows use reserved explicit IDs.
+-- To assign real local product photos after importing, run:
+--   php scripts/sync_dolam_product_images.php
+-- or import Database/paceup_lam_product_images.sql.
 -- =====================================================================
 
 USE `paceup_db`;
@@ -1353,10 +1356,14 @@ ON DUPLICATE KEY UPDATE
   `product_id`=VALUES(`product_id`),
   `status`=VALUES(`status`);
 
--- Remove the old inactive Adidas banner and seed a neutral catalog banner.
+-- Replace the legacy shoe banner with four local, real Buddhist temple photos.
 DELETE FROM `banner`;
 INSERT INTO `banner` (`id`,`image_url`,`link_url`,`status`)
-VALUES (1,'assets/images/lam-placeholder.svg','shop?category=Đồ+lam+đi+chùa',1);
+VALUES
+(1,'assets/images/lam-hero-lanterns.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(2,'assets/images/lam-hero-courtyard.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(3,'assets/images/lam-hero-pagoda.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(4,'assets/images/lam-hero-temple.jpg','shop?category=Đồ+lam+đi+chùa',1);
 
 -- The legacy image table only has one URL field; lam-placeholder.svg is the neutral local catalog placeholder.
 -- Replace it later with actual product photos without changing the schema.
@@ -1513,7 +1520,8 @@ INSERT INTO `product_images` (`id`,`product_id`,`image_url`,`is_primary`) VALUES
 (20149,1149,'lam-placeholder.svg',1)
 ON DUPLICATE KEY UPDATE
   `product_id`=VALUES(`product_id`),
-  `image_url`=VALUES(`image_url`),
+  -- Do not overwrite locally crawled images when this catalog seed is rerun.
+  `image_url`=IF(`image_url` IN ('', 'lam-placeholder.svg'), VALUES(`image_url`), `image_url`),
   `is_primary`=VALUES(`is_primary`);
 
 INSERT INTO `schema_migrations` (`version`)
