@@ -1,7 +1,14 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
-$gender = isset($_GET['gender']) ? $_GET['gender'] : 'all';
+$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
+$gender = [
+    'mens' => 'men',
+    'womens' => 'women',
+][$gender] ?? $gender;
+if (!in_array($gender, ['all', 'men', 'women'], true)) {
+    $gender = 'all';
+}
 $genderLabel = 'Tất cả sản phẩm';
 if ($gender === 'men') $genderLabel = 'Sản phẩm Nam';
 if ($gender === 'women') $genderLabel = 'Sản phẩm Nữ';
@@ -62,7 +69,7 @@ function productDisplayType($product): string {
                 <ul class="filter-cat-list">
                     <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
                     <?php endforeach; ?>
                 </ul>
 
@@ -144,7 +151,7 @@ function productDisplayType($product): string {
             <h2 id="modalName"></h2>
             <p class="modal-category" id="modalCategory"></p>
             <p class="modal-price" id="modalPrice"></p>
-            <p class="modal-desc">Sản phẩm Nike chính hãng. Cam kết chất lượng và bảo hành đầy đủ.</p>
+            <p class="modal-desc">Sản phẩm đồ lam và vật dụng đi chùa. Vui lòng xem tên, màu sắc và phân loại trước khi đặt hàng.</p>
             <div class="modal-size-select">
                 <label>Chọn size</label>
                 <div class="size-options">

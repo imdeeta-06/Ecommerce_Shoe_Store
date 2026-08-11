@@ -12,14 +12,14 @@ adminStart('Marketing thương mại điện tử', 'marketing', !empty($flash) 
         </form>
 </section>
 <section class="admin-panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
         <div><h2 class="admin-panel-title">Thông báo đơn hàng</h2><p style="color:#666;margin-bottom:1rem;">Khi khách đặt hàng hoặc đơn chuyển trạng thái, hệ thống tạo thông báo giao dịch. Cấu hình SMTP rồi bấm gửi hoặc chạy cron.</p></div>
         <form method="post" action="<?= BASE_URL ?>admin/marketing/order-notifications/send"><button class="admin-btn primary" type="submit">Gửi thông báo đang chờ</button></form>
     </div>
     <div class="admin-table-wrapper"><table class="admin-table"><thead><tr><th>Đơn hàng</th><th>Email</th><th>Loại</th><th>Trạng thái</th><th>Lần thử</th><th>Lỗi gần nhất</th></tr></thead><tbody>
         <?php foreach ($orderNotifications as $notification): ?>
             <?php $notificationLabels = ['order_created' => 'Tiếp nhận đơn', 'status_confirmed' => 'Đã xác nhận', 'status_preparing' => 'Đang chuẩn bị', 'status_shipping' => 'Đang giao', 'status_delivered' => 'Giao thành công', 'status_completed' => 'Hoàn thành', 'status_canceled' => 'Đã hủy']; ?>
-            <tr><td><strong><?= adminE($notification['order_code'] ?? ('#' . $notification['order_id'])) ?></strong></td><td><?= adminE($notification['recipient_email']) ?></td><td><?= adminE($notificationLabels[$notification['notification_type']] ?? $notification['notification_type']) ?></td><td><span class="admin-badge <?= $notification['status'] === 'sent' ? 'success' : ($notification['status'] === 'failed' ? 'error' : 'warning') ?>"><?= adminE(['pending' => 'Chờ gửi', 'sent' => 'Đã gửi', 'failed' => 'Gửi lỗi'][$notification['status']] ?? $notification['status']) ?></span></td><td><?= (int)$notification['attempt_count'] ?>/3</td><td style="max-width:240px;color:#b91c1c;"><?= adminE($notification['last_error'] ?? '') ?></td></tr>
+            <tr><td style="white-space:nowrap;"><strong><?= adminE($notification['order_code'] ?? ('#' . $notification['order_id'])) ?></strong></td><td><?= adminE($notification['recipient_email']) ?></td><td><?= adminE($notificationLabels[$notification['notification_type']] ?? $notification['notification_type']) ?></td><td><span class="admin-badge <?= $notification['status'] === 'sent' ? 'success' : ($notification['status'] === 'failed' ? 'error' : 'warning') ?>"><?= adminE(['pending' => 'Chờ gửi', 'sent' => 'Đã gửi', 'failed' => 'Gửi lỗi'][$notification['status']] ?? $notification['status']) ?></span></td><td><?= (int)$notification['attempt_count'] ?>/3</td><td style="max-width:240px;color:#b91c1c;"><?= adminE($notification['last_error'] ?? '') ?></td></tr>
         <?php endforeach; ?>
         <?php if (empty($orderNotifications)): ?><tr><td colspan="6" style="text-align:center;padding:2rem;color:#666;">Chưa có thông báo đơn hàng trong hàng đợi.</td></tr><?php endif; ?>
     </tbody></table></div>
@@ -32,7 +32,7 @@ adminStart('Marketing thương mại điện tử', 'marketing', !empty($flash) 
 </div>
 <section class="admin-panel"><h2 class="admin-panel-title">Banner hiện có</h2><div class="admin-table-wrapper"><table class="admin-table"><thead><tr><th>Ảnh</th><th>Link</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody><?php foreach ($banners as $banner): ?><tr><td><img class="admin-thumb-lg" src="<?= adminImageUrl($banner['image_url']) ?>" alt="Banner"></td><td><?= adminE($banner['link_url'] ?? '') ?></td><td><span class="admin-badge <?= (int)$banner['status'] === 1 ? 'success' : 'neutral' ?>"><?= (int)$banner['status'] === 1 ? 'Đang hiển thị' : 'Đã ẩn' ?></span></td><td><div class="admin-actions"><form method="post" action="<?= BASE_URL ?>admin/marketing/banner/status"><input type="hidden" name="id" value="<?= (int)$banner['id'] ?>"><button class="admin-btn-sm admin-btn light" type="submit">Ẩn/hiện</button></form><form method="post" action="<?= BASE_URL ?>admin/marketing/banner/delete" onsubmit="return confirm('Xóa banner này?')"><input type="hidden" name="id" value="<?= (int)$banner['id'] ?>"><button class="admin-btn-sm admin-btn danger" type="submit">Xóa</button></form></div></td></tr><?php endforeach; ?><?php if (empty($banners)): ?><tr><td colspan="4" style="text-align:center;padding:2rem;color:#666;">Chưa có banner động.</td></tr><?php endif; ?></tbody></table></div></section>
 <section class="admin-panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
         <div>
             <h2 class="admin-panel-title">Giỏ hàng bỏ quên</h2>
             <p style="color:#666;margin-bottom:1rem;">Hệ thống đưa giỏ có sản phẩm và không hoạt động quá 24 giờ vào hàng đợi. Cấu hình SMTP rồi chạy nút này hoặc cron để gửi email thật.</p>

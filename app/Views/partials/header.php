@@ -16,8 +16,8 @@ if (!function_exists('productAssetPath')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($metaTitle ?? 'PaceUp - Chuyên phân phối sản phẩm Nike', ENT_QUOTES, 'UTF-8') ?></title>
-    <meta name="description" content="<?= htmlspecialchars($metaDescription ?? 'Mua giày Nike chính hãng online tại PaceUp.', ENT_QUOTES, 'UTF-8') ?>">
+    <title><?= htmlspecialchars($metaTitle ?? 'PaceUp - Đồ lam và pháp phục đi chùa', ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription ?? 'Mua đồ lam, pháp phục, túi đi chùa và chuỗi hạt tại PaceUp.', ENT_QUOTES, 'UTF-8') ?>">
     <?php if (!empty($canonicalUrl)): ?><link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') ?>"><?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-$variantSizes = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-$variantColors = ['Black', 'Red', 'White'];
+$variantSizes = ['S', 'M', 'L', 'XL', 'Mặc định'];
+$variantColors = ['Lam', 'Nâu', 'Trắng', 'Xám', 'Đen'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
 adminStart($title, 'products', $flash ?? null);
 ?>
@@ -22,7 +22,7 @@ adminStart($title, 'products', $flash ?? null);
             <div class="admin-grid" style="grid-template-columns: 1fr 1fr;">
                 <div class="admin-field" style="grid-column: span 2;">
                     <label>Tên sản phẩm *</label>
-                    <input type="text" name="name" required value="<?= adminE($product['name'] ?? '') ?>" placeholder="Ví dụ: Nike Air Zoom Pegasus">
+                    <input type="text" name="name" required value="<?= adminE($product['name'] ?? '') ?>" placeholder="Ví dụ: Áo tràng Hải Thanh Đài Loan">
                 </div>
                 <div class="admin-field">
                     <label>Slug</label>
@@ -46,7 +46,7 @@ adminStart($title, 'products', $flash ?? null);
                 </div>
                 <div class="admin-field">
                     <label>Phân loại *</label>
-                    <input type="text" name="type" required value="<?= adminE($product['type'] ?? '') ?>" placeholder="Ví dụ: Running, Lifestyle">
+                    <input type="text" name="type" required value="<?= adminE($product['type'] ?? '') ?>" placeholder="Ví dụ: Đồ lam đi chùa, Chuỗi hạt">
                 </div>
                 <div class="admin-field">
                     <label>Giới tính</label>

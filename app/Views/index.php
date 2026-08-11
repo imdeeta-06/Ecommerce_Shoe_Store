@@ -36,8 +36,8 @@ function homeAssetUrl($image): string {
 
     <!-- Giới thiệu -->
     <section class="intro-section">
-        <h2>Chính hãng 100%</h2>
-        <p>Chúng tôi chuyên phân phối giày Nike chính hãng — cam kết nguồn gốc rõ ràng, chất lượng đảm bảo và bảo hành đầy đủ. Mang đến cho bạn trải nghiệm mua sắm uy tín cùng các bộ sưu tập mới nhất.</p>
+        <h2>Đồ lam và pháp phục chọn lọc</h2>
+        <p>Gian hàng cung cấp đồ lam đi chùa, pháp phục Tăng – Ni, túi đi chùa, chuỗi hạt và vật dụng thực hành thiền. Thông tin, giá và hình ảnh sản phẩm được trình bày rõ ràng để bạn dễ chọn lựa.</p>
     </section>
 
     <!-- Sản phẩm nổi bật do admin lựa chọn -->
@@ -79,44 +79,44 @@ function homeAssetUrl($image): string {
         </div>
     </section>
 
-    <!-- Lifestyle Gallery - Horizontal Image Slider -->
+    <!-- Bộ sưu tập đồ lam - Horizontal Image Slider -->
     <section class="lifestyle-section">
-        <h2>Khám phá thế giới Nike</h2>
+        <h2>Khám phá đồ lam đi chùa</h2>
         <div class="lifestyle-slider-wrapper">
             <div class="lifestyle-slider" id="lifestyleSlider">
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/running.png" alt="Running">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Bộ pháp phục lễ chùa nữ">
                     <div class="slide-overlay">
-                        <h3>Running</h3>
-                        <p>Mang lại tốc độ và sự thoải mái</p>
+                        <h3>Đồ lam nữ</h3>
+                        <p>Thanh lịch, trang nghiêm khi lễ chùa</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/football.png" alt="Football">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1050.jpg" alt="Bộ pháp phục nam">
                     <div class="slide-overlay">
-                        <h3>Football</h3>
-                        <p>Sẵn sàng cho mọi trận đấu</p>
+                        <h3>Đồ lam nam</h3>
+                        <p>Phù hợp đi chùa và thực hành thiền</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/training.png" alt="Training">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Túi nải đi chùa">
                     <div class="slide-overlay">
-                        <h3>Training</h3>
-                        <p>Đột phá giới hạn của bạn</p>
+                        <h3>Túi đi chùa</h3>
+                        <p>Gọn gàng cho vật dụng cá nhân</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/lifestyle.jpg" alt="Lifestyle">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Vòng tay trầm hương">
                     <div class="slide-overlay">
-                        <h3>Lifestyle</h3>
-                        <p>Phong cách vượt thời gian</p>
+                        <h3>Chuỗi hạt</h3>
+                        <p>Vòng tay và tràng hạt niệm Phật</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/skate.png" alt="Skateboarding">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Đệm ngồi thiền hoa sen">
                     <div class="slide-overlay">
-                        <h3>Skateboarding</h3>
-                        <p>Sự linh hoạt tuyệt đối</p>
+                        <h3>Toạ cụ thiền</h3>
+                        <p>Đệm ngồi thiền và lễ Phật</p>
                     </div>
                 </div>
             </div>
@@ -178,7 +178,7 @@ function homeAssetUrl($image): string {
     }));
 
     function startAuto() {
-        autoSlide = setInterval(nextSlide, 5000);
+        autoSlide = setInterval(nextSlide, 2000);
     }
     function resetAuto() {
         clearInterval(autoSlide);

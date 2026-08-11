@@ -152,7 +152,13 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 - `public/assets/css/style.css` chứa CSS chính
 
 ### Database
-- `Database/paceup_db.sql` chứa schema và dữ liệu mẫu
+- `Database/paceup_lam_catalog_data.sql` chứa dữ liệu catalog đồ lam/phụ kiện để cập nhật vào database `paceup_db`; schema hiện tại được giữ nguyên
+- `Database/paceup_lam_reset_legacy_transactions.sql` là cleanup một lần cho order/report/cart mẫu của ngành giày cũ
+- `scripts/sync_dolam_product_images.php` tải ảnh tham khảo phù hợp theo từng nhóm sản phẩm, lưu cục bộ vào `public/uploads/products/lam/` và cập nhật bảng `product_images`
+- `Database/paceup_lam_product_images.sql` là file mapping ảnh đã sinh sẵn để import sau catalog nếu không chạy script tải ảnh
+- `Database/paceup_lam_product_image_sources.json` lưu URL nguồn tương ứng của 150 ảnh để kiểm tra lại khi cần
+
+Sau khi import `paceup_lam_catalog_data.sql`, chạy `php scripts/sync_dolam_product_images.php` để lấy ảnh về máy và gán lại ảnh sản phẩm. Script có thể chạy lại; ảnh đã tải sẽ được tái sử dụng, không tải trùng.
 
 ## Cập Nhật P0 Nền Tảng
 
@@ -234,7 +240,7 @@ Ngày cập nhật: 01/08/2026
 - [ ] Đọc hết README này
 - [ ] Mở `index.php` để hiểu cấu trúc route
 - [ ] Mở controller và model liên quan đến phần mình phụ trách
-- [ ] Xem `Database/paceup_db.sql` để hiểu bảng dữ liệu
+- [ ] Xem `Database/paceup_lam_catalog_data.sql` để hiểu dữ liệu catalog hiện tại
 - [ ] Xác định đang làm theo flow controller mới hay code legacy trong `public/views/admin.php`
 - [ ] Kiểm tra giao diện trên desktop, tablet và mobile
 - [ ] Xác định sẵn môi trường deploy, không chỉ chạy local bằng XAMPP
@@ -288,7 +294,7 @@ Ngày cập nhật: 01/08/2026
 - Mục tiêu: đơn hàng và kho phải đồng bộ.
 - Việc cần làm: kiểm tra tạo đơn, trạng thái đơn, hủy đơn, trừ kho, hoàn kho, log trạng thái.
 - Deliverable: luồng order chuẩn + stock không lệch.
-- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_db.sql`.
+- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_lam_catalog_data.sql`.
 
 ### 6. Admin Sản Phẩm
 - Mục tiêu: quản lý sản phẩm đầy đủ trong admin.

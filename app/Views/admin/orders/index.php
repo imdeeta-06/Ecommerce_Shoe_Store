@@ -16,7 +16,7 @@ $statusLabels = ['pending' => 'Chờ xác nhận', 'confirmed' => 'Đã xác nh�
         <tbody>
         <?php foreach ($orders as $order): ?>
             <tr>
-                <td><strong><?= adminE($order['order_code']) ?></strong></td>
+                <td style="white-space:nowrap;"><strong><?= adminE($order['order_code']) ?></strong></td>
                 <td><?= adminE($order['user_name'] ?? $order['shipping_name']) ?><br><small><?= adminE($order['shipping_phone']) ?></small></td>
                 <td><?= adminMoney($order['final_amount']) ?></td>
                 <td><span class="admin-badge <?= $order['status'] === 'canceled' ? 'error' : ($order['status'] === 'completed' ? 'success' : 'neutral') ?>"><?= adminE($statusLabels[$order['status']] ?? $order['status']) ?></span></td>
