@@ -148,9 +148,6 @@ CREATE TABLE IF NOT EXISTS `security_events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Lưu sự đồng ý có phiên bản để tiếp thị và xử lý dữ liệu cá nhân hợp pháp.
--- Quy tắc owner (phải có user_id hoặc email) được kiểm tra ở service/transaction
--- vì MySQL/MariaDB không cho CHECK tham chiếu cột đang có FK kèm hành động
--- referential (ở đây là ON DELETE SET NULL).
 CREATE TABLE IF NOT EXISTS `privacy_consents` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` INT UNSIGNED DEFAULT NULL,
@@ -167,7 +164,9 @@ CREATE TABLE IF NOT EXISTS `privacy_consents` (
   KEY `privacy_consents_email_type_idx` (`email`, `consent_type`, `consented_at`),
   CONSTRAINT `privacy_consents_user_fk`
     FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `privacy_consents_owner_check`
+    CHECK (`user_id` IS NOT NULL OR `email` IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `personal_data_requests` (
@@ -571,6 +570,7 @@ CREATE TABLE IF NOT EXISTS `purchase_orders` (
 
 CREATE TABLE IF NOT EXISTS `purchase_order_items` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `purchase_order_items` INT UNSIGNED NOT NULL,
   `purchase_order_id` INT UNSIGNED NOT NULL,
   `variant_id` INT UNSIGNED NOT NULL,
   `ordered_quantity` INT UNSIGNED NOT NULL,
@@ -635,7 +635,8 @@ CREATE TABLE IF NOT EXISTS `cart` (
   CONSTRAINT `cart_variant_fk`
     FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
     ON DELETE CASCADE ON UPDATE CASCADE,
-  -- Service phải bảo đảm chính xác một owner: user_id hoặc session_id.
+  CONSTRAINT `cart_owner_check`
+    CHECK ((`user_id` IS NOT NULL AND `session_id` IS NULL) OR (`user_id` IS NULL AND `session_id` IS NOT NULL)),
   CONSTRAINT `cart_quantity_check`
     CHECK (`quantity` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1323,7 +1324,7 @@ CREATE TABLE IF NOT EXISTS `setting` (
   UNIQUE KEY `setting_key_unique` (`key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Thông tin đơn vị bán hàng và giấy phép để công bố minh bạch trên website.
+--  thông tin đơn vị bán hàng và giấy phép để công bố minh bạch trên website.
 CREATE TABLE IF NOT EXISTS `merchant_profiles` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `legal_name` VARCHAR(255) NOT NULL,
@@ -1632,477 +1633,8 @@ ON DUPLICATE KEY UPDATE
   `description` = VALUES(`description`), `base_price` = VALUES(`base_price`),
   `status` = VALUES(`status`), `is_featured` = VALUES(`is_featured`), `sort_order` = VALUES(`sort_order`);
 
--- Bổ sung 29 sản phẩm mẫu có tên/chủng loại cụ thể cho mỗi danh mục con. Kết hợp với 1 sản phẩm mẫu
--- ở trên, mỗi danh mục hiển thị sẽ có đúng 30 sản phẩm để kiểm thử phân trang,
--- lọc, tìm kiếm, sắp xếp, khuyến mãi và báo cáo.
-INSERT INTO `product`
-  (`category_id`, `name`, `slug`, `short_description`, `description`,
-   `base_price`, `compare_at_price`, `cost_price`, `product_type`, `weight_grams`,
-   `status`, `is_featured`, `sort_order`, `published_at`)
-SELECT
-  c.`id`,
-  CONCAT(
-    CASE c.`id`
-      WHEN 2 THEN 'Áo Tăng - Ni mẫu '
-      WHEN 3 THEN 'Đồ lam đi chùa mẫu '
-      WHEN 4 THEN 'Quần áo ngồi thiền mẫu '
-      WHEN 6 THEN 'Túi đeo đi chùa mẫu '
-      WHEN 7 THEN 'Vòng tay - chuỗi hạt mẫu '
-      WHEN 8 THEN 'Phụ kiện đi chùa mẫu '
-    END,
-    LPAD(n.`number`, 2, '0')
-  ),
-  CONCAT(
-    'seed-',
-    CASE c.`id`
-      WHEN 2 THEN 'ao-tang-ni-'
-      WHEN 3 THEN 'do-lam-di-chua-'
-      WHEN 4 THEN 'quan-ao-ngoi-thien-'
-      WHEN 6 THEN 'tui-deo-di-chua-'
-      WHEN 7 THEN 'vong-tay-chuoi-hat-'
-      WHEN 8 THEN 'phu-kien-di-chua-'
-    END,
-    LPAD(n.`number`, 2, '0')
-  ),
-  CONCAT('Sản phẩm mẫu số ', LPAD(n.`number`, 2, '0'), ' thuộc danh mục ', c.`name`, '.'),
-  CONCAT('Dữ liệu mẫu phục vụ kiểm thử website thương mại điện tử. ',
-         'Cần thay bằng thông tin, hình ảnh và nguồn gốc thực tế trước khi bán.'),
-  CASE c.`id`
-    WHEN 2 THEN 390000.00 + n.`number` * 10000.00
-    WHEN 3 THEN 250000.00 + n.`number` * 8000.00
-    WHEN 4 THEN 350000.00 + n.`number` * 12000.00
-    WHEN 6 THEN 120000.00 + n.`number` * 5000.00
-    WHEN 7 THEN 180000.00 + n.`number` * 15000.00
-    WHEN 8 THEN 60000.00 + n.`number` * 5000.00
-  END,
-  CASE c.`id`
-    WHEN 2 THEN 450000.00 + n.`number` * 10000.00
-    WHEN 3 THEN 300000.00 + n.`number` * 8000.00
-    WHEN 4 THEN 420000.00 + n.`number` * 12000.00
-    WHEN 6 THEN 150000.00 + n.`number` * 5000.00
-    WHEN 7 THEN 230000.00 + n.`number` * 15000.00
-    WHEN 8 THEN 80000.00 + n.`number` * 5000.00
-  END,
-  CASE c.`id`
-    WHEN 2 THEN 250000.00 + n.`number` * 6500.00
-    WHEN 3 THEN 155000.00 + n.`number` * 5000.00
-    WHEN 4 THEN 225000.00 + n.`number` * 7500.00
-    WHEN 6 THEN 70000.00 + n.`number` * 3000.00
-    WHEN 7 THEN 105000.00 + n.`number` * 9000.00
-    WHEN 8 THEN 30000.00 + n.`number` * 3000.00
-  END,
-  CASE WHEN c.`id` IN (2, 3, 4) THEN 'apparel'
-       WHEN c.`id` = 6 THEN 'bag'
-       WHEN c.`id` = 7 THEN 'beads'
-       ELSE 'accessory' END,
-  CASE c.`id`
-    WHEN 2 THEN 450
-    WHEN 3 THEN 350
-    WHEN 4 THEN 600
-    WHEN 6 THEN 250
-    WHEN 7 THEN 80
-    WHEN 8 THEN 120
-  END,
-  'active',
-  CASE WHEN n.`number` <= 3 THEN 1 ELSE 0 END,
-  c.`sort_order` * 100 + n.`number`,
-  CURRENT_TIMESTAMP
-FROM `categories` c
-CROSS JOIN (
-  SELECT 1 AS `number` UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
-  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8
-  UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
-  UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16
-  UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20
-  UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23 UNION ALL SELECT 24
-  UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28
-  UNION ALL SELECT 29
-) n
-WHERE c.`id` IN (2, 3, 4, 6, 7, 8)
-ON DUPLICATE KEY UPDATE
-  `name` = VALUES(`name`),
-  `short_description` = VALUES(`short_description`),
-  `description` = VALUES(`description`),
-  `base_price` = VALUES(`base_price`),
-  `compare_at_price` = VALUES(`compare_at_price`),
-  `cost_price` = VALUES(`cost_price`),
-  `status` = VALUES(`status`),
-  `is_featured` = VALUES(`is_featured`),
-  `sort_order` = VALUES(`sort_order`);
--- Tên sản phẩm mẫu được xây theo các loại hàng thực tế: áo tràng, pháp phục,
--- đồ lam nam/nữ, túi vải, chuỗi hạt, vòng tay, tọa cụ và phụ kiện đi chùa.
-UPDATE `product` p
-JOIN (
-  SELECT 'seed-ao-tang-ni-01' AS `slug`, 'Áo tràng Kate Lam có thêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-02' AS `slug`, 'Áo tràng Kate Nâu có thêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-03' AS `slug`, 'Áo tràng Kate Nâu không thêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-04' AS `slug`, 'Áo tràng Silk Lam có thêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-05' AS `slug`, 'Áo tràng Silk Nâu có thêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-06' AS `slug`, 'Áo tràng cao cấp Silk Đài Loan Nam Nữ' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-07' AS `slug`, 'Áo tràng Đài Loan màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-08' AS `slug`, 'Áo tràng Đài Loan Nam Nữ' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-09' AS `slug`, 'Áo tràng Hải Thanh Nam Nữ' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-10' AS `slug`, 'Pháp phục tu sĩ Nhà Sư mùa hè' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-11' AS `slug`, 'Đồ lam nam 3 nút Linen Ấn Độ' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-12' AS `slug`, 'Đồ lam nam tay dài Linen màu Tím Khói' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-13' AS `slug`, 'Đồ lam nam tay dài Linen màu Kem' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-14' AS `slug`, 'Đồ lam nam tay dài Linen màu Trà' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-15' AS `slug`, 'Đồ lam lãnh tụ nam Linen màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-16' AS `slug`, 'Đồ lam lãnh tụ nam Linen màu Socola' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-17' AS `slug`, 'Đồ lam nam Linen kiểu Nhật màu Nâu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-18' AS `slug`, 'Đồ lam nam Linen kiểu Nhật màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-19' AS `slug`, 'Pháp phục Nhật Nam Linen Tưng màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-20' AS `slug`, 'Pháp phục Nhật Nam Linen Tưng màu Nâu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-21' AS `slug`, 'Áo lam cổ tàu hiện đại màu Xám' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-22' AS `slug`, 'Áo lam đi chùa màu Xanh Rêu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-23' AS `slug`, 'Áo lam đi chùa màu Hồng' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-24' AS `slug`, 'Áo trụ nam thêu chữ Tâm màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-25' AS `slug`, 'Áo tràng cổ tròn Cotton màu Lam' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-26' AS `slug`, 'Áo tràng cổ tàu Linen màu Kem' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-27' AS `slug`, 'Pháp phục Tăng Ni tay dài màu Trà' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-28' AS `slug`, 'Áo tràng thêu chữ Tâm màu Nâu' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-ao-tang-ni-29' AS `slug`, 'Bộ pháp phục tu sĩ vải Kate' AS `name`, 2 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-01' AS `slug`, 'Đồ lam Bồ Đề Tạng vải gai dầu đỏ Saffron' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-02' AS `slug`, 'Áo dài đi chùa Linen Ấn Độ' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-03' AS `slug`, 'Vạt hò Linen Ấn Độ cao cấp' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-04' AS `slug`, 'Pháp phục Nhật nữ Linen Ấn Độ' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-05' AS `slug`, 'Pháp phục nữ Linen có Bigsize' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-06' AS `slug`, 'Đồ lam Linen Ấn Độ màu Xám' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-07' AS `slug`, 'Đồ lam Nhật nữ 2 nút Linen' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-08' AS `slug`, 'Đồ lam Linen size 40-55kg' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-09' AS `slug`, 'Đồ lam nữ Big Size' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-10' AS `slug`, 'Đồ lam áo dài cách tân đũi xước màu Xanh Coban' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-11' AS `slug`, 'Đồ lam áo dài cách tân đũi xước màu Kem' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-12' AS `slug`, 'Đồ lam đi chùa Nhật nữ' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-13' AS `slug`, 'Đồ lam Nhật nữ vạt xéo đũi xước màu Kem' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-14' AS `slug`, 'Đồ lam Thanh Lưu đũi tiêu màu Xanh Cốm' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-15' AS `slug`, 'Đồ lam Nhật nữ vạt xéo đũi xước màu Xanh Coban' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-16' AS `slug`, 'Vạt hò phom Ni vải Kate loại tốt' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-17' AS `slug`, 'Đồ lam truyền thống La Hán nữ Linen Tưng' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-18' AS `slug`, 'Nhật nữ Linen Tưng màu Xanh Ngọc' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-19' AS `slug`, 'Đồ lam nữ cổ tròn Cotton màu Nâu' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-20' AS `slug`, 'Đồ lam nữ cổ tàu Linen màu Lam' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-21' AS `slug`, 'Áo lam nữ tay lỡ vải Kate màu Nâu' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-22' AS `slug`, 'Bộ đồ lam nữ 2 lớp vải Cotton' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-23' AS `slug`, 'Đồ lam nữ thêu Hoa Sen màu Tím Khói' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-24' AS `slug`, 'Đồ lam nữ tay dài màu Vàng Nhạt' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-25' AS `slug`, 'Đồ lam nữ tay ngắn màu Trà' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-26' AS `slug`, 'Áo lam nữ cổ tròn thêu Hoa Sen' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-27' AS `slug`, 'Bộ đồ lam nữ Linen màu Hồng' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-28' AS `slug`, 'Đồ lam nữ kiểu Nhật màu Nâu' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-do-lam-di-chua-29' AS `slug`, 'Áo lam nữ vạt xéo màu Lam' AS `name`, 3 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-01' AS `slug`, 'Bộ thiền Cotton cổ tròn màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-02' AS `slug`, 'Bộ thiền Cotton cổ tròn màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-03' AS `slug`, 'Bộ thiền Linen tay lỡ màu Lam' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-04' AS `slug`, 'Bộ thiền Linen tay dài màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-05' AS `slug`, 'Bộ thiền kiểu Nhật màu Kem' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-06' AS `slug`, 'Bộ thiền kiểu Nhật màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-07' AS `slug`, 'Áo thiền nam Linen 2 nút màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-08' AS `slug`, 'Áo thiền nam Linen 2 nút màu Lam' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-09' AS `slug`, 'Áo thiền nữ Linen cổ tàu màu Kem' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-10' AS `slug`, 'Áo thiền nữ Linen cổ tàu màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-11' AS `slug`, 'Quần thiền Cotton ống rộng màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-12' AS `slug`, 'Quần thiền Cotton ống rộng màu Đen' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-13' AS `slug`, 'Bộ thiền unisex Cotton màu Trà' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-14' AS `slug`, 'Bộ thiền unisex Linen màu Tím Khói' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-15' AS `slug`, 'Đồ thiền tay dài vải Kate màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-16' AS `slug`, 'Đồ thiền tay dài vải Kate màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-17' AS `slug`, 'Đồ thiền cổ tròn vải Đũi màu Lam' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-18' AS `slug`, 'Đồ thiền cổ tròn vải Đũi màu Kem' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-19' AS `slug`, 'Bộ thiền mùa hè vải Cotton mỏng' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-20' AS `slug`, 'Bộ thiền mùa đông vải Linen dày' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-21' AS `slug`, 'Áo khoác thiền Linen màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-22' AS `slug`, 'Áo khoác thiền Linen màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-23' AS `slug`, 'Bộ thiền nữ Big Size màu Lam' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-24' AS `slug`, 'Bộ thiền nam Big Size màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-25' AS `slug`, 'Bộ thiền Cotton cổ tàu màu Nâu' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-26' AS `slug`, 'Bộ thiền Linen cổ tròn màu Trà' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-27' AS `slug`, 'Áo thiền nam cổ tròn màu Xám' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-28' AS `slug`, 'Áo thiền nữ tay dài màu Lam' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-quan-ao-ngoi-thien-29' AS `slug`, 'Quần thiền Linen ống rộng màu Kem' AS `name`, 4 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-01' AS `slug`, 'Túi Tây Tạng OM' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-02' AS `slug`, 'Túi đi chùa họa tiết tròn 28x22cm' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-03' AS `slug`, 'Túi đeo vai Sen Vàng' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-04' AS `slug`, 'Túi đi chùa Đài Loan 3 màu' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-05' AS `slug`, 'Túi đi chùa họa tiết tròn 30x27cm' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-06' AS `slug`, 'Túi xách La Hán' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-07' AS `slug`, 'Túi đeo chéo vải Canvas' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-08' AS `slug`, 'Túi đeo chéo Sen Vàng' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-09' AS `slug`, 'Ba lô vải Canvas cao cấp' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-10' AS `slug`, 'Túi xách Sen Vàng' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-11' AS `slug`, 'Túi đi chùa cao cấp Hoa Sen Đài Loan' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-12' AS `slug`, 'Túi Sen cao cấp' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-13' AS `slug`, 'Túi vải bố đeo chùa màu Nâu' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-14' AS `slug`, 'Túi vải bố đeo chùa màu Đen' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-15' AS `slug`, 'Túi đeo chùa khóa kéo nhiều ngăn' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-16' AS `slug`, 'Túi đeo chùa mini đựng điện thoại' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-17' AS `slug`, 'Túi đeo chùa dây rút họa tiết Hoa Sen' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-18' AS `slug`, 'Túi tote vải Canvas đi chùa' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-19' AS `slug`, 'Túi tote Linen thêu chữ Tâm' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-20' AS `slug`, 'Túi đeo chéo vải Đũi màu Kem' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-21' AS `slug`, 'Túi đeo chéo vải Đũi màu Lam' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-22' AS `slug`, 'Túi đựng kinh sách vải Bố' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-23' AS `slug`, 'Túi đựng bình nước đi chùa' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-24' AS `slug`, 'Túi đeo vai họa tiết Bồ Đề' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-25' AS `slug`, 'Túi đeo vai Bồ Đề màu Nâu' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-26' AS `slug`, 'Túi vải Canvas thêu Hoa Sen' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-27' AS `slug`, 'Túi đựng đồ khóa tu' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-28' AS `slug`, 'Túi đeo chéo nhiều ngăn màu Đen' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-tui-deo-di-chua-29' AS `slug`, 'Túi cói đi chùa quai vải' AS `name`, 6 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-01' AS `slug`, 'Chuỗi hạt gỗ trầm hương 108 hạt 8mm' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-02' AS `slug`, 'Chuỗi hạt gỗ trầm hương 108 hạt 10mm' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-03' AS `slug`, 'Chuỗi hạt gỗ trầm hương 108 hạt 12mm' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-04' AS `slug`, 'Chuỗi hạt gỗ đàn hương 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-05' AS `slug`, 'Chuỗi hạt bồ đề 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-06' AS `slug`, 'Chuỗi hạt bồ đề đỏ 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-07' AS `slug`, 'Chuỗi hạt bồ đề xanh 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-08' AS `slug`, 'Chuỗi hạt gỗ tử đàn 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-09' AS `slug`, 'Chuỗi hạt gỗ mun 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-10' AS `slug`, 'Chuỗi hạt gỗ hoàng đàn 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-11' AS `slug`, 'Vòng tay trầm hương 12 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-12' AS `slug`, 'Vòng tay trầm hương 18 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-13' AS `slug`, 'Vòng tay đàn hương 18 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-14' AS `slug`, 'Vòng tay bồ đề 18 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-15' AS `slug`, 'Vòng tay đá mắt hổ nâu' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-16' AS `slug`, 'Vòng tay đá thạch anh tím' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-17' AS `slug`, 'Vòng tay đá thạch anh hồng' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-18' AS `slug`, 'Vòng tay đá mã não đỏ' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-19' AS `slug`, 'Vòng tay đá obsidian đen' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-20' AS `slug`, 'Chuỗi hạt đá mắt hổ 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-21' AS `slug`, 'Chuỗi hạt đá thạch anh trắng' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-22' AS `slug`, 'Chuỗi hạt đá mã não xanh' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-23' AS `slug`, 'Vòng tay gỗ huyết long' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-24' AS `slug`, 'Vòng tay gỗ dâu tằm' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-25' AS `slug`, 'Chuỗi hạt gỗ trắc 108 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-26' AS `slug`, 'Chuỗi hạt đá thạch anh vàng' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-27' AS `slug`, 'Vòng tay đá cẩm thạch xanh' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-28' AS `slug`, 'Vòng tay gỗ trầm mix đá' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-vong-tay-chuoi-hat-29' AS `slug`, 'Vòng tay hạt bồ đề 21 hạt' AS `name`, 7 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-01' AS `slug`, 'Khăn choàng vải Linen màu Lam' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-02' AS `slug`, 'Khăn choàng vải Linen màu Nâu' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-03' AS `slug`, 'Khăn choàng vải Cotton màu Xám' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-04' AS `slug`, 'Khăn choàng vải Đũi màu Kem' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-05' AS `slug`, 'Khăn tay thêu Hoa Sen' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-06' AS `slug`, 'Tọa cụ ngồi thiền vải Cotton' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-07' AS `slug`, 'Tọa cụ tròn ngồi thiền' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-08' AS `slug`, 'Thảm lạy Phật nhung và bông' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-09' AS `slug`, 'Thảm ngồi thiền gấp gọn' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-10' AS `slug`, 'Đệm ngồi thiền vỏ Gấm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-11' AS `slug`, 'Túi đựng chuỗi hạt vải Gấm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-12' AS `slug`, 'Túi đựng kinh sách mini' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-13' AS `slug`, 'Khăn trùm đầu đi chùa' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-14' AS `slug`, 'Mũ vải đi chùa thêu chữ Tâm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-15' AS `slug`, 'Quạt xếp Hoa Sen' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-16' AS `slug`, 'Quạt nan gỗ đi chùa' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-17' AS `slug`, 'Dây đeo kính hạt gỗ' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-18' AS `slug`, 'Móc khóa Hoa Sen gỗ' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-19' AS `slug`, 'Khăn lau kính vải mềm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-20' AS `slug`, 'Bình nước inox Hoa Sen' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-21' AS `slug`, 'Sổ tay khóa tu bìa vải' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-22' AS `slug`, 'Bút gỗ khắc chữ Tâm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-23' AS `slug`, 'Bộ túi thơm thảo mộc' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-24' AS `slug`, 'Dây đeo thẻ khóa tu' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-25' AS `slug`, 'Tọa cụ vuông vải Linen' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-26' AS `slug`, 'Thảm lễ Phật chống trượt' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-27' AS `slug`, 'Khăn choàng lụa màu Nâu' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-28' AS `slug`, 'Túi đựng vòng tay Gấm' AS `name`, 8 AS `category_id`
-  UNION ALL
-  SELECT 'seed-phu-kien-di-chua-29' AS `slug`, 'Dây đeo túi Hoa Sen' AS `name`, 8 AS `category_id`
-) named_products ON named_products.`slug` = p.`slug`
-SET p.`name` = named_products.`name`,
-    p.`short_description` = CONCAT(named_products.`name`, ' - sản phẩm mẫu để kiểm thử website.'),
-    p.`description` = CONCAT('Dữ liệu mẫu cho ', named_products.`name`, '. Cần xác nhận chất liệu, kích thước, nguồn gốc và hình ảnh thực tế trước khi bán.');
-
 INSERT INTO `product_categories` (`product_id`, `category_id`, `is_primary`) VALUES
   (1, 3, 1), (2, 2, 1), (3, 4, 1), (4, 6, 1), (5, 7, 1), (6, 8, 1)
-ON DUPLICATE KEY UPDATE `is_primary` = VALUES(`is_primary`);
-
--- Gắn thêm sản phẩm con vào danh mục cha để trang "Quần áo" và
--- "Túi và phụ kiện" cũng hiển thị được sản phẩm. Danh mục con vẫn là
--- danh mục chính (is_primary = 1).
-INSERT INTO `product_categories` (`product_id`, `category_id`, `is_primary`)
-SELECT p.`id`, c.`parent_id`, 0
-FROM `product` p
-JOIN `categories` c ON c.`id` = p.`category_id`
-WHERE c.`parent_id` IS NOT NULL
-ON DUPLICATE KEY UPDATE `is_primary` = VALUES(`is_primary`);
-
-INSERT INTO `product_categories` (`product_id`, `category_id`, `is_primary`)
-SELECT p.`id`, p.`category_id`, 1
-FROM `product` p
-WHERE p.`slug` LIKE 'seed-%'
 ON DUPLICATE KEY UPDATE `is_primary` = VALUES(`is_primary`);
 
 INSERT INTO `product_variants`
@@ -2124,73 +1656,10 @@ ON DUPLICATE KEY UPDATE
   `price_modifier` = VALUES(`price_modifier`), `stock_quantity` = VALUES(`stock_quantity`),
   `low_stock_threshold` = VALUES(`low_stock_threshold`), `status` = VALUES(`status`);
 
--- Mỗi sản phẩm mẫu có các biến thể phù hợp nghiệp vụ: size/màu cho quần áo,
--- màu cho túi/phụ kiện và đường kính/số hạt/chiều dài cho chuỗi hạt.
-INSERT INTO `product_variants`
-  (`product_id`, `sku`, `variant_name`, `variant_key`, `size`, `color`,
-   `price_modifier`, `stock_quantity`, `reserved_quantity`, `low_stock_threshold`,
-   `weight_grams`, `status`)
-SELECT
-  p.`id`,
-  CONCAT('SEED-', p.`id`, '-', s.`code`),
-  s.`variant_name`,
-  s.`variant_key`,
-  s.`size`,
-  s.`color`,
-  s.`price_modifier`,
-  10 + MOD(p.`id`, 16),
-  0,
-  CASE WHEN p.`category_id` = 7 THEN 3 ELSE 5 END,
-  p.`weight_grams`,
-  'active'
-FROM `product` p
-JOIN (
-  SELECT 2 AS `category_id`, 'S-NAU' AS `code`, 'Size S - Nâu' AS `variant_name`,
-         'size=s|color=nau' AS `variant_key`, 'S' AS `size`, 'Nâu' AS `color`, 0.00 AS `price_modifier`
-  UNION ALL SELECT 2, 'M-NAU', 'Size M - Nâu', 'size=m|color=nau', 'M', 'Nâu', 0.00
-  UNION ALL SELECT 2, 'L-XAM', 'Size L - Xám', 'size=l|color=xam', 'L', 'Xám', 20000.00
-  UNION ALL SELECT 2, 'XL-DEN', 'Size XL - Đen', 'size=xl|color=den', 'XL', 'Đen', 30000.00
-  UNION ALL SELECT 3, 'S-NAU', 'Size S - Nâu', 'size=s|color=nau', 'S', 'Nâu', 0.00
-  UNION ALL SELECT 3, 'M-NANG', 'Size M - Nâu nhạt', 'size=m|color=nau', 'M', 'Nâu', 0.00
-  UNION ALL SELECT 3, 'L-XAM', 'Size L - Xám', 'size=l|color=xam', 'L', 'Xám', 15000.00
-  UNION ALL SELECT 3, 'XL-TRANG', 'Size XL - Trắng', 'size=xl|color=trang', 'XL', 'Trắng', 20000.00
-  UNION ALL SELECT 4, 'S-XAM', 'Size S - Xám', 'size=s|color=xam', 'S', 'Xám', 0.00
-  UNION ALL SELECT 4, 'M-XAM', 'Size M - Xám', 'size=m|color=xam', 'M', 'Xám', 0.00
-  UNION ALL SELECT 4, 'L-NHAN', 'Size L - Nâu nhạt', 'size=l|color=nau', 'L', 'Nâu', 15000.00
-  UNION ALL SELECT 4, 'XL-DEN', 'Size XL - Đen', 'size=xl|color=den', 'XL', 'Đen', 20000.00
-  UNION ALL SELECT 6, 'NAU', 'Màu nâu', 'color=nau', NULL, 'Nâu', 0.00
-  UNION ALL SELECT 6, 'DEN', 'Màu đen', 'color=den', NULL, 'Đen', 0.00
-  UNION ALL SELECT 6, 'XAM', 'Màu xám', 'color=xam', NULL, 'Xám', 10000.00
-  UNION ALL SELECT 7, '8MM-108', 'Hạt 8mm - 108 hạt', 'bead-size=8|bead-count=108|length=70', NULL, NULL, 0.00
-  UNION ALL SELECT 7, '10MM-108', 'Hạt 10mm - 108 hạt', 'bead-size=10|bead-count=108|length=75', NULL, NULL, 80000.00
-  UNION ALL SELECT 7, '12MM-108', 'Hạt 12mm - 108 hạt', 'bead-size=12|bead-count=108|length=80', NULL, NULL, 160000.00
-  UNION ALL SELECT 8, 'NAU', 'Màu nâu', 'color=nau', NULL, 'Nâu', 0.00
-  UNION ALL SELECT 8, 'DEN', 'Màu đen', 'color=den', NULL, 'Đen', 0.00
-  UNION ALL SELECT 8, 'VANG', 'Màu vàng nhạt', 'color=vang-nhat', NULL, 'Vàng nhạt', 10000.00
-) s ON s.`category_id` = p.`category_id`
-WHERE p.`slug` LIKE 'seed-%'
-ON DUPLICATE KEY UPDATE
-  `variant_name` = VALUES(`variant_name`),
-  `size` = VALUES(`size`),
-  `color` = VALUES(`color`),
-  `price_modifier` = VALUES(`price_modifier`),
-  `stock_quantity` = VALUES(`stock_quantity`),
-  `low_stock_threshold` = VALUES(`low_stock_threshold`),
-  `weight_grams` = VALUES(`weight_grams`),
-  `status` = VALUES(`status`);
-
 INSERT INTO `inventory_stocks` (`warehouse_id`, `variant_id`, `on_hand_quantity`, `reserved_quantity`)
 SELECT 1, `id`, `stock_quantity`, `reserved_quantity`
 FROM `product_variants`
 WHERE `id` BETWEEN 1 AND 12
-ON DUPLICATE KEY UPDATE
-  `on_hand_quantity` = VALUES(`on_hand_quantity`),
-  `reserved_quantity` = VALUES(`reserved_quantity`);
-
-INSERT INTO `inventory_stocks` (`warehouse_id`, `variant_id`, `on_hand_quantity`, `reserved_quantity`)
-SELECT 1, `id`, `stock_quantity`, `reserved_quantity`
-FROM `product_variants`
-WHERE `sku` LIKE 'SEED-%'
 ON DUPLICATE KEY UPDATE
   `on_hand_quantity` = VALUES(`on_hand_quantity`),
   `reserved_quantity` = VALUES(`reserved_quantity`);
@@ -2205,23 +1674,6 @@ INSERT INTO `product_images` (`id`, `product_id`, `variant_id`, `image_url`, `al
 ON DUPLICATE KEY UPDATE
   `image_url` = VALUES(`image_url`), `alt_text` = VALUES(`alt_text`),
   `is_primary` = VALUES(`is_primary`), `sort_order` = VALUES(`sort_order`);
-
--- Ảnh minh họa riêng cho từng sản phẩm mẫu. Đây là đường dẫn chờ upload ảnh
--- thật; không dùng ảnh giả để cam kết chất liệu hoặc nguồn gốc sản phẩm.
-INSERT INTO `product_images`
-  (`product_id`, `variant_id`, `image_url`, `alt_text`, `is_primary`, `sort_order`)
-SELECT p.`id`, NULL,
-       CONCAT('public/uploads/products/demo/generated/', p.`slug`, '.jpg'),
-       p.`name`, 1, 10
-FROM `product` p
-WHERE p.`slug` LIKE 'seed-%'
-  AND NOT EXISTS (
-    SELECT 1
-    FROM `product_images` existing_image
-    WHERE existing_image.`product_id` = p.`id`
-      AND existing_image.`variant_id` IS NULL
-      AND existing_image.`is_primary` = 1
-  );
 
 -- Giá trị thuộc tính ở cấp product.
 INSERT INTO `product_attribute_values` (`product_id`, `attribute_id`, `option_id`, `value_text`, `value_number`) VALUES
@@ -2240,59 +1692,6 @@ ON DUPLICATE KEY UPDATE
   `option_id` = VALUES(`option_id`), `value_text` = VALUES(`value_text`),
   `value_number` = VALUES(`value_number`);
 
--- Thuộc tính mẫu để các bộ lọc theo chất liệu, đối tượng, kiểu dáng và công
--- dụng có dữ liệu ở cả 6 danh mục, thay vì chỉ có dữ liệu cho 6 sản phẩm đầu.
-INSERT INTO `product_attribute_values`
-  (`product_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT p.`id`, 3,
-       CASE p.`category_id`
-         WHEN 2 THEN 20
-         WHEN 3 THEN 20
-         WHEN 4 THEN 21
-         WHEN 6 THEN 25
-         WHEN 7 THEN CASE WHEN MOD(p.`id`, 2) = 0 THEN 22 ELSE 23 END
-         WHEN 8 THEN CASE WHEN MOD(p.`id`, 2) = 0 THEN 26 ELSE 24 END
-       END,
-       NULL, NULL
-FROM `product` p
-WHERE p.`category_id` IN (2, 3, 4, 6, 7, 8) AND p.`slug` LIKE 'seed-%'
-UNION ALL
-SELECT p.`id`, 4,
-       CASE p.`category_id`
-         WHEN 2 THEN CASE WHEN MOD(p.`id`, 2) = 0 THEN 31 ELSE 30 END
-         WHEN 3 THEN 32
-         WHEN 4 THEN 33
-       END,
-       NULL, NULL
-FROM `product` p
-WHERE p.`category_id` IN (2, 3, 4) AND p.`slug` LIKE 'seed-%'
-UNION ALL
-SELECT p.`id`, 10,
-       CASE p.`category_id`
-         WHEN 2 THEN CASE WHEN MOD(p.`id`, 2) = 0 THEN 41 ELSE 40 END
-         WHEN 3 THEN 40
-         WHEN 4 THEN 43
-       END,
-       NULL, NULL
-FROM `product` p
-WHERE p.`category_id` IN (2, 3, 4) AND p.`slug` LIKE 'seed-%'
-UNION ALL
-SELECT p.`id`, 8, NULL, '30 x 25 x 8 cm', NULL
-FROM `product` p
-WHERE p.`category_id` = 6 AND p.`slug` LIKE 'seed-%'
-UNION ALL
-SELECT p.`id`, 11, NULL, 'Phù hợp sử dụng khi đi chùa và sinh hoạt hằng ngày.', NULL
-FROM `product` p
-WHERE p.`category_id` = 8 AND p.`slug` LIKE 'seed-%'
-UNION ALL
-SELECT p.`id`, 12, NULL, 'Bảo quản nơi khô ráo, giặt nhẹ nếu là sản phẩm vải.', NULL
-FROM `product` p
-WHERE p.`category_id` IN (2, 3, 4, 6, 7, 8) AND p.`slug` LIKE 'seed-%'
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`),
-  `value_text` = VALUES(`value_text`),
-  `value_number` = VALUES(`value_number`);
-
 -- Giá trị thuộc tính ở cấp variant.
 INSERT INTO `variant_attribute_values` (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`) VALUES
   (1, 1, 1, NULL, NULL), (1, 2, 11, NULL, NULL),
@@ -2308,59 +1707,6 @@ INSERT INTO `variant_attribute_values` (`variant_id`, `attribute_id`, `option_id
 ON DUPLICATE KEY UPDATE
   `option_id` = VALUES(`option_id`), `value_text` = VALUES(`value_text`),
   `value_number` = VALUES(`value_number`);
-
-INSERT INTO `variant_attribute_values`
-  (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT v.`id`, 1,
-       CASE v.`size`
-         WHEN 'S' THEN 1 WHEN 'M' THEN 2 WHEN 'L' THEN 3
-         WHEN 'XL' THEN 4 WHEN '2XL' THEN 5 WHEN 'Free size' THEN 6
-       END,
-       NULL, NULL
-FROM `product_variants` v
-WHERE v.`sku` LIKE 'SEED-%' AND v.`size` IS NOT NULL
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_number` = VALUES(`value_number`);
-
-INSERT INTO `variant_attribute_values`
-  (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT v.`id`, 2,
-       CASE v.`color`
-         WHEN 'Nâu' THEN 11 WHEN 'Xám' THEN 12 WHEN 'Trắng' THEN 13
-         WHEN 'Đen' THEN 14 WHEN 'Vàng nhạt' THEN 15
-       END,
-       NULL, NULL
-FROM `product_variants` v
-WHERE v.`sku` LIKE 'SEED-%' AND v.`color` IS NOT NULL
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_number` = VALUES(`value_number`);
-
-INSERT INTO `variant_attribute_values`
-  (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT v.`id`, 5, NULL, NULL,
-       CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(v.`variant_key`, '|', 1), '=', -1) AS DECIMAL(12,2))
-FROM `product_variants` v
-WHERE v.`sku` LIKE 'SEED-%' AND v.`variant_key` LIKE 'bead-size=%'
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_number` = VALUES(`value_number`);
-
-INSERT INTO `variant_attribute_values`
-  (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT v.`id`, 6, NULL, NULL,
-       CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(v.`variant_key`, '|', 2), '=', -1) AS DECIMAL(12,2))
-FROM `product_variants` v
-WHERE v.`sku` LIKE 'SEED-%' AND v.`variant_key` LIKE 'bead-size=%'
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_number` = VALUES(`value_number`);
-
-INSERT INTO `variant_attribute_values`
-  (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`)
-SELECT v.`id`, 7, NULL, NULL,
-       CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(v.`variant_key`, '|', 3), '=', -1) AS DECIMAL(12,2))
-FROM `product_variants` v
-WHERE v.`sku` LIKE 'SEED-%' AND v.`variant_key` LIKE 'bead-size=%'
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_number` = VALUES(`value_number`);
 
 INSERT INTO `post_categories` (`id`, `name`, `slug`, `status`) VALUES
   (1, 'Hướng dẫn', 'huong-dan', 1),
@@ -2378,95 +1724,4 @@ ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 INSERT IGNORE INTO `schema_migrations` (`version`) VALUES
   ('lam_shop_db_v1'),
   ('lam_shop_db_v2_ecommerce_course'),
-  ('lam_shop_db_v3_store_map'),
-  ('lam_shop_db_v4_sample_catalog_25_each'),
-  ('lam_shop_db_v5_sample_catalog_30_each_parent_links'),
-  ('lam_shop_db_v6_named_catalog_30_each'),
-  ('ecommerce_business_v8');
-
--- ============================================================================
--- 9. QUY TẮC NGHIỆP VỤ CẦN THỰC HIỆN Ở CODE ỨNG DỤNG
--- ============================================================================
--- 1) Khi tạo product, luôn tạo >= 1 product_variant. Hàng không có lựa chọn
---    dùng variant_key = 'default' và variant_name = 'Mặc định'.
--- 2) Khi checkout, phải SELECT inventory_stocks ... FOR UPDATE ở kho được
---    chọn, kiểm tra on_hand_quantity - reserved_quantity trước khi tạo đơn.
---    Cập nhật inventory_stocks, product_variants (tổng cache) và inventory_logs
---    trong cùng transaction; không dùng trigger.
--- 3) order_items bắt buộc lưu snapshot tên, SKU, ảnh, thuộc tính và đơn giá.
--- 4) Chỉ ghi coupon_usages và tăng coupons.used_count sau khi đơn hợp lệ.
--- 5) Không xóa cứng order, order_items, product đã có giao dịch.
--- 6) Không cho phép đổi trạng thái đơn tùy ý; mọi chuyển đổi phải ghi
---    order_status_logs.
--- 7) Chỉ cho review nếu người dùng có order_item thuộc đơn delivered/completed.
--- 8) Không dùng trigger inventory. Update stock/reserved + inventory_logs phải
---    nằm trong một database transaction do code ứng dụng điều khiển.
--- 9) Mỗi callback thanh toán phải được kiểm tra chữ ký, ghi một
---    payment_webhook_events duy nhất và xử lý idempotent theo gateway_event_id.
--- 10) Tuyệt đối không lưu số thẻ, CVV, mật khẩu ngân hàng hoặc OTP trong bất
---     cứ bảng nào. Chỉ lưu mã giao dịch/mã tham chiếu do cổng thanh toán cấp.
--- 11) Ghi order_legal_acceptances khi khách chấp nhận chính sách; không sửa
---     nội dung legal_documents đã published mà tạo phiên bản mới.
--- 12) Chỉ gửi email/SMS tiếp thị khi privacy_consents tương ứng đang được cấp.
--- 13) Khi phiếu nhập chuyển sang received: tăng tồn kho theo warehouse, tạo
---     inventory_logs movement_type = purchase và cập nhật giá vốn nếu cần.
--- 14) Khi đơn chuyển sang confirmed: reserve hàng; khi shipped: ghi nhận xuất;
---     khi canceled trước khi giao: release hàng; khi hoàn hàng đạt chuẩn: return.
--- 15) Khi payment gateway callback: xác thực chữ ký trước, sau đó xử lý một lần
---     theo gateway_event_id; callback trùng chỉ ghi ignored, không tạo đơn/thu tiền lại.
--- 16) Khi đơn được đặt: ghi order_status_logs, order_legal_acceptances và có
---     thể tạo invoice sau khi điều kiện xuất hóa đơn được đáp ứng.
--- 17) Khi thao tác nhạy cảm (đăng nhập thất bại, đổi quyền, đổi giá, hoàn tiền),
---     ghi security_events/logs; không đưa dữ liệu bí mật vào metadata.
--- 18) Google Maps lấy ưu tiên từ google_maps_url; nếu chưa có, tạo liên kết nhúng
---     từ latitude + longitude. Không tự ghi đè địa chỉ/tọa độ của merchant_profiles.
--- 19) privacy_consents phải có user_id hoặc email; cart phải có đúng một owner
---     (user_id hoặc session_id). Các quy tắc này kiểm tra ở service trước INSERT
---     vì không dùng CHECK trên cột đang tham gia FK có hành động referential.
-
--- ============================================================================
--- 10. CÂU LỆNH KIỂM TRA SAU KHI IMPORT (CHỈ ĐỌC)
--- ============================================================================
--- SHOW TABLES;
--- SELECT id, parent_id, name, slug FROM categories ORDER BY sort_order, id;
--- SELECT p.name, pv.sku, pv.variant_name, pv.stock_quantity
--- FROM product p JOIN product_variants pv ON pv.product_id = p.id
--- ORDER BY p.id, pv.id;
--- SELECT c.name AS category_name, a.name AS attribute_name, r.is_variant_attribute
--- FROM category_attribute_rules r
--- JOIN categories c ON c.id = r.category_id
--- JOIN catalog_attributes a ON a.id = r.attribute_id
--- ORDER BY c.sort_order, r.sort_order;
--- SELECT p.name, pv.variant_name, pv.stock_quantity, pv.reserved_quantity
--- FROM product_variants pv JOIN product p ON p.id = pv.product_id
--- WHERE pv.stock_quantity < pv.reserved_quantity;
--- SELECT c.id, c.name, COUNT(DISTINCT pc.product_id) AS product_count
--- FROM categories c
--- LEFT JOIN product_categories pc ON pc.category_id = c.id AND pc.is_primary = 1
--- WHERE c.parent_id IS NOT NULL
--- GROUP BY c.id, c.name
--- ORDER BY c.sort_order, c.id;
--- SELECT w.name AS warehouse_name, p.name, pv.sku,
---        s.on_hand_quantity, s.reserved_quantity,
---        s.on_hand_quantity - s.reserved_quantity AS available_quantity
--- FROM inventory_stocks s
--- JOIN warehouses w ON w.id = s.warehouse_id
--- JOIN product_variants pv ON pv.id = s.variant_id
--- JOIN product p ON p.id = pv.product_id
--- ORDER BY w.name, p.name;
--- SELECT o.order_code, o.status, pay.payment_state, pt.provider_transaction_code
--- FROM orders o
--- LEFT JOIN payments pay ON pay.order_id = o.id
--- LEFT JOIN payment_transactions pt ON pt.payment_id = pay.id
--- ORDER BY o.created_at DESC;
--- SELECT o.order_code, ld.document_type, ola.document_version_snapshot, ola.accepted_at
--- FROM order_legal_acceptances ola
--- JOIN orders o ON o.id = ola.order_id
--- LEFT JOIN legal_documents ld ON ld.id = ola.legal_document_id
--- ORDER BY ola.accepted_at DESC;
--- SELECT event_name, COUNT(*) AS total_events, COUNT(DISTINCT visitor_key) AS visitors
--- FROM marketing_events
--- GROUP BY event_name ORDER BY total_events DESC;
---
--- Database này không có DROP DATABASE/DROP TABLE và không hề thao tác với
--- database `paceup_db`.
+  ('lam_shop_db_v3_store_map');
