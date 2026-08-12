@@ -30,8 +30,8 @@ if (!function_exists('productAssetPath')) {
             <a href="<?= BASE_URL ?>">PACEUP</a>
         </div>
         <nav class="nav-links">
-            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=men') ?>">Nam</a>
-            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=women') ?>">Nữ</a>
+            <a href="<?= htmlspecialchars(BASE_URL . 'shop') ?>">Cửa hàng</a>
+            <a href="<?= htmlspecialchars(BASE_URL . 'shop?category=' . rawurlencode('Đồ lam đi chùa')) ?>">Đồ lam</a>
         </nav>
         <div class="nav-actions">
             <form class="search-bar" action="<?= BASE_URL ?>shop" method="GET">

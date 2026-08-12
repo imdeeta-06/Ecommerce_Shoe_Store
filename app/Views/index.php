@@ -16,9 +16,10 @@ function homeAssetUrl($image): string {
     <!-- Hero Slideshow -->
     <section class="hero-slideshow" id="heroSlideshow">
         <?php $heroBanners = !empty($banners) ? $banners : [
-            ['image_url' => 'assets/images/hero2..avif'],
-            ['image_url' => 'assets/images/hero3.avif'],
-            ['image_url' => 'assets/images/hero4.avif']
+            ['image_url' => 'assets/images/lam-hero-lanterns.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-courtyard.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-pagoda.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-temple.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa']
         ]; ?>
         <?php foreach ($heroBanners as $index => $banner): ?>
             <div class="hero-slide <?= $index === 0 ? 'active' : '' ?>" data-link="<?= htmlspecialchars($banner['link_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background-image: url('<?= htmlspecialchars(homeAssetUrl($banner['image_url'] ?? ''), ENT_QUOTES, 'UTF-8') ?>');<?= !empty($banner['link_url']) ? 'cursor:pointer;' : '' ?>"></div>
@@ -52,7 +53,10 @@ function homeAssetUrl($image): string {
                 <div class="product-info">
                     <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" style="text-decoration: none; color: inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category']) ?></span>
-                    <div class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price">
+                        <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format($product['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
+                        <span><?= number_format($product['price'], 0, ',', '.') ?> ₫</span>
+                    </div>
                     <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem size & màu</button>
                 </div>
             </div>
@@ -62,7 +66,7 @@ function homeAssetUrl($image): string {
     </section>
 
     <section class="products-section">
-        <h2>Sản phẩm bán chạy</h2>
+        <h2><?= htmlspecialchars($bestSellingTitle ?? 'Sản phẩm bán chạy') ?></h2>
         <div class="product-grid">
             <?php foreach ($bestSellingProducts as $product): ?>
             <div class="product-card">
@@ -70,7 +74,10 @@ function homeAssetUrl($image): string {
                 <div class="product-info">
                     <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" style="text-decoration:none;color:inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category'] ?? '') ?></span>
-                    <div class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price">
+                        <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format($product['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
+                        <span><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</span>
+                    </div>
                     <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem sản phẩm</button>
                 </div>
             </div>

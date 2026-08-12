@@ -83,12 +83,13 @@ $avatar = $user['avatar'] ?? '';
                             <div style="border: 1px solid #eee; padding: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div>
                                     <h3 style="font-size: 1rem; margin-bottom: 0.5rem; font-family: var(--font-heading); color: #111;">
-                                        <?= htmlspecialchars($address['address_line'] ?? '') ?>
+                                        <?= htmlspecialchars($address['recipient_name'] ?? '') ?>
                                         <?php if (!empty($address['is_default'])): ?>
                                             <span style="font-size: 0.7rem; background: #111; color: #fff; padding: 2px 6px; margin-left: 10px; vertical-align: middle; font-family: var(--font-body); letter-spacing: 1px; font-weight: normal;">MẶC ĐỊNH</span>
                                         <?php endif; ?>
                                     </h3>
-                                    <p style="margin: 0; color: #666; font-size: 0.95rem; line-height: 1.6;"><?= htmlspecialchars($address['ward_district_city'] ?? '') ?></p>
+                                    <p style="margin: 0; color: #666; font-size: 0.95rem; line-height: 1.6;"><?= htmlspecialchars($address['recipient_phone'] ?? '') ?></p>
+                                    <p style="margin: 0; color: #666; font-size: 0.95rem; line-height: 1.6;"><?= htmlspecialchars($address['address_line'] ?? '') ?>, <?= htmlspecialchars($address['ward_district_city'] ?? '') ?></p>
                                 </div>
                                 <div style="display: flex; gap: 1rem; align-items: center;">
                                     <?php if (empty($address['is_default'])): ?>

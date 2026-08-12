@@ -84,12 +84,6 @@ class Product extends BaseModel {
             $params['status'] = (int)$filters['status'];
         }
 
-        if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
-            $sql .= " AND p.gender = :gender";
-            $params['gender'] = $filters['gender'];
-        }
-
         $sql .= " ORDER BY p.id DESC";
 
         $stmt = $this->db->prepare($sql);
@@ -103,14 +97,8 @@ class Product extends BaseModel {
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)";
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1 AND pv_available.stock_quantity > 0)";
         $params = [];
-
-        if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
-            $sql .= " AND p.gender = :gender";
-            $params['gender'] = $filters['gender'];
-        }
 
         if (!empty($filters['category']) && $filters['category'] !== 'all') {
             $sql .= " AND c.name = :category";
@@ -161,7 +149,7 @@ class Product extends BaseModel {
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE p.id = :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)";
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1 AND pv_available.stock_quantity > 0)";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['id' => $id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -222,22 +210,21 @@ class Product extends BaseModel {
         return (bool)$stmt->fetchColumn();
     }
 
-    public function getRelatedProducts($productId, $categoryId, $gender, $limit = 4) {
+    public function getRelatedProducts($productId, $categoryId, $limit = 4) {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE p.id != :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)
-                AND (p.category_id = :category_id OR p.gender = :gender)
-                ORDER BY (p.category_id = :category_id) DESC, p.id DESC
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1 AND pv_available.stock_quantity > 0)
+                AND p.category_id = :category_id
+                ORDER BY p.is_featured DESC, p.id DESC
                 LIMIT " . (int)$limit;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'id' => $productId,
-            'category_id' => $categoryId,
-            'gender' => $gender
+            'category_id' => $categoryId
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -306,7 +293,7 @@ class Product extends BaseModel {
     }
 
     public function getProductVariants($productId) {
-        $stmt = $this->db->prepare("SELECT * FROM product_variants WHERE product_id = :product_id ORDER BY size ASC, color ASC");
+        $stmt = $this->db->prepare("SELECT * FROM product_variants WHERE product_id = :product_id AND status = 1 ORDER BY size ASC, color ASC");
         $stmt->execute(['product_id' => $productId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -333,28 +320,8 @@ class Product extends BaseModel {
     }
 
     public function productVariantHasOrderItems($variantId): bool {
-        if (!$this->tableExists('order_items')) {
-            return false;
-        }
-
-        $conditions = [];
-        $params = ['variant_id' => (int)$variantId];
-        if ($this->tableHasColumn('order_items', 'variant_id')) {
-            $conditions[] = 'variant_id = :variant_id';
-        }
-        if ($this->tableHasColumn('order_items', 'product_id')) {
-            $reference = $this->referencedTable('order_items', 'product_id');
-            if ($reference === 'product_variants' || $reference === null) {
-                $conditions[] = 'product_id = :legacy_variant_id';
-                $params['legacy_variant_id'] = (int)$variantId;
-            }
-        }
-        if (empty($conditions)) {
-            return false;
-        }
-
-        $stmt = $this->db->prepare('SELECT 1 FROM order_items WHERE ' . implode(' OR ', $conditions) . ' LIMIT 1');
-        $stmt->execute($params);
+        $stmt = $this->db->prepare('SELECT 1 FROM order_items WHERE variant_id = :variant_id LIMIT 1');
+        $stmt->execute(['variant_id' => (int)$variantId]);
         return (bool)$stmt->fetchColumn();
     }
 
@@ -413,26 +380,41 @@ class Product extends BaseModel {
     }
 
     public function updateStock($variantId, $quantityChanged, $reason) {
-        $stmt = $this->db->prepare('SELECT stock_quantity FROM product_variants WHERE id = :id FOR UPDATE');
-        $stmt->execute(['id' => (int)$variantId]);
-        $currentStock = $stmt->fetchColumn();
-        if ($currentStock === false) {
-            throw new \RuntimeException('Không tìm thấy phân loại sản phẩm.');
-        }
-        if ((int)$currentStock + (int)$quantityChanged < 0) {
-            throw new \RuntimeException('Không thể xuất kho vượt quá số lượng tồn hiện tại.');
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
         }
 
-        $result = $this->createInventoryLog([
-            'variant_id' => $variantId,
-            'quantity_changed' => $quantityChanged,
-            'reason' => $reason
-        ]);
-        if (!$this->triggerExists('trg_after_insert_inventory_log')) {
+        try {
+            $stmt = $this->db->prepare('SELECT stock_quantity FROM product_variants WHERE id = :id FOR UPDATE');
+            $stmt->execute(['id' => (int)$variantId]);
+            $currentStock = $stmt->fetchColumn();
+            if ($currentStock === false) {
+                throw new \RuntimeException('Không tìm thấy phân loại sản phẩm.');
+            }
+            if ((int)$currentStock + (int)$quantityChanged < 0) {
+                throw new \RuntimeException('Không thể xuất kho vượt quá số lượng tồn hiện tại.');
+            }
+
+            $result = $this->createInventoryLog([
+                'variant_id' => $variantId,
+                'quantity_changed' => $quantityChanged,
+                'reason' => $reason
+            ]);
             $stmt = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :id');
             $stmt->execute(['quantity' => (int)$quantityChanged, 'id' => (int)$variantId]);
+
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
-        return $result;
     }
 
     public function getInventoryLogsByVariant($variantId) {
@@ -475,7 +457,7 @@ class Product extends BaseModel {
                 FROM product p
                 LEFT JOIN categories c ON c.id = p.category_id
                 WHERE p.status = 1 AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1 AND pv_available.stock_quantity > 0)
                 ORDER BY {$orderBy}
                 LIMIT :limit");
         $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
@@ -485,59 +467,18 @@ class Product extends BaseModel {
 
     private function productHasOrderItems($productId) {
         $productId = (int)$productId;
-
-        if (!$this->tableExists('order_items')) {
-            return false;
-        }
-
-        if ($this->tableHasColumn('order_items', 'variant_id')) {
-            $stmt = $this->db->prepare("
-                SELECT 1
-                FROM order_items oi
-                JOIN product_variants pv ON oi.variant_id = pv.id
-                WHERE pv.product_id = :product_id
-                LIMIT 1
-            ");
-            $stmt->execute(['product_id' => $productId]);
-            if ($stmt->fetchColumn()) {
-                return true;
-            }
-        }
-
-        if ($this->tableHasColumn('order_items', 'product_id')) {
-            $reference = $this->referencedTable('order_items', 'product_id');
-
-            if ($reference === 'product' || $reference === null) {
-                $stmt = $this->db->prepare("SELECT 1 FROM order_items WHERE product_id = :product_id LIMIT 1");
-                $stmt->execute(['product_id' => $productId]);
-                if ($stmt->fetchColumn()) {
-                    return true;
-                }
-            }
-
-            if ($reference === 'product_variants' || $reference === null) {
-                $stmt = $this->db->prepare("
-                    SELECT 1
-                    FROM order_items oi
-                    JOIN product_variants pv ON oi.product_id = pv.id
-                    WHERE pv.product_id = :product_id
-                    LIMIT 1
-                ");
-                $stmt->execute(['product_id' => $productId]);
-                if ($stmt->fetchColumn()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        $stmt = $this->db->prepare("
+            SELECT 1
+            FROM order_items oi
+            WHERE oi.product_id = :product_id
+               OR oi.variant_id IN (SELECT id FROM product_variants WHERE product_id = :product_id)
+            LIMIT 1
+        ");
+        $stmt->execute(['product_id' => $productId]);
+        return (bool)$stmt->fetchColumn();
     }
 
     private function getProductVariantIds($productId) {
-        if (!$this->tableExists('product_variants') || !$this->tableHasColumn('product_variants', 'product_id')) {
-            return [];
-        }
-
         $stmt = $this->db->prepare("SELECT id FROM product_variants WHERE product_id = :product_id");
         $stmt->execute(['product_id' => (int)$productId]);
 
@@ -556,32 +497,10 @@ class Product extends BaseModel {
     }
 
     private function deleteCartRows($productId, array $variantIds) {
-        if (!$this->tableExists('cart')) {
-            return;
-        }
-
-        if ($this->tableHasColumn('cart', 'product_id')) {
-            $reference = $this->referencedTable('cart', 'product_id');
-
-            if ($reference === 'product' || $reference === null) {
-                $this->deleteByColumn('cart', 'product_id', $productId);
-            }
-
-            if ($reference === 'product_variants' || $reference === null) {
-                $this->deleteByColumn('cart', 'product_id', $variantIds);
-            }
-        }
-
-        if ($this->tableHasColumn('cart', 'variant_id')) {
-            $this->deleteByColumn('cart', 'variant_id', $variantIds);
-        }
+        $this->deleteByColumn('cart', 'variant_id', $variantIds);
     }
 
     private function deleteByColumn($table, $column, $values) {
-        if (!$this->tableHasColumn($table, $column)) {
-            return;
-        }
-
         $values = is_array($values) ? array_values(array_filter(array_map('intval', $values))) : [(int)$values];
         if (empty($values)) {
             return;
@@ -592,64 +511,4 @@ class Product extends BaseModel {
         $stmt->execute($values);
     }
 
-    private function tableExists($table) {
-        $stmt = $this->db->prepare("
-            SELECT COUNT(*)
-            FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = :table_name
-        ");
-        $stmt->execute(['table_name' => $table]);
-
-        return (int)$stmt->fetchColumn() > 0;
-    }
-
-    private function tableHasColumn($table, $column) {
-        if (!$this->tableExists($table)) {
-            return false;
-        }
-
-        $stmt = $this->db->prepare("
-            SELECT COUNT(*)
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = :table_name
-              AND COLUMN_NAME = :column_name
-        ");
-        $stmt->execute([
-            'table_name' => $table,
-            'column_name' => $column
-        ]);
-
-        return (int)$stmt->fetchColumn() > 0;
-    }
-
-    private function referencedTable($table, $column) {
-        if (!$this->tableHasColumn($table, $column)) {
-            return null;
-        }
-
-        $stmt = $this->db->prepare("
-            SELECT REFERENCED_TABLE_NAME
-            FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = :table_name
-              AND COLUMN_NAME = :column_name
-              AND REFERENCED_TABLE_NAME IS NOT NULL
-            LIMIT 1
-        ");
-        $stmt->execute([
-            'table_name' => $table,
-            'column_name' => $column
-        ]);
-
-        $tableName = $stmt->fetchColumn();
-        return $tableName ? strtolower((string)$tableName) : null;
-    }
-
-    private function triggerExists($triggerName): bool {
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = :trigger_name');
-        $stmt->execute(['trigger_name' => $triggerName]);
-        return (int)$stmt->fetchColumn() > 0;
-    }
 }

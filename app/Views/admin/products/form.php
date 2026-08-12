@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-$variantSizes = ['S', 'M', 'L', 'XL', 'Mặc định'];
-$variantColors = ['Lam', 'Nâu', 'Trắng', 'Xám', 'Đen'];
+$variantSizes = ['S', 'M', 'L', 'XL', 'Free size', '8mm', '10mm', '12mm', 'Mặc định'];
+$variantColors = ['Lam', 'Nâu', 'Trắng', 'Xám', 'Kem', 'Đen'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
 adminStart($title, 'products', $flash ?? null);
 ?>
@@ -41,19 +41,22 @@ adminStart($title, 'products', $flash ?? null);
                     </select>
                 </div>
                 <div class="admin-field">
-                    <label>Giá gốc (VNĐ) *</label>
-                    <input type="number" name="base_price" min="0" step="1000" required value="<?= adminE($product['base_price'] ?? 0) ?>">
+                    <label>Giá bán hiện tại (VNĐ) *</label>
+                    <input type="number" name="base_price" min="1000" step="1000" required value="<?= adminE($product['base_price'] ?? 0) ?>">
                 </div>
                 <div class="admin-field">
-                    <label>Phân loại *</label>
-                    <input type="text" name="type" required value="<?= adminE($product['type'] ?? '') ?>" placeholder="Ví dụ: Đồ lam đi chùa, Chuỗi hạt">
+                    <label>Giá cũ / giá niêm yết (VNĐ)</label>
+                    <input type="number" name="old_price" min="0" step="1000" value="<?= adminE($product['old_price'] ?? '') ?>" placeholder="Để trống nếu không khuyến mại">
+                    <small style="display:block;color:var(--admin-text-light);margin-top:.35rem;">Chỉ nhập khi giá cũ lớn hơn giá bán hiện tại.</small>
                 </div>
                 <div class="admin-field">
-                    <label>Giới tính</label>
-                    <select name="gender">
-                        <option value="">Chưa phân loại</option>
-                        <option value="men" <?= ($product['gender'] ?? '') === 'men' ? 'selected' : '' ?>>Nam</option>
-                        <option value="women" <?= ($product['gender'] ?? '') === 'women' ? 'selected' : '' ?>>Nữ</option>
+                    <label>Loại sản phẩm *</label>
+                    <select name="product_type" required>
+                        <?php $productType = $product['product_type'] ?? 'accessory'; ?>
+                        <option value="apparel" <?= $productType === 'apparel' ? 'selected' : '' ?>>Pháp phục / quần áo</option>
+                        <option value="bag" <?= $productType === 'bag' ? 'selected' : '' ?>>Túi đi chùa</option>
+                        <option value="beads" <?= $productType === 'beads' ? 'selected' : '' ?>>Vòng tay / chuỗi hạt</option>
+                        <option value="accessory" <?= $productType === 'accessory' ? 'selected' : '' ?>>Phụ kiện đi chùa</option>
                     </select>
                 </div>
                 <div class="admin-field">

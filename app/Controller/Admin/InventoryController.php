@@ -25,9 +25,19 @@ class InventoryController {
         $size = $this->variantSize($_POST['size'] ?? '');
         $color = $this->variantColor($_POST['color'] ?? '');
         $stockQuantity = max(0, (int)($_POST['stock_quantity'] ?? 0));
-        $priceModifier = (float)($_POST['price_modifier'] ?? 0);
+        $priceModifier = max(0, (float)($_POST['price_modifier'] ?? 0));
 
-        if ($productId > 0 && $size !== '' && $color !== '') {
+        try {
+            if ($productId <= 0 || $size === '' || $color === '') {
+                throw new \RuntimeException('Vui lòng chọn sản phẩm, size và màu để tạo phân loại.');
+            }
+            if (!$this->productModel->getProductForAdmin($productId)) {
+                throw new \RuntimeException('Sản phẩm không tồn tại.');
+            }
+            if ($this->productModel->productVariantExists($productId, $size, $color)) {
+                throw new \RuntimeException('Phân loại size/màu này đã tồn tại.');
+            }
+
             $variantId = $this->productModel->createProductVariant([
                 'product_id' => $productId,
                 'size' => $size,
@@ -39,8 +49,8 @@ class InventoryController {
                 $this->productModel->updateStock($variantId, $stockQuantity, 'Tồn đầu kỳ khi tạo phân loại sản phẩm');
             }
             $this->setFlash('success', 'Đã tạo phân loại sản phẩm.');
-        } else {
-            $this->setFlash('error', 'Vui lòng chọn sản phẩm, size và màu để tạo phân loại.');
+        } catch (\Throwable $e) {
+            $this->setFlash('error', $e->getMessage());
         }
 
         $this->redirect('admin/inventory');
@@ -84,18 +94,13 @@ class InventoryController {
     }
 
     private function variantColor($value) {
-        $allowed = ['Black', 'Red', 'White'];
-        return in_array($value, $allowed, true) ? $value : 'Black';
+        $value = trim((string)$value);
+        return $value !== '' ? mb_substr($value, 0, 50) : 'Mặc định';
     }
 
     private function variantSize($value) {
         $value = trim((string)$value);
-        if (preg_match('/^\d{2}$/', $value)) {
-            $value = 'EU ' . $value;
-        }
-
-        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-        return in_array($value, $allowed, true) ? $value : 'EU 42';
+        return $value !== '' ? mb_substr($value, 0, 50) : 'Mặc định';
     }
 
     private function setFlash($type, $message) {

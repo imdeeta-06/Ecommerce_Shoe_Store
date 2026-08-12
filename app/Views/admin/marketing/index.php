@@ -7,7 +7,7 @@ adminStart('Marketing thương mại điện tử', 'marketing', !empty($flash) 
         <h2 class="admin-panel-title">Thêm banner</h2>
         <form method="post" action="<?= BASE_URL ?>admin/marketing/banner/store">
             <div class="admin-field"><label>Đường dẫn ảnh *</label><input name="image_url" required placeholder="assets/images/hero.avif hoặc public/uploads/..." /></div>
-            <div class="admin-field"><label>Link khi khách bấm banner</label><input name="link_url" placeholder="shop?gender=men hoặc product?id=..." /></div>
+            <div class="admin-field"><label>Link khi khách bấm banner</label><input name="link_url" placeholder="shop?category=Đồ+lam+đi+chùa hoặc product?id=..." /></div>
             <button class="admin-btn primary" type="submit">Thêm banner</button>
         </form>
 </section>

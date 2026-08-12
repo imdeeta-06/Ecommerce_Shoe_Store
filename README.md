@@ -1,19 +1,10 @@
-# PaceUP Accessories
+# PaceUP Đồ Lam
 
-`PaceUP Accessories` là một dự án web thương mại điện tử dùng `PHP` và `MySQL`, phục vụ bán giày và đồ thể thao.
-Dự án đã có xem sản phẩm, giỏ hàng, thanh toán, tài khoản người dùng, trang quản trị, mã giảm giá, đơn hàng, kho hàng và wishlist.
-
-Tuy nhiên, dự án vẫn chưa hoàn thiện. README này được viết để giúp các thành viên mới nhanh chóng hiểu:
-- dự án đang làm gì
-- hiện tại đã có những gì
-- còn bug nào cần sửa
-- business logic nào phải tuân thủ
-- chức năng nào còn thiếu hoặc chưa hợp lý
-- cần bắt đầu từ đâu khi tham gia dự án
+`PaceUP Đồ Lam` là dự án web thương mại điện tử PHP/MySQL bán đồ lam, pháp phục, túi đi chùa, chuỗi hạt và phụ kiện. Dữ liệu dùng một database duy nhất là `paceup_db`.
 
 ## Bối Cảnh Dự Án
 
-Dự án này mô phỏng một cửa hàng bán giày và đồ thể thao online.
+Dự án này mô phỏng một cửa hàng đồ lam và vật dụng đi chùa online.
 Luồng mong đợi của hệ thống là:
 1. Khách truy cập xem danh sách sản phẩm.
 2. Người dùng đăng ký hoặc đăng nhập.
@@ -72,7 +63,6 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 - Chức năng cập nhật và xóa giỏ hàng chưa kiểm tra thật chặt quyền sở hữu item
 - Checkout vẫn nhận `discount` và `coupon_id` từ client, nên nếu server không tính lại hoàn toàn thì có thể bị sửa request để giảm tiền sai
 - Một số luồng đơn hàng và kho còn phụ thuộc vào trigger hoặc logic local trong database
-- Phần quản lý đơn ở admin bị tách giữa controller mới và file legacy `public/views/admin.php`
 - Một số luồng tài khoản và địa chỉ đang dùng cách xử lý khác nhau, dễ gây hành vi không đồng nhất
 
 ### Rủi Ro Logic
@@ -148,17 +138,13 @@ Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà ph�
 
 ### Views
 - `app/Views/*` chứa giao diện public và admin
-- `public/views/*` chứa một số view legacy hoặc view phụ
 - `public/assets/css/style.css` chứa CSS chính
 
 ### Database
-- `Database/paceup_lam_catalog_data.sql` chứa dữ liệu catalog đồ lam/phụ kiện để cập nhật vào database `paceup_db`; schema hiện tại được giữ nguyên
-- `Database/paceup_lam_reset_legacy_transactions.sql` là cleanup một lần cho order/report/cart mẫu của ngành giày cũ
-- `scripts/sync_dolam_product_images.php` tải ảnh tham khảo phù hợp theo từng nhóm sản phẩm, lưu cục bộ vào `public/uploads/products/lam/` và cập nhật bảng `product_images`
-- `Database/paceup_lam_product_images.sql` là file mapping ảnh đã sinh sẵn để import sau catalog nếu không chạy script tải ảnh
-- `Database/paceup_lam_product_image_sources.json` lưu URL nguồn tương ứng của 150 ảnh để kiểm tra lại khi cần
-
-Sau khi import `paceup_lam_catalog_data.sql`, chạy `php scripts/sync_dolam_product_images.php` để lấy ảnh về máy và gán lại ảnh sản phẩm. Script có thể chạy lại; ảnh đã tải sẽ được tái sử dụng, không tải trùng.
+- Chỉ import `Database/paceup_db.sql`. File này tạo toàn bộ schema và seed dữ liệu đồng nhất: 6 danh mục, 150 sản phẩm, 525 biến thể có tồn kho, ảnh local, nguồn ảnh, tài khoản, banner và dữ liệu nghiệp vụ cần thiết.
+- Trước khi import trên máy mới: Drop database `paceup_db` trong phpMyAdmin, sau đó import đúng một file trên.
+- Cấu hình kết nối duy nhất là `config/database.php`: database `paceup_db`, host `127.0.0.1`, port `8889`.
+- Tài khoản test: `admin@paceup.local` / `Admin@12345`; `customer@paceup.local` / `Customer@12345`.
 
 ## Cập Nhật P0 Nền Tảng
 
@@ -173,9 +159,9 @@ Ngày cập nhật: 01/08/2026
 - Session trước đây được start rải rác ở nhiều nơi. Bootstrap mới start session tập trung, cấu hình cookie `HttpOnly`, `SameSite=Lax` và path theo `BASE_URL`.
 - Login view trước đây tự require database và xử lý POST, tạo logic đăng nhập song song với `AuthController`. Đã đưa view về đúng vai trò hiển thị form/flash message.
 - Sau login đã regenerate session id và lưu avatar vào session; logout xóa dữ liệu session/cookie rõ ràng hơn.
-- Admin dashboard legacy trước đây redirect sai sang `login.php` và require DB bằng relative path. Đã đổi về route `/login` và require DB theo absolute path.
+- Route `/admin` chuyển thẳng đến `/admin/products`; không còn tải dashboard legacy của ngành giày.
 - Một số view dùng `str_starts_with`, dễ lỗi nếu môi trường PHP cũ hơn 8. Đã thêm polyfill ở bootstrap.
-- `test_db.php` trước đây hardcode DB local và tự chạy `ALTER TABLE` khi mở file. Đã đổi sang đọc `config/database.php` và chỉ chạy migration khi truyền flag CLI rõ ràng.
+- `test_db.php` chỉ kiểm tra read-only đúng kết nối cấu hình; không được phép migrate hay seed dữ liệu khi chạy.
 
 ### File Đã Sửa
 - `index.php`
@@ -185,14 +171,13 @@ Ngày cập nhật: 01/08/2026
 - `app/Controller/AuthController.php`
 - `app/Controller/AdminController.php`
 - `app/Views/login.php`
-- `app/Views/admin.php`
 - `test_db.php`
 - `README.md`
 
 ### Ghi Chú Kiến Trúc
 - Route mới nên được thêm trong `App::registerRoutes()` để tránh `index.php` phình to trở lại.
 - View không nên tự xử lý POST, gọi database hoặc quyết định redirect nghiệp vụ. Việc đó thuộc controller/model.
-- `public/views/*` và `app/Views/admin.php` vẫn là vùng legacy. Không nên mở rộng thêm logic mới ở đây nếu có controller mới tương ứng.
+- Không thêm schema/seed tự động trong runtime; mọi thay đổi database phải nằm trong file import duy nhất.
 - Khi deploy vào subfolder, có thể set `APP_BASE_URL=/ten-thu-muc/` hoặc full URL như `https://domain.com/ten-thu-muc/`.
 - Các bug business như cart, checkout, order, inventory, coupon và admin product vẫn cần được xử lý trong task feature tương ứng sau khi nền tảng đã ổn.
 
@@ -240,8 +225,8 @@ Ngày cập nhật: 01/08/2026
 - [ ] Đọc hết README này
 - [ ] Mở `index.php` để hiểu cấu trúc route
 - [ ] Mở controller và model liên quan đến phần mình phụ trách
-- [ ] Xem `Database/paceup_lam_catalog_data.sql` để hiểu dữ liệu catalog hiện tại
-- [ ] Xác định đang làm theo flow controller mới hay code legacy trong `public/views/admin.php`
+- [ ] Xem `Database/paceup_db.sql` để hiểu schema và dữ liệu catalog hiện tại
+- [ ] Làm theo controller/model hiện hành; không tạo thêm file seed, reset hoặc mapping riêng
 - [ ] Kiểm tra giao diện trên desktop, tablet và mobile
 - [ ] Xác định sẵn môi trường deploy, không chỉ chạy local bằng XAMPP
 
@@ -294,7 +279,7 @@ Ngày cập nhật: 01/08/2026
 - Mục tiêu: đơn hàng và kho phải đồng bộ.
 - Việc cần làm: kiểm tra tạo đơn, trạng thái đơn, hủy đơn, trừ kho, hoàn kho, log trạng thái.
 - Deliverable: luồng order chuẩn + stock không lệch.
-- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_lam_catalog_data.sql`.
+- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_db.sql`.
 
 ### 6. Admin Sản Phẩm
 - Mục tiêu: quản lý sản phẩm đầy đủ trong admin.
@@ -355,11 +340,10 @@ Nếu nhóm đang sửa project theo hướng hoàn thiện dần, thứ tự an
 - Thông báo giao dịch cho đơn mới và từng lần đổi trạng thái được đưa vào `order_notifications`, có retry tối đa 3 lần và chạy qua SMTP.
 - CSKH có form tạo ticket, mã yêu cầu, trạng thái xử lý ở admin và email xác nhận tự động qua hàng đợi `support_tickets`.
 
-Ứng dụng tự chạy migration idempotent trong `app/Models/Database.php` để nâng CSDL cũ: thêm `variant_id`, snapshot giá/size/màu, trường vận chuyển, trạng thái giữ kho/bán/trả, bảng usage/review/hậu mãi/bằng chứng và giỏ bỏ quên. Hiện checkout chỉ hỗ trợ COD; chuyển khoản và ví điện tử sẽ tích hợp sau khi có gateway/callback/đối soát.
 
-Migration `ecommerce_business_v8` cũng đồng bộ các sản phẩm cũ chưa có `product_variants`, sửa bộ đếm bán/giữ/trả, trạng thái thanh toán, thỏa thuận điện tử, thông báo đơn hàng và hỗ trợ khách hàng; sản phẩm không có variant sẽ không được hiển thị ngoài shop cho đến khi admin thiết lập phân loại.
+Database không tự migrate hoặc seed khi ứng dụng chạy. Muốn làm mới dữ liệu, chỉ Drop `paceup_db` và import lại `Database/paceup_db.sql`. Hiện checkout hỗ trợ COD; chuyển khoản và ví điện tử sẽ tích hợp sau khi có gateway/callback/đối soát.
 
-Để bật email, cấu hình `PACEUP_SMTP_ENABLED=1` cùng các biến môi trường `PACEUP_SMTP_HOST`, `PACEUP_SMTP_PORT`, `PACEUP_SMTP_USERNAME`, `PACEUP_SMTP_PASSWORD`, `PACEUP_SMTP_ENCRYPTION`, `PACEUP_MAIL_FROM`, `PACEUP_MAIL_FROM_NAME` và `APP_BASE_URL` là URL đầy đủ. Có thể chạy các hàng đợi bằng cron: `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_abandoned_cart_reminders.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_order_notifications.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_customer_care_replies.php`.
+Để bật email, cấu hình `PACEUP_SMTP_ENABLED=1` cùng các biến môi trường `PACEUP_SMTP_HOST`, `PACEUP_SMTP_PORT`, `PACEUP_SMTP_USERNAME`, `PACEUP_SMTP_PASSWORD`, `PACEUP_SMTP_ENCRYPTION`, `PACEUP_MAIL_FROM`, `PACEUP_MAIL_FROM_NAME` và `APP_BASE_URL` là URL đầy đủ.
 
 ## Cấu Trúc Thư Mục
 

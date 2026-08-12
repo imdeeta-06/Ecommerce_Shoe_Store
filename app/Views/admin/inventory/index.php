@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-$variantSizes = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
+$variantSizes = ['S', 'M', 'L', 'XL', 'Free size', '8mm', '10mm', '12mm', 'Mặc định'];
 adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 ?>
 
@@ -37,16 +37,19 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
                     <label>Kích cỡ (Size)</label>
                     <select name="size" required>
                         <?php foreach ($variantSizes as $size): ?>
-                            <option value="<?= adminE($size) ?>" <?= $size === 'EU 42' ? 'selected' : '' ?>><?= adminE($size) ?></option>
+                            <option value="<?= adminE($size) ?>" <?= $size === 'S' ? 'selected' : '' ?>><?= adminE($size) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="admin-field">
                     <label>Màu sắc</label>
                     <select name="color" required>
-                        <option value="Black" selected>Đen (Black)</option>
-                        <option value="Red">Đỏ (Red)</option>
-                        <option value="White">Trắng (White)</option>
+                        <option value="Lam" selected>Lam</option>
+                        <option value="Nâu">Nâu</option>
+                        <option value="Trắng">Trắng</option>
+                        <option value="Xám">Xám</option>
+                        <option value="Kem">Kem</option>
+                        <option value="Đen">Đen</option>
                     </select>
                 </div>
             </div>
@@ -168,4 +171,3 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 </div>
 
 <?php adminEnd(); ?>
-

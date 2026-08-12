@@ -10,12 +10,17 @@ function productDetailAssetPath($image): string {
 }
 
 function productDetailType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? ''));
+    $category = trim((string)($product['category'] ?? ''));
+    if ($category !== '') {
+        return $category;
     }
 
-    return $type;
+    return [
+        'apparel' => 'Đồ lam và pháp phục',
+        'bag' => 'Túi đeo đi chùa',
+        'beads' => 'Vòng tay - chuỗi hạt',
+        'accessory' => 'Phụ kiện đi chùa'
+    ][trim((string)($product['product_type'] ?? ''))] ?? 'Sản phẩm đi chùa';
 }
 
 function productDetailHasBrokenText($text): bool {
@@ -59,7 +64,11 @@ function productDetailColorLabel($color): string {
 }
 
 function productDetailColorHex($color): string {
-    return ['Black' => '#111111', 'Red' => '#dc2626', 'White' => '#ffffff'][$color] ?? '#d1d5db';
+    return [
+        'Black' => '#111111', 'Red' => '#dc2626', 'White' => '#ffffff',
+        'Lam' => '#426b80', 'Nâu' => '#795548', 'Trắng' => '#ffffff',
+        'Xám' => '#9ca3af', 'Kem' => '#f2e3c6', 'Đen' => '#111111'
+    ][$color] ?? '#d1d5db';
 }
 ?>
 
@@ -72,6 +81,7 @@ function productDetailColorHex($color): string {
 .pd-title { font-size: 1.8rem; font-weight: 500; margin-bottom: 0.2rem; font-family: var(--font-ui); }
 .pd-category { font-size: 1rem; color: #111; margin-bottom: 1rem; }
 .pd-price { font-size: 1.2rem; font-weight: 500; margin-bottom: 2rem; }
+.pd-old-price { color: #888; text-decoration: line-through; font-size: .95rem; font-weight: 400; margin-right: .5rem; }
 .pd-size-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; }
 .pd-size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 2rem; }
 .pd-size-btn { padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
@@ -119,7 +129,10 @@ function productDetailColorHex($color): string {
         <div class="pd-info">
             <h1 class="pd-title"><?= htmlspecialchars($product['name']) ?></h1>
             <div class="pd-category"><?= htmlspecialchars(productDetailType($product)) ?></div>
-            <div class="pd-price" id="productPrice"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+            <div class="pd-price">
+                <del id="productOldPrice" class="pd-old-price" <?= empty($product['old_price']) || (float)$product['old_price'] <= (float)$product['price'] ? 'style="display:none"' : '' ?>><?= !empty($product['old_price']) ? number_format((float)$product['old_price'], 0, ',', '.') . ' ₫' : '' ?></del>
+                <span id="productPrice"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</span>
+            </div>
 
             <div class="pd-color-header">
                 <span>Chọn màu <strong id="selectedColorLabel"></strong></span>
@@ -245,7 +258,16 @@ function refreshVariantSelection() {
     addButton.disabled = !variant || parseInt(variant.stock_quantity || 0, 10) <= 0;
 
     if (variant) {
-        document.getElementById('productPrice').textContent = formatProductPrice(<?= (float)$product['price'] ?> + parseFloat(variant.price_modifier || 0));
+        const modifier = parseFloat(variant.price_modifier || 0);
+        document.getElementById('productPrice').textContent = formatProductPrice(<?= (float)$product['price'] ?> + modifier);
+        const oldPriceElement = document.getElementById('productOldPrice');
+        const oldPrice = <?= !empty($product['old_price']) ? (float)$product['old_price'] : 0 ?> + modifier;
+        if (oldPrice > <?= (float)$product['price'] ?> + modifier) {
+            oldPriceElement.textContent = formatProductPrice(oldPrice);
+            oldPriceElement.style.display = '';
+        } else {
+            oldPriceElement.style.display = 'none';
+        }
         document.getElementById('variantStockMessage').textContent = variant.stock_quantity > 0 ? 'Còn ' + variant.stock_quantity + ' sản phẩm' : 'Phân loại này đang hết hàng';
         document.getElementById('productQuantity').max = Math.max(1, parseInt(variant.stock_quantity || 0));
     }

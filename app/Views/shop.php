@@ -1,18 +1,6 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
-$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
-$gender = [
-    'mens' => 'men',
-    'womens' => 'women',
-][$gender] ?? $gender;
-if (!in_array($gender, ['all', 'men', 'women'], true)) {
-    $gender = 'all';
-}
-$genderLabel = 'Tất cả sản phẩm';
-if ($gender === 'men') $genderLabel = 'Sản phẩm Nam';
-if ($gender === 'women') $genderLabel = 'Sản phẩm Nữ';
-
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
 $priceRange = $_GET['price'] ?? 'all';
@@ -32,22 +20,26 @@ function productAssetPath($image): string {
 }
 
 function productDisplayType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? ''));
+    $category = trim((string)($product['category'] ?? ''));
+    if ($category !== '') {
+        return $category;
     }
 
-    return $type;
+    return [
+        'apparel' => 'Đồ lam và pháp phục',
+        'bag' => 'Túi đeo đi chùa',
+        'beads' => 'Vòng tay - chuỗi hạt',
+        'accessory' => 'Phụ kiện đi chùa'
+    ][trim((string)($product['product_type'] ?? ''))] ?? 'Sản phẩm đi chùa';
 }
 ?>
 
 <main>
     <section class="shop-page">
         <div class="shop-topbar">
-            <h1><?= htmlspecialchars($genderLabel) ?> (<?= count($products) ?>)</h1>
+            <h1><?= htmlspecialchars($category === 'all' ? 'Tất cả sản phẩm' : $category) ?> (<?= count($products) ?>)</h1>
             <div class="shop-sort">
                 <form method="get" action="<?= BASE_URL ?>shop" id="sortForm">
-                    <input type="hidden" name="gender" value="<?= htmlspecialchars($gender) ?>">
                     <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
                     <input type="hidden" name="price" value="<?= htmlspecialchars($priceRange) ?>">
                     <?php if ($keyword !== ''): ?>
@@ -69,18 +61,9 @@ function productDisplayType($product): string {
                 <ul class="filter-cat-list">
                     <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
                     <?php endforeach; ?>
                 </ul>
-
-                <details class="filter-group" <?= $gender !== 'all' ? 'open' : '' ?>>
-                    <summary>Giới tính</summary>
-                    <ul>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'all'])) ?>" class="<?= $gender === 'all' ? 'active' : '' ?>">Tất cả</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'men'])) ?>" class="<?= $gender === 'men' ? 'active' : '' ?>">Nam</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'women'])) ?>" class="<?= $gender === 'women' ? 'active' : '' ?>">Nữ</a></li>
-                    </ul>
-                </details>
 
                 <details class="filter-group" <?= $priceRange !== 'all' ? 'open' : '' ?>>
                     <summary>Giá</summary>
@@ -111,7 +94,10 @@ function productDisplayType($product): string {
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
                             <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
-                            <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
+                            <span class="product-price">
+                                <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format((float)$product['old_price'], 0, ',', '.') ?> VNĐ</del><?php endif; ?>
+                                <span><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
+                            </span>
                         </a>
                     </div>
                 <?php endforeach; ?>
@@ -153,12 +139,7 @@ function productDisplayType($product): string {
             <p class="modal-price" id="modalPrice"></p>
             <p class="modal-desc">Sản phẩm đồ lam và vật dụng đi chùa. Vui lòng xem tên, màu sắc và phân loại trước khi đặt hàng.</p>
             <div class="modal-size-select">
-                <label>Chọn size</label>
-                <div class="size-options">
-                    <?php foreach (['38','39','40','41','42','43','44'] as $size): ?>
-                        <button class="size-btn" onclick="selectSize(this)"><?= $size ?></button>
-                    <?php endforeach; ?>
-                </div>
+                <p style="margin:0;color:#666;">Vui lòng mở trang chi tiết để chọn đúng kích cỡ, màu sắc hoặc quy cách.</p>
             </div>
             <button class="btn-add-cart-modal" id="modalAddBtn">Thêm vào giỏ hàng</button>
         </div>
@@ -184,12 +165,17 @@ function assetUrl(image) {
 }
 
 function productDisplayType(product) {
-    const type = String(product.type || '').trim();
-    if (!type || type === '0' || type.includes('?')) {
-        return String(product.category || '').trim();
+    const category = String(product.category || '').trim();
+    if (category) {
+        return category;
     }
 
-    return type;
+    return {
+        apparel: 'Đồ lam và pháp phục',
+        bag: 'Túi đeo đi chùa',
+        beads: 'Vòng tay - chuỗi hạt',
+        accessory: 'Phụ kiện đi chùa'
+    }[String(product.product_type || '').trim()] || 'Sản phẩm đi chùa';
 }
 
 function openQuickView(index) {

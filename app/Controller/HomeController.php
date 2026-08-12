@@ -11,6 +11,12 @@ class HomeController {
         
         $featuredIds = array_column($featuredProducts, 'id');
         $allBestSelling = $productModel->getBestSellingProducts(20);
+        $bestSellingIsFallback = empty($allBestSelling);
+        if ($bestSellingIsFallback) {
+            // Database mẫu chưa có đơn giao thành công, nên không giả tạo sold_count.
+            // Hiển thị sản phẩm còn hàng để trang chủ không bị trống trong lúc demo.
+            $allBestSelling = $productModel->getProductsByFilter(['sort' => 'default']);
+        }
         $bestSellingProducts = [];
         foreach ($allBestSelling as $product) {
             if (!in_array($product['id'], $featuredIds)) {
@@ -20,8 +26,9 @@ class HomeController {
                 break;
             }
         }
-        $metaTitle = 'PaceUp - Giày Nike chính hãng';
-        $metaDescription = 'Mua giày Nike chính hãng online tại PaceUp: Running, Lifestyle, Football, Training và nhiều dòng sản phẩm thể thao.';
+        $bestSellingTitle = $bestSellingIsFallback ? 'Gợi ý sản phẩm' : 'Sản phẩm bán chạy';
+        $metaTitle = 'PaceUp - Đồ lam, pháp phục và vật dụng đi chùa';
+        $metaDescription = 'Mua đồ lam, pháp phục, túi đi chùa, chuỗi hạt và phụ kiện Phật giáo tại PaceUp.';
         $canonicalUrl = \App\Core\App::url('/');
         require __DIR__ . '/../Views/index.php';
     }

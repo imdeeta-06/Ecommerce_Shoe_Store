@@ -69,7 +69,7 @@ class UserController {
                 ]);
 
                 $_SESSION['admin_success'] = 'Admin account created successfully.';
-                $this->redirect('admin?page=users');
+                $this->redirect('admin/products');
             }
         }
 
