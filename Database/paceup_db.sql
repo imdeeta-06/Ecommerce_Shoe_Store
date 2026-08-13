@@ -22,11 +22,11 @@
 --   - Mỗi product phải có tối thiểu một product_variant, kể cả hàng một mẫu.
 -- ============================================================================
 
-CREATE DATABASE IF NOT EXISTS `lam_shop_db`
+CREATE DATABASE IF NOT EXISTS `paceup_db`
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE `lam_shop_db`;
+USE `paceup_db`;
 
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';

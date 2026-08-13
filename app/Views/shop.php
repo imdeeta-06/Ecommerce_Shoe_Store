@@ -67,9 +67,9 @@ function productDisplayType($product): string {
         <div class="shop-layout">
             <aside class="shop-sidebar">
                 <ul class="filter-cat-list">
-                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả</a></li>
+                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả (<?= $totalActiveProducts ?>)</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
                     <?php endforeach; ?>
                 </ul>
 

@@ -15,6 +15,17 @@ class CheckoutController {
 
     public function success() {
         AuthMiddleware::requireLogin();
+        $orderId = (int)($_GET['order_id'] ?? 0);
+        $order = null;
+        if ($orderId > 0) {
+            $orderModel = new Order();
+            $order = $orderModel->getOrder($orderId);
+            if ($order && (int)$order['user_id'] !== (int)$_SESSION['user_id']) {
+                $order = null;
+            }
+        }
+        $metaTitle = 'Đặt hàng thành công - Liên Hoa';
+        $metaDescription = 'Cảm ơn quý khách đã mua sắm tại cửa hàng Liên Hoa.';
         require __DIR__ . '/../Views/checkout-success.php';
     }
 
@@ -77,8 +88,8 @@ class CheckoutController {
         }
 
         $paymentMethod = (string)($input['payment_method'] ?? 'cod');
-        if ($paymentMethod !== 'cod') {
-            $this->jsonError('Hiện tại PaceUp chỉ hỗ trợ thanh toán khi nhận hàng (COD). Chuyển khoản và ví điện tử sẽ được bổ sung sau.', 400);
+        if ($paymentMethod !== 'cod' && $paymentMethod !== 'bank') {
+            $this->jsonError('Hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD) hoặc Chuyển khoản ngân hàng.', 400);
             return;
         }
 

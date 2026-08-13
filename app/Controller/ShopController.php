@@ -28,7 +28,8 @@ class ShopController {
             'keyword' => $keyword
         ]);
 
-        $categories = $productModel->getActiveCategories();
+        $categories = $productModel->getCategoriesWithCounts();
+        $totalActiveProducts = $productModel->getActiveProductsCount();
         $metaTitle = 'Cửa hàng Pháp phục & Đồ lam Phật giáo - Liên Hoa';
         $metaDescription = 'Mua sắm áo lam, tràng hạt, tượng thờ và các vật phẩm Phật giáo chọn lọc tại Liên Hoa.';
 
