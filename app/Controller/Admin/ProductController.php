@@ -17,8 +17,7 @@ class ProductController {
         $filters = [
             'keyword' => $_GET['keyword'] ?? '',
             'category_id' => $_GET['category_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-            'gender' => $_GET['gender'] ?? ''
+            'status' => $_GET['status'] ?? ''
         ];
 
         $products = $this->productModel->getAllProducts($filters);
@@ -267,17 +266,24 @@ class ProductController {
         }
 
         $basePrice = (float)($_POST['base_price'] ?? 0);
-        if ($basePrice < 0) {
-            throw new \RuntimeException('Giá gốc không được âm.');
+        if ($basePrice <= 0) {
+            throw new \RuntimeException('Giá bán hiện tại phải lớn hơn 0.');
+        }
+
+        $oldPrice = (float)($_POST['old_price'] ?? 0);
+        if ($oldPrice > 0 && $oldPrice <= $basePrice) {
+            throw new \RuntimeException('Giá cũ phải lớn hơn giá bán hiện tại.');
+        }
+
+        $productType = trim((string)($_POST['product_type'] ?? ''));
+        if (!in_array($productType, ['apparel', 'bag', 'beads', 'accessory'], true)) {
+            throw new \RuntimeException('Loại sản phẩm không hợp lệ.');
         }
 
         $status = (int)($_POST['status'] ?? 1);
         if (!in_array($status, [0, 1], true)) {
             $status = 1;
         }
-
-        $gender = $_POST['gender'] ?? null;
-        $gender = in_array($gender, ['men', 'women'], true) ? $gender : null;
 
         $slug = $this->slugify($_POST['slug'] ?? $name);
         if ($this->productModel->productSlugExists($slug, $productId)) {
@@ -290,8 +296,8 @@ class ProductController {
             'slug' => $slug,
             'description' => trim($_POST['description'] ?? ''),
             'base_price' => $basePrice,
-            'type' => trim($_POST['type'] ?? ''),
-            'gender' => $gender,
+            'old_price' => $oldPrice > 0 ? $oldPrice : null,
+            'product_type' => $productType,
             'status' => $status,
             'is_featured' => !empty($_POST['is_featured']) ? 1 : 0
         ];
@@ -308,18 +314,13 @@ class ProductController {
     }
 
     private function variantColor($value) {
-        $allowed = ['Black', 'Red', 'White'];
-        return in_array($value, $allowed, true) ? $value : 'Black';
+        $value = trim((string)$value);
+        return $value !== '' ? mb_substr($value, 0, 50) : 'Mặc định';
     }
 
     private function variantSize($value) {
         $value = trim((string)$value);
-        if (preg_match('/^\d{2}$/', $value)) {
-            $value = 'EU ' . $value;
-        }
-
-        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-        return in_array($value, $allowed, true) ? $value : 'EU 42';
+        return $value !== '' ? mb_substr($value, 0, 50) : 'Mặc định';
     }
 
     private function requireAdmin() {

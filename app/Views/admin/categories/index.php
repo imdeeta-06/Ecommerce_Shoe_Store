@@ -12,7 +12,7 @@ adminStart('Quản lý danh mục', 'categories', $flash ?? null);
     <form class="admin-grid" method="post" action="<?= BASE_URL ?>admin/categories/create" style="align-items: end; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
         <div class="admin-field" style="margin-bottom: 0;">
             <label>Tên danh mục *</label>
-            <input type="text" name="name" required placeholder="Ví dụ: Running">
+            <input type="text" name="name" required placeholder="Ví dụ: Đồ lam đi chùa">
         </div>
         <div class="admin-field" style="margin-bottom: 0;">
             <label>Slug</label>

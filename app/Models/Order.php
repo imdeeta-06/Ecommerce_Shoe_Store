@@ -9,8 +9,6 @@ use App\Services\OrderNotificationService;
 class Order extends BaseModel {
     private const VALID_STATUSES = ['pending', 'confirmed', 'preparing', 'shipping', 'delivered', 'completed', 'canceled'];
 
-    private array $columnCache = [];
-
     public function __construct() {
         parent::__construct();
     }
@@ -81,7 +79,7 @@ class Order extends BaseModel {
                 }
 
                 $variant = $this->getVariantForUpdate($variantId);
-                if (!$variant || (int)($variant['product_status'] ?? 0) !== 1 || (int)$variant['stock_quantity'] < $quantity) {
+                if (!$variant || (int)($variant['product_status'] ?? 0) !== 1 || (int)($variant['variant_status'] ?? 0) !== 1 || (int)$variant['stock_quantity'] < $quantity) {
                     $name = $variant['product_name'] ?? ('Variant #' . $variantId);
                     $stock = (int)($variant['stock_quantity'] ?? 0);
                     throw new \Exception("$name không đủ tồn kho. Hiện còn $stock, cần $quantity.");
@@ -150,6 +148,7 @@ class Order extends BaseModel {
             foreach ($normalizedItems as $item) {
                 $this->createOrderItem([
                     'order_id' => $orderId,
+                    'product_id' => $item['product_id'],
                     'variant_id' => $item['variant_id'],
                     'quantity' => $item['quantity'],
                     'price_at_time' => $item['price_at_time'],
@@ -434,6 +433,7 @@ class Order extends BaseModel {
                     $this->markPaymentPaid($orderId);
                 } elseif ($status === 'canceled') {
                     $this->markPaymentCanceled($orderId);
+                    (new Coupons())->releaseUsageForOrder($orderId);
                 }
 
                 $this->writeStatusLog($orderId, $status, $note, $changedBy);
@@ -605,19 +605,15 @@ class Order extends BaseModel {
 
     private function deductStockForConfirmedOrder(int $orderId): void {
         $stockReason = "Admin confirmed order ID: $orderId";
-        $legacyReason = "Khách mua hàng, Order ID: $orderId";
 
         $stmt = $this->db->prepare("
             SELECT COUNT(*)
             FROM inventory_logs
             WHERE variant_id IS NOT NULL
               AND quantity_changed < 0
-              AND (reason = :stock_reason OR reason = :legacy_reason)
+              AND reason = :stock_reason
         ");
-        $stmt->execute([
-            'stock_reason' => $stockReason,
-            'legacy_reason' => $legacyReason
-        ]);
+        $stmt->execute(['stock_reason' => $stockReason]);
 
         if ((int)$stmt->fetchColumn() > 0) {
             return;
@@ -671,8 +667,6 @@ class Order extends BaseModel {
             SET p.reserved_quantity = p.reserved_quantity + :quantity
             WHERE pv.id = :variant_id
         ");
-        $inventoryTriggerExists = $this->triggerExists('trg_after_insert_inventory_log');
-
         foreach ($items as $item) {
             $variantId = (int)$item['variant_id'];
             $quantity = (int)$item['quantity'];
@@ -683,12 +677,10 @@ class Order extends BaseModel {
                 'reason' => $stockReason
             ]);
 
-            if (!$inventoryTriggerExists) {
-                $updateStock->execute([
-                    'quantity' => $quantity,
-                    'variant_id' => $variantId
-                ]);
-            }
+            $updateStock->execute([
+                'quantity' => $quantity,
+                'variant_id' => $variantId
+            ]);
 
             $updateReserved->execute([
                 'quantity' => $quantity,
@@ -698,100 +690,16 @@ class Order extends BaseModel {
     }
 
     private function writeStatusLog(int $orderId, string $status, string $note = '', $changedBy = null): void {
-        $hasTrigger = $this->triggerExists('trg_after_order_status_update');
-        $hasChangedBy = $this->tableHasColumn('order_status_logs', 'changed_by');
-        $hasNote = $this->tableHasColumn('order_status_logs', 'note');
-
-        if ($hasTrigger) {
-            $set = [];
-            $params = ['order_id' => $orderId, 'status' => $status];
-
-            if ($hasChangedBy) {
-                $set[] = 'changed_by = :changed_by';
-                $params['changed_by'] = $changedBy;
-            }
-            if ($hasNote) {
-                $set[] = 'note = :note';
-                $params['note'] = $note;
-            }
-
-            if (!empty($set)) {
-                $sql = "
-                    UPDATE order_status_logs
-                    SET " . implode(', ', $set) . "
-                    WHERE order_id = :order_id
-                      AND status = :status
-                    ORDER BY id DESC
-                    LIMIT 1
-                ";
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute($params);
-            }
-
-            return;
-        }
-
-        $columns = ['order_id', 'status'];
-        $values = [':order_id', ':status'];
-        $params = [
+        $stmt = $this->db->prepare("
+            INSERT INTO order_status_logs (order_id, status, changed_by, note)
+            VALUES (:order_id, :status, :changed_by, :note)
+        ");
+        $stmt->execute([
             'order_id' => $orderId,
-            'status' => $status
-        ];
-
-        if ($hasChangedBy) {
-            $columns[] = 'changed_by';
-            $values[] = ':changed_by';
-            $params['changed_by'] = $changedBy;
-        }
-        if ($hasNote) {
-            $columns[] = 'note';
-            $values[] = ':note';
-            $params['note'] = $note;
-        }
-
-        $stmt = $this->db->prepare("
-            INSERT INTO order_status_logs (" . implode(', ', $columns) . ")
-            VALUES (" . implode(', ', $values) . ")
-        ");
-        $stmt->execute($params);
-    }
-
-    private function neutralizePendingCancelRefund(int $orderId): void {
-        $reason = "Hoàn trả kho do hủy đơn hàng ID: $orderId";
-        $stmt = $this->db->prepare("
-            SELECT variant_id, SUM(quantity_changed) AS refunded_quantity
-            FROM inventory_logs
-            WHERE reason = :reason
-              AND variant_id IS NOT NULL
-              AND quantity_changed > 0
-            GROUP BY variant_id
-        ");
-        $stmt->execute(['reason' => $reason]);
-        $refunds = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if (empty($refunds)) {
-            return;
-        }
-
-        $deleteLogs = $this->db->prepare("DELETE FROM inventory_logs WHERE reason = :reason");
-        $deleteLogs->execute(['reason' => $reason]);
-
-        if (!$this->triggerExists('trg_after_insert_inventory_log')) {
-            return;
-        }
-
-        $updateStock = $this->db->prepare("
-            UPDATE product_variants
-            SET stock_quantity = stock_quantity - :quantity
-            WHERE id = :variant_id
-        ");
-
-        foreach ($refunds as $refund) {
-            $updateStock->execute([
-                'quantity' => (int)$refund['refunded_quantity'],
-                'variant_id' => (int)$refund['variant_id']
-            ]);
-        }
+            'status' => $status,
+            'changed_by' => $changedBy,
+            'note' => $note
+        ]);
     }
 
     private function releaseStockForCanceledOrder(int $orderId): void {
@@ -808,16 +716,13 @@ class Order extends BaseModel {
         $decreaseReserved = $this->db->prepare("UPDATE product p JOIN product_variants pv ON pv.product_id = p.id
             SET p.reserved_quantity = GREATEST(0, p.reserved_quantity - :quantity) WHERE pv.id = :variant_id");
         $updateStock = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :variant_id');
-        $inventoryTriggerExists = $this->triggerExists('trg_after_insert_inventory_log');
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $insert->execute([
                 'variant_id' => (int)$item['variant_id'],
                 'quantity_changed' => (int)$item['quantity'],
                 'reason' => $reason
             ]);
-            if (!$inventoryTriggerExists) {
-                $updateStock->execute(['quantity' => (int)$item['quantity'], 'variant_id' => (int)$item['variant_id']]);
-            }
+            $updateStock->execute(['quantity' => (int)$item['quantity'], 'variant_id' => (int)$item['variant_id']]);
             $decreaseReserved->execute([
                 'quantity' => (int)$item['quantity'],
                 'variant_id' => (int)$item['variant_id']
@@ -874,7 +779,7 @@ class Order extends BaseModel {
 
     private function getVariantForUpdate(int $variantId) {
         $stmt = $this->db->prepare("
-            SELECT pv.*, p.name AS product_name, p.base_price, p.category_id, p.status AS product_status
+            SELECT pv.*, pv.status AS variant_status, p.name AS product_name, p.base_price, p.category_id, p.status AS product_status
             FROM product_variants pv
             LEFT JOIN product p ON pv.product_id = p.id
             WHERE pv.id = :variant_id
@@ -908,36 +813,4 @@ class Order extends BaseModel {
         return $map[$status] ?? $status;
     }
 
-    private function tableHasColumn(string $table, string $column): bool {
-        $cacheKey = "$table.$column";
-        if (array_key_exists($cacheKey, $this->columnCache)) {
-            return $this->columnCache[$cacheKey];
-        }
-
-        $stmt = $this->db->prepare("
-            SELECT COUNT(*)
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = :table_name
-              AND COLUMN_NAME = :column_name
-        ");
-        $stmt->execute([
-            'table_name' => $table,
-            'column_name' => $column
-        ]);
-
-        $this->columnCache[$cacheKey] = (int)$stmt->fetchColumn() > 0;
-        return $this->columnCache[$cacheKey];
-    }
-
-    private function triggerExists(string $triggerName): bool {
-        $stmt = $this->db->prepare("
-            SELECT COUNT(*)
-            FROM information_schema.TRIGGERS
-            WHERE TRIGGER_SCHEMA = DATABASE()
-              AND TRIGGER_NAME = :trigger_name
-        ");
-        $stmt->execute(['trigger_name' => $triggerName]);
-        return (int)$stmt->fetchColumn() > 0;
-    }
 }

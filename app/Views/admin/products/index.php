@@ -39,14 +39,6 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
                 <option value="0" <?= (string)($_GET['status'] ?? '') === '0' ? 'selected' : '' ?>>Đã ẩn</option>
             </select>
         </div>
-        <div class="admin-field" style="margin-bottom: 0;">
-            <label>Giới tính</label>
-            <select name="gender">
-                <option value="">Tất cả</option>
-                <option value="men" <?= ($_GET['gender'] ?? '') === 'men' ? 'selected' : '' ?>>Nam</option>
-                <option value="women" <?= ($_GET['gender'] ?? '') === 'women' ? 'selected' : '' ?>>Nữ</option>
-            </select>
-        </div>
         <div class="admin-actions">
             <button class="admin-btn primary" type="submit">Lọc</button>
             <a class="admin-btn light" href="<?= BASE_URL ?>admin/products">Xóa lọc</a>
@@ -60,7 +52,7 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
             <tr>
                 <th>Sản phẩm</th>
                 <th>Danh mục</th>
-                <th>Giá gốc</th>
+                <th>Giá bán / giá cũ</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
             </tr>
@@ -69,11 +61,9 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
             <?php foreach ($products as $product): ?>
                 <?php
                 $isActive = (int)$product['status'] === 1;
-                $gender = $product['gender'] ?? '';
                 $metaParts = array_filter([
                     '#' . (int)$product['id'],
-                    adminGenderLabel($gender),
-                    trim((string)($product['type'] ?? ''))
+                    trim((string)($product['product_type'] ?? ''))
                 ]);
                 ?>
                 <tr>
@@ -92,7 +82,12 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
                         </div>
                     </td>
                     <td style="font-weight: 500; color: #374151;"><?= adminE($product['category_name'] ?? 'Chưa chọn') ?></td>
-                    <td style="font-weight: 600; color: #111;"><?= adminMoney($product['base_price'] ?? 0) ?></td>
+                    <td style="font-weight: 600; color: #111;">
+                        <?= adminMoney($product['base_price'] ?? 0) ?>
+                        <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['base_price']): ?>
+                            <del style="display:block;color:#9ca3af;font-size:.8rem;font-weight:400;margin-top:.2rem;"><?= adminMoney($product['old_price']) ?></del>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <span class="admin-badge <?= $isActive ? 'success' : 'neutral' ?>">
                             <?= $isActive ? 'Hiển thị' : 'Đã ẩn' ?>

@@ -128,6 +128,7 @@ class AfterSale extends BaseModel {
         string $refundTransactionCode = ''
     ): array {
         $status = strtolower(trim($status));
+        $submittedApprovedQuantity = max(0, $approvedQuantity);
         if (!in_array($status, self::STATUSES, true)) {
             return ['success' => false, 'message' => 'Trạng thái xử lý không hợp lệ.'];
         }
@@ -159,7 +160,7 @@ class AfterSale extends BaseModel {
 
             $approvedQuantity = (int)$request['approved_quantity'];
             if ($status === 'approved') {
-                $approvedQuantity = $approvedQuantity > 0 ? $approvedQuantity : (int)$request['requested_quantity'];
+                $approvedQuantity = $submittedApprovedQuantity > 0 ? $submittedApprovedQuantity : (int)$request['requested_quantity'];
                 $approvedQuantity = max(1, min((int)$request['requested_quantity'], $approvedQuantity));
                 $this->assertQuantityStillAvailable($request, $approvedQuantity);
                 $refundAmount = in_array($request['request_type'], self::REFUND_TYPES, true)
@@ -292,10 +293,8 @@ class AfterSale extends BaseModel {
             $reason = 'Nhập lại hàng sau đổi trả, yêu cầu #' . (int)$request['id'];
             $stmt = $this->db->prepare('INSERT INTO inventory_logs (variant_id, quantity_changed, reason) VALUES (:variant_id, :quantity_changed, :reason)');
             $stmt->execute(['variant_id' => (int)$request['variant_id'], 'quantity_changed' => $delta, 'reason' => $reason]);
-            if (!$this->triggerExists('trg_after_insert_inventory_log')) {
-                $stmt = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :variant_id');
-                $stmt->execute(['quantity' => $delta, 'variant_id' => (int)$request['variant_id']]);
-            }
+            $stmt = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :variant_id');
+            $stmt->execute(['quantity' => $delta, 'variant_id' => (int)$request['variant_id']]);
         }
 
         $stmt = $this->db->prepare('UPDATE product p JOIN product_variants pv ON pv.product_id = p.id
@@ -361,31 +360,16 @@ class AfterSale extends BaseModel {
 
     private function adjustRevenueReports(array $request, int $quantity, float $refundAmount): void {
         $reportDate = date('Y-m-d', strtotime((string)($request['delivered_at'] ?: $request['order_created_at'])));
-        if ($this->tableHasColumn('product_sales_reports', 'quantity_sold')) {
-            $stmt = $this->db->prepare("UPDATE product_sales_reports
-                SET quantity_sold = GREATEST(0, quantity_sold - :quantity),
-                    total_revenue = GREATEST(0, total_revenue - :amount)
-                WHERE report_date = :report_date AND variant_id = :variant_id");
-            $stmt->execute(['quantity' => $quantity, 'amount' => $refundAmount, 'report_date' => $reportDate, 'variant_id' => (int)$request['variant_id']]);
-        }
+        $stmt = $this->db->prepare("UPDATE product_sales_reports
+            SET quantity_sold = GREATEST(0, quantity_sold - :quantity),
+                total_revenue = GREATEST(0, total_revenue - :amount)
+            WHERE report_date = :report_date AND variant_id = :variant_id");
+        $stmt->execute(['quantity' => $quantity, 'amount' => $refundAmount, 'report_date' => $reportDate, 'variant_id' => (int)$request['variant_id']]);
 
-        if ($this->tableHasColumn('daily_revenue_reports', 'refunded_amount')) {
-            $stmt = $this->db->prepare("INSERT INTO daily_revenue_reports (report_date, total_orders, gross_revenue, total_discount, net_revenue, refunded_amount)
-                VALUES (:report_date, 0, 0, 0, 0, :amount)
-                ON DUPLICATE KEY UPDATE refunded_amount = refunded_amount + VALUES(refunded_amount), net_revenue = net_revenue - VALUES(refunded_amount)");
-            $stmt->execute(['report_date' => $reportDate, 'amount' => $refundAmount]);
-        }
+        $stmt = $this->db->prepare("INSERT INTO daily_revenue_reports (report_date, total_orders, gross_revenue, total_discount, net_revenue, refunded_amount)
+            VALUES (:report_date, 0, 0, 0, 0, :amount)
+            ON DUPLICATE KEY UPDATE refunded_amount = refunded_amount + VALUES(refunded_amount), net_revenue = net_revenue - VALUES(refunded_amount)");
+        $stmt->execute(['report_date' => $reportDate, 'amount' => $refundAmount]);
     }
 
-    private function tableHasColumn(string $table, string $column): bool {
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = :column_name');
-        $stmt->execute(['table_name' => $table, 'column_name' => $column]);
-        return (int)$stmt->fetchColumn() > 0;
-    }
-
-    private function triggerExists(string $trigger): bool {
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = :trigger_name');
-        $stmt->execute(['trigger_name' => $trigger]);
-        return (int)$stmt->fetchColumn() > 0;
-    }
 }

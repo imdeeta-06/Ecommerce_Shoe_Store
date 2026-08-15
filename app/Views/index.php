@@ -16,9 +16,10 @@ function homeAssetUrl($image): string {
     <!-- Hero Slideshow -->
     <section class="hero-slideshow" id="heroSlideshow">
         <?php $heroBanners = !empty($banners) ? $banners : [
-            ['image_url' => 'assets/images/hero2..avif'],
-            ['image_url' => 'assets/images/hero3.avif'],
-            ['image_url' => 'assets/images/hero4.avif']
+            ['image_url' => 'assets/images/lam-hero-lanterns.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-courtyard.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-pagoda.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa'],
+            ['image_url' => 'assets/images/lam-hero-temple.jpg', 'link_url' => 'shop?category=Đồ+lam+đi+chùa']
         ]; ?>
         <?php foreach ($heroBanners as $index => $banner): ?>
             <div class="hero-slide <?= $index === 0 ? 'active' : '' ?>" data-link="<?= htmlspecialchars($banner['link_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background-image: url('<?= htmlspecialchars(homeAssetUrl($banner['image_url'] ?? ''), ENT_QUOTES, 'UTF-8') ?>');<?= !empty($banner['link_url']) ? 'cursor:pointer;' : '' ?>"></div>
@@ -36,8 +37,8 @@ function homeAssetUrl($image): string {
 
     <!-- Giới thiệu -->
     <section class="intro-section">
-        <h2>Chính hãng 100%</h2>
-        <p>Chúng tôi chuyên phân phối giày Nike chính hãng — cam kết nguồn gốc rõ ràng, chất lượng đảm bảo và bảo hành đầy đủ. Mang đến cho bạn trải nghiệm mua sắm uy tín cùng các bộ sưu tập mới nhất.</p>
+        <h2>Đồ lam và pháp phục chọn lọc</h2>
+        <p>Gian hàng cung cấp đồ lam đi chùa, pháp phục Tăng – Ni, túi đi chùa, chuỗi hạt và vật dụng thực hành thiền. Thông tin, giá và hình ảnh sản phẩm được trình bày rõ ràng để bạn dễ chọn lựa.</p>
     </section>
 
     <!-- Sản phẩm nổi bật do admin lựa chọn -->
@@ -52,7 +53,10 @@ function homeAssetUrl($image): string {
                 <div class="product-info">
                     <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" style="text-decoration: none; color: inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category']) ?></span>
-                    <div class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price">
+                        <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format($product['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
+                        <span><?= number_format($product['price'], 0, ',', '.') ?> ₫</span>
+                    </div>
                     <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem size & màu</button>
                 </div>
             </div>
@@ -62,7 +66,7 @@ function homeAssetUrl($image): string {
     </section>
 
     <section class="products-section">
-        <h2>Sản phẩm bán chạy</h2>
+        <h2><?= htmlspecialchars($bestSellingTitle ?? 'Sản phẩm bán chạy') ?></h2>
         <div class="product-grid">
             <?php foreach ($bestSellingProducts as $product): ?>
             <div class="product-card">
@@ -70,7 +74,10 @@ function homeAssetUrl($image): string {
                 <div class="product-info">
                     <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" style="text-decoration:none;color:inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category'] ?? '') ?></span>
-                    <div class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price">
+                        <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format($product['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
+                        <span><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</span>
+                    </div>
                     <button class="btn-buy" onclick="goToProduct(<?= (int)$product['id'] ?>)">Xem sản phẩm</button>
                 </div>
             </div>
@@ -79,44 +86,44 @@ function homeAssetUrl($image): string {
         </div>
     </section>
 
-    <!-- Lifestyle Gallery - Horizontal Image Slider -->
+    <!-- Bộ sưu tập đồ lam - Horizontal Image Slider -->
     <section class="lifestyle-section">
-        <h2>Khám phá thế giới Nike</h2>
+        <h2>Khám phá đồ lam đi chùa</h2>
         <div class="lifestyle-slider-wrapper">
             <div class="lifestyle-slider" id="lifestyleSlider">
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/running.png" alt="Running">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Bộ pháp phục lễ chùa nữ">
                     <div class="slide-overlay">
-                        <h3>Running</h3>
-                        <p>Mang lại tốc độ và sự thoải mái</p>
+                        <h3>Đồ lam nữ</h3>
+                        <p>Thanh lịch, trang nghiêm khi lễ chùa</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/football.png" alt="Football">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1050.jpg" alt="Bộ pháp phục nam">
                     <div class="slide-overlay">
-                        <h3>Football</h3>
-                        <p>Sẵn sàng cho mọi trận đấu</p>
+                        <h3>Đồ lam nam</h3>
+                        <p>Phù hợp đi chùa và thực hành thiền</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/training.png" alt="Training">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Túi nải đi chùa">
                     <div class="slide-overlay">
-                        <h3>Training</h3>
-                        <p>Đột phá giới hạn của bạn</p>
+                        <h3>Túi đi chùa</h3>
+                        <p>Gọn gàng cho vật dụng cá nhân</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/lifestyle.jpg" alt="Lifestyle">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Vòng tay trầm hương">
                     <div class="slide-overlay">
-                        <h3>Lifestyle</h3>
-                        <p>Phong cách vượt thời gian</p>
+                        <h3>Chuỗi hạt</h3>
+                        <p>Vòng tay và tràng hạt niệm Phật</p>
                     </div>
                 </div>
                 <div class="lifestyle-slide">
-                    <img src="<?= BASE_URL ?>assets/images/skate.png" alt="Skateboarding">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Đệm ngồi thiền hoa sen">
                     <div class="slide-overlay">
-                        <h3>Skateboarding</h3>
-                        <p>Sự linh hoạt tuyệt đối</p>
+                        <h3>Toạ cụ thiền</h3>
+                        <p>Đệm ngồi thiền và lễ Phật</p>
                     </div>
                 </div>
             </div>
@@ -178,7 +185,7 @@ function homeAssetUrl($image): string {
     }));
 
     function startAuto() {
-        autoSlide = setInterval(nextSlide, 5000);
+        autoSlide = setInterval(nextSlide, 2000);
     }
     function resetAuto() {
         clearInterval(autoSlide);

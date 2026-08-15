@@ -39,27 +39,15 @@ class UserModel extends BaseModel {
     }
 
     public function createAdmin($data) {
-        $columns = ['full_name', 'email', 'password', 'phone', 'role', 'status'];
-        $values = [
+        $stmt = $this->db->prepare("INSERT INTO user (full_name, display_name, email, password, phone, role, status)
+            VALUES (?, ?, ?, ?, ?, 'admin', 1)");
+        $stmt->execute([
             $data['full_name'] ?? null,
+            $data['display_name'] ?? null,
             $data['email'] ?? null,
             $data['password'] ?? null,
-            $data['phone'] ?? null,
-            'admin',
-            1
-        ];
-
-        if ($this->hasColumn('display_name')) {
-            array_splice($columns, 1, 0, 'display_name');
-            array_splice($values, 1, 0, $data['display_name'] ?? null);
-        }
-
-        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-        $stmt = $this->db->prepare("
-            INSERT INTO user (" . implode(', ', $columns) . ")
-            VALUES ($placeholders)
-        ");
-        $stmt->execute($values);
+            $data['phone'] ?? null
+        ]);
 
         return $this->db->lastInsertId();
     }
@@ -84,6 +72,10 @@ class UserModel extends BaseModel {
     }
 
     public function updateStatus($id, $status) {
+        $status = (int)$status;
+        if (!in_array($status, [0, 1], true)) {
+            throw new \InvalidArgumentException('Trạng thái tài khoản không hợp lệ.');
+        }
         $stmt = $this->db->prepare("UPDATE user SET status = ? WHERE id = ?");
         return $stmt->execute([$status, $id]);
     }
@@ -141,43 +133,81 @@ class UserModel extends BaseModel {
     }
 
     public function getAddresses($userId) {
-        $stmt = $this->db->prepare("SELECT * FROM user_addresses WHERE user_id = ?");
+        $stmt = $this->db->prepare("SELECT * FROM user_addresses WHERE user_id = ? AND status = 1 ORDER BY is_default DESC, id DESC");
         $stmt->execute([$userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function addAddress($userId, $data) {
-        if (!empty($data['is_default'])) {
-            $stmtDefault = $this->db->prepare("UPDATE user_addresses SET is_default = 0 WHERE user_id = ?");
-            $stmtDefault->execute([$userId]);
+        $recipientName = trim((string)($data['recipient_name'] ?? ''));
+        $recipientPhone = trim((string)($data['recipient_phone'] ?? ($data['phone'] ?? '')));
+        $addressLine = trim((string)($data['address_line'] ?? ($data['address'] ?? '')));
+        $wardDistrictCity = trim((string)($data['ward_district_city'] ?? ($data['city'] ?? '')));
+
+        if ($recipientName === '' || $recipientPhone === '' || $addressLine === '' || $wardDistrictCity === '') {
+            throw new \InvalidArgumentException('Thông tin người nhận và địa chỉ chưa đầy đủ.');
         }
 
-        $stmt = $this->db->prepare("
-            INSERT INTO user_addresses (user_id, address_line, ward_district_city, is_default)
-            VALUES (?, ?, ?, ?)
-        ");
+        try {
+            $this->db->beginTransaction();
+            if (!empty($data['is_default'])) {
+                $stmtDefault = $this->db->prepare("UPDATE user_addresses SET is_default = 0 WHERE user_id = ? AND status = 1");
+                $stmtDefault->execute([$userId]);
+            }
 
-        $stmt->execute([
-            $userId,
-            $data['address_line'] ?? ($data['address'] ?? null),
-            $data['ward_district_city'] ?? ($data['city'] ?? null),
-            !empty($data['is_default']) ? 1 : 0
-        ]);
+            $stmt = $this->db->prepare("
+                INSERT INTO user_addresses (user_id, recipient_name, recipient_phone, address_line, ward_district_city, is_default, status)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            ");
+            $stmt->execute([
+                $userId,
+                $recipientName,
+                $recipientPhone,
+                $addressLine,
+                $wardDistrictCity,
+                !empty($data['is_default']) ? 1 : 0
+            ]);
 
-        return $this->db->lastInsertId();
+            $id = $this->db->lastInsertId();
+            $this->db->commit();
+            return $id;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function setDefaultAddress($userId, $addressId) {
-        $stmtClear = $this->db->prepare("UPDATE user_addresses SET is_default = 0 WHERE user_id = ?");
-        $stmtClear->execute([$userId]);
+        try {
+            $this->db->beginTransaction();
+            $stmtExists = $this->db->prepare("SELECT id FROM user_addresses WHERE id = ? AND user_id = ? AND status = 1 FOR UPDATE");
+            $stmtExists->execute([$addressId, $userId]);
+            if (!$stmtExists->fetch(PDO::FETCH_ASSOC)) {
+                $this->db->rollBack();
+                return false;
+            }
 
-        $stmtSet = $this->db->prepare("UPDATE user_addresses SET is_default = 1 WHERE id = ? AND user_id = ?");
-        return $stmtSet->execute([$addressId, $userId]);
+            $stmtClear = $this->db->prepare("UPDATE user_addresses SET is_default = 0 WHERE user_id = ? AND status = 1");
+            $stmtClear->execute([$userId]);
+
+            $stmtSet = $this->db->prepare("UPDATE user_addresses SET is_default = 1 WHERE id = ? AND user_id = ? AND status = 1");
+            $stmtSet->execute([$addressId, $userId]);
+            $this->db->commit();
+            return $stmtSet->rowCount() === 1;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function deleteAddress($addressId, $userId) {
-        $stmt = $this->db->prepare("DELETE FROM user_addresses WHERE id = ? AND user_id = ?");
-        return $stmt->execute([$addressId, $userId]);
+        $stmt = $this->db->prepare("UPDATE user_addresses SET status = 0, is_default = 0 WHERE id = ? AND user_id = ? AND status = 1");
+        $stmt->execute([$addressId, $userId]);
+        return $stmt->rowCount() === 1;
     }
 
     public function createOtp($email, $otp, $expiresAt) {
@@ -212,9 +242,4 @@ class UserModel extends BaseModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    private function hasColumn($column) {
-        $stmt = $this->db->prepare("SHOW COLUMNS FROM user LIKE ?");
-        $stmt->execute([$column]);
-        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
-    }
 }

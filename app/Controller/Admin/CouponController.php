@@ -1,10 +1,15 @@
 <?php
 namespace App\Controller\Admin;
 
+use App\Middleware\AuthMiddleware;
 use App\Models\Coupons;
 use App\Models\Product;
 
 class CouponController {
+    public function __construct() {
+        AuthMiddleware::requireAdmin();
+    }
+
     public function index() {
         $model = new Coupons();
         $coupons = $model->getAll('coupons');
@@ -39,8 +44,8 @@ class CouponController {
         $startDate = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
         $expiryDate = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
         
-        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId)) {
-            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ và chỉ chọn một phạm vi áp dụng.'];
+        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId) || ($startDate && strtotime($startDate) > strtotime($expiryDate))) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ; ngày bắt đầu không được sau ngày hết hạn và chỉ chọn một phạm vi áp dụng.'];
             header('Location: ' . BASE_URL . 'admin/coupons/create');
             exit;
         }
@@ -104,8 +109,8 @@ class CouponController {
         $startDate = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
         $expiryDate = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
         
-        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId)) {
-            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ và chỉ chọn một phạm vi áp dụng.'];
+        if (empty($code) || empty($expiryDate) || ($discountPercent <= 0 && $maxDiscount <= 0) || ($categoryId && $productId) || ($startDate && strtotime($startDate) > strtotime($expiryDate))) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Vui lòng nhập mã, hạn dùng, mức giảm hợp lệ; ngày bắt đầu không được sau ngày hết hạn và chỉ chọn một phạm vi áp dụng.'];
             header('Location: ' . BASE_URL . 'admin/coupons/edit?id=' . $id);
             exit;
         }

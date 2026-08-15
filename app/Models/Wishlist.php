@@ -13,12 +13,13 @@ class Wishlist extends BaseModel {
 
     public function getWishlistByUserId($userId) {
         $stmt = $this->db->prepare("
-            SELECT w.*, p.name, p.base_price as price, p.slug, pi.image_url 
+            SELECT w.*, p.name, p.base_price as price, p.old_price, p.slug, pi.image_url
             FROM {$this->table} w
             JOIN product p ON w.product_id = p.id
             LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
             LEFT JOIN categories c ON c.id = p.category_id
             WHERE w.user_id = :user_id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
+              AND EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.status = 1 AND pv.stock_quantity > 0)
         ");
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Hình minh họa đồ lam</title>
+  <desc id="desc">Hình minh họa hoa sen và mái chùa với tông màu lam ấm.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e8f1ed"/>
+      <stop offset="1" stop-color="#c7ddd4"/>
+    </linearGradient>
+    <linearGradient id="robe" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#426b68"/>
+      <stop offset="1" stop-color="#274c4b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="950" cy="150" r="90" fill="#f4d7a1" opacity=".75"/>
+  <path d="M0 650 Q220 540 430 650 T860 650 T1200 620 V900 H0Z" fill="#9dbdb2" opacity=".65"/>
+  <path d="M170 560 H1030 V690 H170Z" fill="#f4efe4"/>
+  <path d="M120 560 L600 300 L1080 560Z" fill="#8c5f49"/>
+  <path d="M80 560 Q600 230 1120 560" fill="none" stroke="#5d4037" stroke-width="24"/>
+  <path d="M300 560 V470 H450 V560 M750 560 V470 H900 V560" fill="#d8c2a0" stroke="#6d4a3b" stroke-width="12"/>
+  <path d="M510 560 V410 H690 V560Z" fill="#d8c2a0" stroke="#6d4a3b" stroke-width="12"/>
+  <path d="M560 410 Q600 340 640 410" fill="#6d4a3b"/>
+  <path d="M600 290 V220 M570 245 H630" stroke="#6d4a3b" stroke-width="14" stroke-linecap="round"/>
+  <path d="M410 785 Q600 625 790 785 L740 900 H460Z" fill="url(#robe)"/>
+  <circle cx="600" cy="585" r="66" fill="#dba77e"/>
+  <path d="M535 575 Q600 505 665 575 Q642 520 600 515 Q558 520 535 575Z" fill="#5b493e"/>
+  <path d="M485 790 Q600 700 715 790" fill="none" stroke="#d9c39a" stroke-width="22"/>
+  <g transform="translate(600 790)">
+    <path d="M0 80 C-150 75 -165 -25 0 25 C165 -25 150 75 0 80Z" fill="#e7a7aa"/>
+    <path d="M0 80 C-70 15 -55 -70 0 15 C55 -70 70 15 0 80Z" fill="#f2b9bb"/>
+    <path d="M-10 80 C-130 30 -105 -35 0 55 C105 -35 130 30 10 80Z" fill="#d98991"/>
+    <circle cx="0" cy="62" r="12" fill="#e4bf6a"/>
+  </g>
+  <text x="600" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" letter-spacing="5" fill="#274c4b">ĐỒ LAM · PHÁP PHỤC</text>
+</svg>

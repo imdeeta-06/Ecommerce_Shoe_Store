@@ -129,10 +129,15 @@ class ProfileController {
             SessionHelper::redirect('/account');
         }
 
+        if (!preg_match('/^[0-9+\-\s()]{7,20}$/', $phone)) {
+            SessionHelper::setFlash('error', 'Số điện thoại người nhận không hợp lệ');
+            SessionHelper::redirect('/account');
+        }
+
         $userModel = new UserModel();
         $userModel->addAddress($_SESSION['user_id'], [
             'recipient_name' => $recipientName,
-            'phone' => $phone,
+            'recipient_phone' => $phone,
             'address' => $address,
             'city' => $city,
             'is_default' => $isDefault

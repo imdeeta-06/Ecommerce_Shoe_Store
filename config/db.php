@@ -2,7 +2,7 @@
 $db_config = require __DIR__ . '/database.php';
 try {
     $pdo = new PDO(
-        "mysql:host={$db_config['host']};dbname={$db_config['dbname']};charset={$db_config['charset']}",
+        "mysql:host={$db_config['host']};port=" . (int)($db_config['port'] ?? 3306) . ";dbname={$db_config['dbname']};charset={$db_config['charset']}",
         $db_config['user'],
         $db_config['password'],
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
