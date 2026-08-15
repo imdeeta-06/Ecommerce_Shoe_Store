@@ -73,8 +73,8 @@
                     <label for="pay_cod">Thanh toán khi nhận hàng (COD)</label>
                 </div>
                 <div class="payment-method" onclick="selectPayment(this)">
-                    <input type="radio" name="payment" id="pay_bank" value="bank" disabled>
-                    <label for="pay_bank" style="color:#999;">Chuyển khoản ngân hàng (sẽ bổ sung)</label>
+                    <input type="radio" name="payment" id="pay_bank" value="bank">
+                    <label for="pay_bank">Chuyển khoản ngân hàng (VietQR)</label>
                 </div>
                 <div class="payment-method" onclick="selectPayment(this)">
                     <input type="radio" name="payment" id="pay_momo" value="momo" disabled>
@@ -356,7 +356,7 @@ function handleCheckout(e) {
         }
 
         localStorage.removeItem('paceup_cart');
-        window.location.href = BASE_URL + 'checkout-success';
+        window.location.href = BASE_URL + 'checkout-success?order_id=' + data.order_id;
     })
     .catch(() => {
         alert('Khong the dat hang. Vui long thu lai.');

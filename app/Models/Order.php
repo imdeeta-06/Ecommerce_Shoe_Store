@@ -81,7 +81,7 @@ class Order extends BaseModel {
                 }
 
                 $variant = $this->getVariantForUpdate($variantId);
-                if (!$variant || (int)($variant['product_status'] ?? 0) !== 1 || (int)$variant['stock_quantity'] < $quantity) {
+                if (!$variant || ($variant['product_status'] ?? '') !== 'active' || (int)$variant['stock_quantity'] < $quantity) {
                     $name = $variant['product_name'] ?? ('Variant #' . $variantId);
                     $stock = (int)($variant['stock_quantity'] ?? 0);
                     throw new \Exception("$name không đủ tồn kho. Hiện còn $stock, cần $quantity.");
@@ -105,8 +105,8 @@ class Order extends BaseModel {
             $discount = 0.0;
             $couponId = !empty($orderData['coupon_id']) ? (int)$orderData['coupon_id'] : null;
             $paymentMethod = trim((string)($orderData['payment_method'] ?? 'cod')) ?: 'cod';
-            if ($paymentMethod !== 'cod') {
-                throw new \Exception('Hiện tại website chỉ hỗ trợ thanh toán khi nhận hàng (COD).');
+            if ($paymentMethod !== 'cod' && $paymentMethod !== 'bank') {
+                throw new \Exception('Hiện tại website chỉ hỗ trợ thanh toán khi nhận hàng (COD) hoặc Chuyển khoản ngân hàng.');
             }
             if ($couponId) {
                 $couponModel = new Coupons();
@@ -117,45 +117,71 @@ class Order extends BaseModel {
                 $discount = (float)$couponResult['discount'];
             }
 
-            $orderData = [
+            $couponCodeSnapshot = null;
+            if ($couponId) {
+                $couponModel = new Coupons();
+                $coupon = $couponModel->getById('coupons', $couponId);
+                if ($coupon) {
+                    $couponCodeSnapshot = $coupon['code'];
+                }
+            }
+
+            $shippingName = trim((string)($orderData['shipping_name'] ?? ''));
+            $shippingPhone = trim((string)($orderData['shipping_phone'] ?? ''));
+            $shippingAddress = trim((string)($orderData['shipping_address'] ?? ''));
+
+            if ($shippingName === '' || $shippingPhone === '' || $shippingAddress === '') {
+                throw new \Exception('Thông tin giao hàng chưa đầy đủ.');
+            }
+
+            $insertOrderData = [
                 'order_code' => $orderData['order_code'],
                 'user_id' => $orderData['user_id'] ?? null,
-                'total_amount' => $subtotal,
                 'coupon_id' => $couponId,
-                'final_amount' => max(0, $subtotal + $shippingFee - $discount),
+                'coupon_code_snapshot' => $couponCodeSnapshot,
+                'subtotal' => $subtotal,
+                'discount_amount' => $discount,
                 'shipping_fee' => $shippingFee,
-                'shipping_name' => trim((string)($orderData['shipping_name'] ?? '')),
-                'shipping_phone' => trim((string)($orderData['shipping_phone'] ?? '')),
-                'shipping_address' => trim((string)($orderData['shipping_address'] ?? '')),
+                'tax_amount' => 0.00,
+                'final_amount' => max(0, $subtotal + $shippingFee - $discount),
+                'currency' => 'VND',
+                'shipping_name' => $shippingName,
+                'shipping_phone' => $shippingPhone,
                 'shipping_email' => trim((string)($orderData['shipping_email'] ?? '')) ?: null,
+                'shipping_province' => 'Default',
+                'shipping_district' => 'Default',
+                'shipping_address' => $shippingAddress,
+                'shipping_status' => 'not_shipped',
                 'customer_note' => trim((string)($orderData['customer_note'] ?? '')) ?: null,
+                'status' => 'pending',
                 'terms_accepted' => 1,
                 'terms_accepted_at' => date('Y-m-d H:i:s'),
                 'contract_version' => preg_match('/^[a-zA-Z0-9._-]{1,30}$/', (string)($orderData['contract_version'] ?? 'v1.0')) ? (string)($orderData['contract_version'] ?? 'v1.0') : 'v1.0',
                 'terms_accepted_ip' => substr((string)($orderData['terms_accepted_ip'] ?? ''), 0, 45) ?: null,
-                'terms_accepted_user_agent' => substr((string)($orderData['terms_accepted_user_agent'] ?? ''), 0, 1000) ?: null,
-                'shipping_status' => 'not_shipped',
-                'status' => 'pending'
+                'terms_accepted_user_agent' => substr((string)($orderData['terms_accepted_user_agent'] ?? ''), 0, 1000) ?: null
             ];
 
-            if ($orderData['shipping_name'] === '' || $orderData['shipping_phone'] === '' || $orderData['shipping_address'] === '') {
-                throw new \Exception('Thông tin giao hàng chưa đầy đủ.');
-            }
-
-            $orderId = $this->createOrder($orderData);
+            $orderId = $this->createOrder($insertOrderData);
             if (!$orderId) {
                 throw new \Exception('Không thể tạo đơn hàng.');
             }
 
             foreach ($normalizedItems as $item) {
+                $unitPrice = (float)$item['price_at_time'];
+                $qty = (int)$item['quantity'];
+                $lineTotal = $unitPrice * $qty;
+
                 $this->createOrderItem([
                     'order_id' => $orderId,
+                    'product_id' => (int)$item['product_id'],
                     'variant_id' => $item['variant_id'],
-                    'quantity' => $item['quantity'],
-                    'price_at_time' => $item['price_at_time'],
                     'product_name_snapshot' => $item['product_name_snapshot'],
                     'variant_size_snapshot' => $item['variant_size_snapshot'],
-                    'variant_color_snapshot' => $item['variant_color_snapshot']
+                    'variant_color_snapshot' => $item['variant_color_snapshot'],
+                    'unit_price' => $unitPrice,
+                    'quantity' => $qty,
+                    'line_total' => $lineTotal,
+                    'created_at' => date('Y-m-d H:i:s')
                 ]);
             }
 
@@ -172,12 +198,15 @@ class Order extends BaseModel {
                 $paymentData['order_id'] = $orderId;
                 $this->createPayment($paymentData);
             } elseif ($paymentMethod !== '') {
+                $dbMethod = $paymentMethod === 'bank' ? 'bank_transfer' : $paymentMethod;
                 $this->createPayment([
                     'order_id' => $orderId,
-                    'payment_method' => $paymentMethod,
-                    'payment_status' => 0,
+                    'payment_method' => $dbMethod,
+                    'amount' => max(0, $subtotal + $shippingFee - $discount),
                     'payment_state' => 'pending',
-                    'refund_status' => 'not_requested'
+                    'refund_status' => 'not_requested',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
                 ]);
             }
 
@@ -559,7 +588,7 @@ class Order extends BaseModel {
     public function updatePaymentStatus($id, $status) {
         $status = (int)$status;
         $state = $status === 1 ? 'paid' : ($status === 2 ? 'refunded' : 'pending');
-        return $this->update('payments', $id, ['payment_status' => $status, 'payment_state' => $state]);
+        return $this->update('payments', $id, ['payment_state' => $state]);
     }
 
     public function getPaymentByOrderId($orderId) {

@@ -31,7 +31,8 @@ class AuthController {
                 SessionHelper::redirect('/login');
             }
 
-            if ((int) $user['status'] === 0) {
+            $userStatus = strtolower((string)($user['status'] ?? ''));
+            if (in_array($userStatus, ['blocked', 'inactive'], true)) {
                 SessionHelper::setFlash('error', 'Tài khoản đã bị khóa');
                 SessionHelper::redirect('/login');
             }

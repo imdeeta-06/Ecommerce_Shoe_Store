@@ -25,16 +25,7 @@ if (!function_exists('productAssetPath')) {
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css?v=<?= time() ?>">
 </head>
 <body>
-    <div class="top-bar">
-        <div class="top-bar-left">
-            <span>🌸 Kính chào quý Phật tử — Giao hàng miễn phí đơn từ 500.000đ</span>
-        </div>
-        <div class="top-bar-right">
-            <a href="<?= BASE_URL ?>admin">Khu vực Người bán</a>
-            <span class="divider">|</span>
-            <a href="<?= BASE_URL ?>admin">Quản trị</a>
-        </div>
-    </div>
+
     <header class="header">
         <div class="logo">
             <a href="<?= BASE_URL ?>" class="logo-wrapper">

@@ -20,8 +20,8 @@ class HomeController {
                 break;
             }
         }
-        $metaTitle = 'PaceUp - Giày Nike chính hãng';
-        $metaDescription = 'Mua giày Nike chính hãng online tại PaceUp: Running, Lifestyle, Football, Training và nhiều dòng sản phẩm thể thao.';
+        $metaTitle = 'Liên Hoa - Pháp Phục & Đồ Lam Phật Giáo Cao Cấp';
+        $metaDescription = 'Chuyên cung cấp áo lam đi chùa, pháp phục Tăng Ni, tràng hạt trầm hương và vật phẩm Phật giáo cao cấp tại Liên Hoa.';
         $canonicalUrl = \App\Core\App::url('/');
         require __DIR__ . '/../Views/index.php';
     }

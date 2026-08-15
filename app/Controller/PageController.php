@@ -32,8 +32,8 @@ class PageController {
     }
 
     public function tracking() {
-        $metaTitle = 'Tra cứu đơn hàng - PaceUp';
-        $metaDescription = 'Tra cứu trạng thái đơn hàng PaceUp bằng mã đơn hàng và số điện thoại nhận hàng.';
+        $metaTitle = 'Tra cứu đơn hàng - Liên Hoa';
+        $metaDescription = 'Tra cứu trạng thái đơn hàng Liên Hoa bằng mã đơn hàng và số điện thoại nhận hàng.';
         $trackingResult = null;
         $trackingError = null;
         $trackingSearched = isset($_GET['order_code']) || isset($_GET['phone']);
@@ -56,7 +56,7 @@ class PageController {
 
     public function unsubscribeCartReminder() {
         $success = (new Cart())->unsubscribeByToken((string)($_GET['token'] ?? ''));
-        $metaTitle = 'Hủy email nhắc giỏ hàng - PaceUp';
+        $metaTitle = 'Hủy email nhắc giỏ hàng - Liên Hoa';
         require __DIR__ . '/../Views/pages/cart-reminder-unsubscribe.php';
     }
 }

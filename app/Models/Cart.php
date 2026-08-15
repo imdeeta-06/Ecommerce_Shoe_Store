@@ -235,8 +235,9 @@ class Cart extends BaseModel {
             return;
         }
 
+        $token = bin2hex(random_bytes(24));
         $stmt = $this->db->prepare("INSERT INTO cart_reminders (user_id, unsubscribe_token, status, last_seen_at, attempt_count, next_attempt_at)
-            VALUES (:user_id, LOWER(HEX(RANDOM_BYTES(24))), 'pending', NOW(), 0, NULL)
+            VALUES (:user_id, :token, 'pending', NOW(), 0, NULL)
             ON DUPLICATE KEY UPDATE
                 status = IF(unsubscribed_at IS NULL, 'pending', status),
                 last_seen_at = IF(unsubscribed_at IS NULL, NOW(), last_seen_at),
@@ -245,7 +246,7 @@ class Cart extends BaseModel {
                 attempt_count = IF(unsubscribed_at IS NULL, 0, attempt_count),
                 next_attempt_at = IF(unsubscribed_at IS NULL, NULL, next_attempt_at),
                 last_error = IF(unsubscribed_at IS NULL, NULL, last_error)");
-        $stmt->execute(['user_id' => $userId]);
+        $stmt->execute(['user_id' => $userId, 'token' => $token]);
     }
 
     public function markReminderConverted(int $userId): void {

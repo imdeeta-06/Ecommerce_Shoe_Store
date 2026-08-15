@@ -27,7 +27,13 @@ class Product extends BaseModel {
     }
 
     public function setProductStatus($id, $status) {
-        return $this->updateProduct($id, ['status' => (int)$status]);
+        $statusVal = $status;
+        if ($status === 1 || $status === '1') {
+            $statusVal = 'active';
+        } elseif ($status === 0 || $status === '0') {
+            $statusVal = 'inactive';
+        }
+        return $this->updateProduct($id, ['status' => $statusVal]);
     }
 
     public function destroyProduct($id) {
@@ -56,7 +62,7 @@ class Product extends BaseModel {
     }
 
     public function getActiveProducts() {
-        $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 1 ORDER BY id DESC");
+        $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 'active' ORDER BY id DESC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -81,7 +87,7 @@ class Product extends BaseModel {
 
         if (isset($filters['status']) && $filters['status'] !== '') {
             $sql .= " AND p.status = :status";
-            $params['status'] = (int)$filters['status'];
+            $params['status'] = $filters['status'];
         }
 
         if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
@@ -102,15 +108,9 @@ class Product extends BaseModel {
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)";
+                WHERE p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
         $params = [];
-
-        if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
-            $sql .= " AND p.gender = :gender";
-            $params['gender'] = $filters['gender'];
-        }
 
         if (!empty($filters['category']) && $filters['category'] !== 'all') {
             $sql .= " AND c.name = :category";
@@ -160,8 +160,8 @@ class Product extends BaseModel {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id = :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)";
+                WHERE p.id = :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['id' => $id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -180,7 +180,7 @@ class Product extends BaseModel {
     }
 
     public function getBestSellingProducts($limit = 8) {
-        return $this->getMarketingProducts('p.sold_count DESC, p.id DESC', $limit, 'p.sold_count > 0');
+        return $this->getMarketingProducts('p.sold_count DESC, p.id DESC', $limit, '1=1');
     }
 
     public function getProductReviews($productId, $limit = 20) {
@@ -222,22 +222,21 @@ class Product extends BaseModel {
         return (bool)$stmt->fetchColumn();
     }
 
-    public function getRelatedProducts($productId, $categoryId, $gender, $limit = 4) {
+    public function getRelatedProducts($productId, $categoryId, $limit = 4) {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id != :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)
-                AND (p.category_id = :category_id OR p.gender = :gender)
-                ORDER BY (p.category_id = :category_id) DESC, p.id DESC
+                WHERE p.id != :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
+                AND p.category_id = :category_id
+                ORDER BY p.is_featured DESC, p.id DESC
                 LIMIT " . (int)$limit;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'id' => $productId,
-            'category_id' => $categoryId,
-            'gender' => $gender
+            'category_id' => $categoryId
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -264,6 +263,25 @@ class Product extends BaseModel {
         $stmt = $this->db->prepare("SELECT * FROM categories WHERE status = 1 ORDER BY name ASC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getCategoriesWithCounts() {
+        $sql = "SELECT c.id, c.name, COUNT(p.id) AS product_count
+                FROM categories c
+                LEFT JOIN product p ON p.category_id = c.id AND p.status = 'active'
+                WHERE c.status = 1
+                GROUP BY c.id
+                ORDER BY c.sort_order ASC, c.name ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getActiveProductsCount() {
+        $sql = "SELECT COUNT(*) FROM product p WHERE p.status = 'active'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        return (int)$stmt->fetchColumn();
     }
 
     public function getAllCategories() {
@@ -474,8 +492,8 @@ class Product extends BaseModel {
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON c.id = p.category_id
-                WHERE p.status = 1 AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id)
+                WHERE p.status = 'active' AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
                 ORDER BY {$orderBy}
                 LIMIT :limit");
         $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
