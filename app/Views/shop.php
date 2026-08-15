@@ -73,14 +73,6 @@ function productDisplayType($product): string {
                     <?php endforeach; ?>
                 </ul>
 
-                <details class="filter-group" <?= $gender !== 'all' ? 'open' : '' ?>>
-                    <summary>Giới tính</summary>
-                    <ul>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'all'])) ?>" class="<?= $gender === 'all' ? 'active' : '' ?>">Tất cả</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'men'])) ?>" class="<?= $gender === 'men' ? 'active' : '' ?>">Nam</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'women'])) ?>" class="<?= $gender === 'women' ? 'active' : '' ?>">Nữ</a></li>
-                    </ul>
-                </details>
 
                 <details class="filter-group" <?= $priceRange !== 'all' ? 'open' : '' ?>>
                     <summary>Giá</summary>

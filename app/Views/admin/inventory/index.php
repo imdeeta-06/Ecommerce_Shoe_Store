@@ -8,10 +8,9 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
     <div class="admin-flash error">Chưa có phân loại hàng (variant) nào. Bạn cần tạo phân loại trước khi có thể cập nhật tồn kho.</div>
 <?php endif; ?>
 
-<div class="admin-title" style="margin-bottom: 2rem;">
+<div class="admin-title" style="margin-bottom: 2rem; margin-top: -1rem;">
     <div>
-        <h1>Quản lý Kho hàng</h1>
-        <p>Thêm phân loại sản phẩm và theo dõi lịch sử xuất/nhập kho.</p>
+        <p style="color: var(--admin-text-light); font-size: 0.95rem;">Thêm phân loại sản phẩm và theo dõi lịch sử xuất/nhập kho.</p>
     </div>
 </div>
 

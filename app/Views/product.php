@@ -55,11 +55,29 @@ foreach ($productVariants as $variant) {
 $defaultVariant = $defaultVariant ?: ($productVariants[0] ?? null);
 
 function productDetailColorLabel($color): string {
-    return ['Black' => 'Đen', 'Red' => 'Đỏ', 'White' => 'Trắng'][$color] ?? (string)$color;
+    return [
+        'Black' => 'Đen', 
+        'Red' => 'Đỏ', 
+        'White' => 'Trắng',
+        'Lam' => 'Lam',
+        'Nâu' => 'Nâu',
+        'Xám' => 'Xám',
+        'Kem' => 'Kem',
+        'Đen' => 'Đen'
+    ][$color] ?? (string)$color;
 }
 
 function productDetailColorHex($color): string {
-    return ['Black' => '#111111', 'Red' => '#dc2626', 'White' => '#ffffff'][$color] ?? '#d1d5db';
+    return [
+        'Black' => '#111111', 
+        'Red' => '#dc2626', 
+        'White' => '#ffffff',
+        'Lam' => '#8ba4b8',
+        'Nâu' => '#7d5c4c',
+        'Xám' => '#8c8c8c',
+        'Kem' => '#f3ebe1',
+        'Đen' => '#1c1c1c'
+    ][$color] ?? '#d1d5db';
 }
 ?>
 
@@ -87,7 +105,24 @@ function productDetailColorHex($color): string {
 .pd-color-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
 .pd-color-btn:hover { border-color: var(--primary-color); }
 .pd-color-btn.active { border-color: var(--primary-color); background: var(--primary-light); font-weight: 600; box-shadow: inset 0 0 0 1px var(--primary-color); }
-.color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #ddd; display: inline-block; }
+.color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #ddd; display: inline-block; position: relative; transition: all 0.2s; }
+.pd-color-btn.active .color-swatch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+/* If the color swatch background is Kem or White, show a dark inner dot for contrast */
+.pd-color-btn.active[data-color="Kem"] .color-swatch::after,
+.pd-color-btn.active[data-color="White"] .color-swatch::after {
+    background-color: #7d5c4c;
+}
 .pd-actions { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 3rem; }
 .btn-add-bag { padding: 1.2rem; background: var(--primary-dark); color: #fff; border: none; border-radius: 100px; font-size: 1rem; font-family: var(--font-ui); font-weight: 600; cursor: pointer; transition: all 0.3s; }
 .btn-add-bag:hover { background: var(--primary-color); color: var(--primary-dark); box-shadow: 0 4px 15px rgba(184, 151, 107, 0.3); }
@@ -155,7 +190,7 @@ function productDetailColorHex($color): string {
             <div class="client-form-group" style="margin-bottom: 1.5rem;">
                 <label class="client-label" for="productQuantity">Số lượng</label>
                 <input id="productQuantity" class="client-input" type="number" min="1" value="1" style="max-width: 120px;">
-                <small id="variantStockMessage" style="display:block; margin-top:0.4rem; color:#666;"></small>
+
             </div>
 
             <div class="pd-actions">
@@ -247,7 +282,7 @@ function refreshVariantSelection() {
 
     if (variant) {
         document.getElementById('productPrice').textContent = formatProductPrice(<?= (float)$product['price'] ?> + parseFloat(variant.price_modifier || 0));
-        document.getElementById('variantStockMessage').textContent = variant.stock_quantity > 0 ? 'Còn ' + variant.stock_quantity + ' sản phẩm' : 'Phân loại này đang hết hàng';
+
         document.getElementById('productQuantity').max = Math.max(1, parseInt(variant.stock_quantity || 0));
     }
 }
