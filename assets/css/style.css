@@ -536,10 +536,12 @@ ul {
 
 .auth-image {
     flex: 1;
-    background: url('../images/login.webp') no-repeat center center/cover;
+    background: url('../images/zen-login-banner.jpg') no-repeat center center/cover;
     position: relative;
-    border-radius: 2rem;
+    border-radius: 1.5rem;
     margin: 1rem;
+    box-shadow: 0 12px 35px rgba(62, 39, 35, 0.12);
+    min-height: 500px;
 }
 
 /* Admin Dashboard */
