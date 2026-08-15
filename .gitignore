@@ -24,3 +24,6 @@ composer.phar
 # 5. Các file ghi lỗi (Logs) của hệ thống hoặc server
 *.log
 error_log
+
+database.php
+db.php

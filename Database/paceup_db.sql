@@ -1,25 +1,16 @@
 -- ============================================================================
--- LAM SHOP - DATABASE ĐỘC LẬP CHO WEBSITE BÁN ĐỒ LAM / ĐỒ ĐI CHÙA
+-- PACEUP DATABASE - ĐỒ LAM, PHÁP PHỤC VÀ VẬT DỤNG ĐI CHÙA
 -- ============================================================================
--- Mục đích:
---   - Tạo database MỚI tên `lam_shop_db`.
---   - Không ALTER, DROP, USE hoặc ghi dữ liệu vào `paceup_db`.
---   - Dùng cho MariaDB 10.4+ hoặc MySQL 8+.
+-- FILE IMPORT DUY NHẤT CỦA DỰ ÁN.
 --
--- Cách dùng:
---   1. Backup database hiện tại trước khi thực hiện bất kỳ thay đổi nào.
---   2. Import RIÊNG file này trong phpMyAdmin/MySQL client.
---   3. Kiểm tra database `lam_shop_db` đã được tạo và có dữ liệu mẫu.
---   4. Chỉ đổi cấu hình PHP sang database mới sau khi đã xem xét và phê duyệt.
---   5. File này là schema + seed cho database mới, không phải migration để chạy
---      lại trên database đang vận hành có dữ liệu thật.
+-- Cách import: trong phpMyAdmin, Drop database `paceup_db` cũ, sau đó import
+-- toàn bộ file này. Không import bất kỳ file seed/reset/mapping nào khác.
 --
--- Lưu ý thiết kế:
---   - Không dùng trigger để tự trừ/cộng kho. Code ứng dụng phải thực hiện
---     cập nhật kho + ghi inventory_logs trong cùng một transaction.
---   - Không xóa cứng sản phẩm, biến thể, danh mục đã có giao dịch. Hãy đổi
---     trạng thái sang inactive/archived để bảo toàn lịch sử đơn hàng.
---   - Mỗi product phải có tối thiểu một product_variant, kể cả hàng một mẫu.
+-- Dữ liệu có sẵn: 6 danh mục, 150 sản phẩm, 525 biến thể có tồn kho, 150 ảnh
+-- local, 4 banner, 2 mã giảm giá và 2 tài khoản test.
+--
+-- Tài khoản quản trị: admin@paceup.local / Admin@12345
+-- Tài khoản khách:    customer@paceup.local / Customer@12345
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS `paceup_db`
@@ -27,1701 +18,2051 @@ CREATE DATABASE IF NOT EXISTS `paceup_db`
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE `paceup_db`;
-
 SET NAMES utf8mb4;
-SET time_zone = '+00:00';
+SET FOREIGN_KEY_CHECKS = 1;
 
--- ============================================================================
--- 1. QUẢN LÝ PHIÊN BẢN SCHEMA VÀ NGƯỜI DÙNG
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `schema_migrations` (
-  `version` VARCHAR(100) NOT NULL,
-  `applied_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `schema_migrations` (
+  `version` varchar(100) NOT NULL,
+  `applied_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `user` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `full_name` VARCHAR(150) NOT NULL,
-  `display_name` VARCHAR(100) DEFAULT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `phone` VARCHAR(30) DEFAULT NULL,
-  `avatar` VARCHAR(500) DEFAULT NULL,
-  `password` VARCHAR(255) NOT NULL,
-  `role` ENUM('admin', 'staff', 'user') NOT NULL DEFAULT 'user' COMMENT 'Vai trò cơ bản; phân quyền chi tiết dùng user_roles.',
-  `status` ENUM('active', 'blocked', 'inactive') NOT NULL DEFAULT 'active',
-  `email_verified_at` DATETIME DEFAULT NULL,
-  `last_login_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `user` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `full_name` varchar(100) NOT NULL,
+  `display_name` varchar(100) DEFAULT NULL,
+  `email` varchar(100) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `avatar` varchar(255) DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
+  `role` enum('admin','user','guest') NOT NULL DEFAULT 'user',
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1: hoạt động, 0: khóa',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_email_unique` (`email`),
-  KEY `user_status_role_idx` (`status`, `role`)
+  KEY `user_role_status_idx` (`role`,`status`)
+  ,CONSTRAINT `user_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- RBAC: đáp ứng yêu cầu kiểm soát quyền truy cập của chương An ninh.
-CREATE TABLE IF NOT EXISTS `roles` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(50) NOT NULL,
-  `name` VARCHAR(100) NOT NULL,
-  `description` VARCHAR(255) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `user_addresses` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `recipient_name` varchar(100) NOT NULL,
+  `recipient_phone` varchar(20) NOT NULL,
+  `address_line` varchar(255) NOT NULL,
+  `ward_district_city` varchar(255) NOT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT 0,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `roles_code_unique` (`code`)
+  KEY `user_addresses_user_idx` (`user_id`,`is_default`,`status`),
+  CONSTRAINT `user_addresses_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `permissions` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(100) NOT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `group_name` VARCHAR(100) NOT NULL,
-  `description` VARCHAR(255) DEFAULT NULL,
+CREATE TABLE `password_reset_otp` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(100) NOT NULL,
+  `otp_code` varchar(10) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `permissions_code_unique` (`code`),
-  KEY `permissions_group_idx` (`group_name`)
+  KEY `password_reset_lookup_idx` (`email`,`otp_code`,`is_used`,`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `role_permissions` (
-  `role_id` INT UNSIGNED NOT NULL,
-  `permission_id` INT UNSIGNED NOT NULL,
-  PRIMARY KEY (`role_id`, `permission_id`),
-  CONSTRAINT `role_permissions_role_fk`
-    FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `role_permissions_permission_fk`
-    FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `user_roles` (
-  `user_id` INT UNSIGNED NOT NULL,
-  `role_id` INT UNSIGNED NOT NULL,
-  `assigned_by` INT UNSIGNED DEFAULT NULL,
-  `assigned_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_id`, `role_id`),
-  KEY `user_roles_role_idx` (`role_id`),
-  CONSTRAINT `user_roles_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `user_roles_role_fk`
-    FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `user_roles_assigned_by_fk`
-    FOREIGN KEY (`assigned_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `auth_login_attempts` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `email_attempted` VARCHAR(255) NOT NULL,
-  `ip_address` VARCHAR(45) DEFAULT NULL,
-  `user_agent` VARCHAR(1000) DEFAULT NULL,
-  `result` ENUM('success', 'failed', 'blocked') NOT NULL,
-  `failure_reason` VARCHAR(255) DEFAULT NULL,
-  `attempted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `auth_login_attempts_email_time_idx` (`email_attempted`, `attempted_at`),
-  KEY `auth_login_attempts_ip_time_idx` (`ip_address`, `attempted_at`),
-  CONSTRAINT `auth_login_attempts_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `security_events` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `event_type` VARCHAR(100) NOT NULL COMMENT 'password_changed, payment_webhook_failed...',
-  `severity` ENUM('info', 'warning', 'critical') NOT NULL DEFAULT 'info',
-  `ip_address` VARCHAR(45) DEFAULT NULL,
-  `user_agent` VARCHAR(1000) DEFAULT NULL,
-  `metadata` LONGTEXT DEFAULT NULL COMMENT 'Chỉ lưu dữ liệu an toàn, không lưu password/OTP/số thẻ.',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `security_events_type_time_idx` (`event_type`, `created_at`),
-  KEY `security_events_user_time_idx` (`user_id`, `created_at`),
-  CONSTRAINT `security_events_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Lưu sự đồng ý có phiên bản để tiếp thị và xử lý dữ liệu cá nhân hợp pháp.
-CREATE TABLE IF NOT EXISTS `privacy_consents` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `email` VARCHAR(255) DEFAULT NULL COMMENT 'Dùng khi khách chưa có tài khoản',
-  `consent_type` ENUM('privacy_policy', 'email_marketing', 'sms_marketing', 'analytics', 'cookies') NOT NULL,
-  `policy_version` VARCHAR(50) NOT NULL,
-  `is_granted` TINYINT(1) NOT NULL,
-  `source` VARCHAR(100) NOT NULL DEFAULT 'website',
-  `ip_address` VARCHAR(45) DEFAULT NULL,
-  `user_agent` VARCHAR(1000) DEFAULT NULL,
-  `consented_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `privacy_consents_user_type_idx` (`user_id`, `consent_type`, `consented_at`),
-  KEY `privacy_consents_email_type_idx` (`email`, `consent_type`, `consented_at`),
-  CONSTRAINT `privacy_consents_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `privacy_consents_owner_check`
-    CHECK (`user_id` IS NOT NULL OR `email` IS NOT NULL)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `personal_data_requests` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `request_code` VARCHAR(50) NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `request_type` ENUM('access', 'correction', 'deletion', 'withdraw_consent') NOT NULL,
-  `status` ENUM('pending', 'verified', 'processing', 'completed', 'rejected') NOT NULL DEFAULT 'pending',
-  `note` TEXT DEFAULT NULL,
-  `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `completed_at` DATETIME DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `personal_data_requests_code_unique` (`request_code`),
-  KEY `personal_data_requests_status_idx` (`status`, `requested_at`),
-  CONSTRAINT `personal_data_requests_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `user_addresses` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED NOT NULL,
-  `label` VARCHAR(50) DEFAULT NULL COMMENT 'Ví dụ: Nhà riêng, Công ty',
-  `recipient_name` VARCHAR(150) NOT NULL,
-  `phone` VARCHAR(30) NOT NULL,
-  `province` VARCHAR(100) NOT NULL,
-  `district` VARCHAR(100) NOT NULL,
-  `ward` VARCHAR(100) DEFAULT NULL,
-  `address_line` VARCHAR(255) NOT NULL,
-  `postal_code` VARCHAR(20) DEFAULT NULL,
-  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `user_addresses_user_idx` (`user_id`, `is_default`),
-  CONSTRAINT `user_addresses_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `password_reset_otp` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `otp_code` VARCHAR(20) NOT NULL,
-  `expires_at` DATETIME NOT NULL,
-  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `password_reset_email_idx` (`email`, `expires_at`),
-  CONSTRAINT `password_reset_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 2. DANH MỤC, THUỘC TÍNH VÀ CATALOG SẢN PHẨM
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `categories` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `parent_id` INT UNSIGNED DEFAULT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `slug` VARCHAR(180) NOT NULL,
-  `description` TEXT DEFAULT NULL,
-  `image_url` VARCHAR(500) DEFAULT NULL,
-  `meta_title` VARCHAR(255) DEFAULT NULL,
-  `meta_description` VARCHAR(500) DEFAULT NULL,
-  `meta_image_url` VARCHAR(500) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1: hiển thị, 0: ẩn',
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `slug` varchar(100) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `categories_slug_unique` (`slug`),
-  KEY `categories_parent_status_idx` (`parent_id`, `status`, `sort_order`),
-  CONSTRAINT `categories_parent_fk`
-    FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `categories_status_name_idx` (`status`,`name`),
+  CONSTRAINT `categories_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `brands` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(150) NOT NULL,
-  `slug` VARCHAR(180) NOT NULL,
-  `description` TEXT DEFAULT NULL,
-  `website_url` VARCHAR(500) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `brands_name_unique` (`name`),
-  UNIQUE KEY `brands_slug_unique` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `catalog_attributes` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(80) NOT NULL COMMENT 'Mã kỹ thuật, ví dụ: bead_size_mm',
-  `name` VARCHAR(150) NOT NULL,
-  `data_type` ENUM('select', 'text', 'number', 'boolean') NOT NULL,
-  `unit` VARCHAR(30) DEFAULT NULL COMMENT 'mm, cm, gram... nếu có',
-  `scope` ENUM('product', 'variant', 'both') NOT NULL DEFAULT 'both',
-  `is_filterable` TINYINT(1) NOT NULL DEFAULT 0,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `catalog_attributes_code_unique` (`code`),
-  KEY `catalog_attributes_status_idx` (`status`, `sort_order`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `catalog_attribute_options` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `attribute_id` INT UNSIGNED NOT NULL,
-  `value` VARCHAR(150) NOT NULL COMMENT 'Giá trị kỹ thuật không dấu hoặc chuẩn hóa',
-  `label` VARCHAR(150) NOT NULL COMMENT 'Nhãn hiển thị cho khách',
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `attribute_options_unique` (`attribute_id`, `value`),
-  KEY `attribute_options_attribute_idx` (`attribute_id`, `status`, `sort_order`),
-  CONSTRAINT `attribute_options_attribute_fk`
-    FOREIGN KEY (`attribute_id`) REFERENCES `catalog_attributes` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `category_attribute_rules` (
-  `category_id` INT UNSIGNED NOT NULL,
-  `attribute_id` INT UNSIGNED NOT NULL,
-  `is_required` TINYINT(1) NOT NULL DEFAULT 0,
-  `is_variant_attribute` TINYINT(1) NOT NULL DEFAULT 0,
-  `is_filterable` TINYINT(1) NOT NULL DEFAULT 0,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  PRIMARY KEY (`category_id`, `attribute_id`),
-  KEY `category_attribute_rules_attribute_idx` (`attribute_id`),
-  CONSTRAINT `category_attribute_rules_category_fk`
-    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `category_attribute_rules_attribute_fk`
-    FOREIGN KEY (`attribute_id`) REFERENCES `catalog_attributes` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `product` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `category_id` INT UNSIGNED DEFAULT NULL COMMENT 'Danh mục chính của sản phẩm',
-  `brand_id` INT UNSIGNED DEFAULT NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `slug` VARCHAR(255) NOT NULL,
-  `short_description` VARCHAR(500) DEFAULT NULL,
-  `description` LONGTEXT DEFAULT NULL,
-  `meta_title` VARCHAR(255) DEFAULT NULL,
-  `meta_description` VARCHAR(500) DEFAULT NULL,
-  `meta_image_url` VARCHAR(500) DEFAULT NULL,
-  `base_price` DECIMAL(12,2) NOT NULL,
-  `compare_at_price` DECIMAL(12,2) DEFAULT NULL,
-  `cost_price` DECIMAL(12,2) DEFAULT NULL COMMENT 'Giá vốn, chỉ admin xem',
-  `product_type` VARCHAR(50) NOT NULL COMMENT 'apparel, bag, beads, accessory',
-  `weight_grams` INT UNSIGNED DEFAULT NULL,
-  `sold_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  `reserved_quantity` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Tổng số đang giữ cho đơn hợp lệ',
-  `returned_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  `status` ENUM('draft', 'active', 'inactive', 'archived') NOT NULL DEFAULT 'draft',
-  `is_featured` TINYINT(1) NOT NULL DEFAULT 0,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `published_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `product` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `category_id` int unsigned DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `base_price` decimal(12,2) NOT NULL,
+  `old_price` decimal(12,2) DEFAULT NULL,
+  `sold_count` int unsigned NOT NULL DEFAULT 0,
+  `reserved_quantity` int unsigned NOT NULL DEFAULT 0,
+  `returned_count` int unsigned NOT NULL DEFAULT 0,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `is_featured` tinyint(1) NOT NULL DEFAULT 0,
+  `product_type` enum('apparel','bag','beads','accessory') NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_slug_unique` (`slug`),
-  KEY `product_catalog_idx` (`category_id`, `status`, `sort_order`),
-  KEY `product_brand_idx` (`brand_id`, `status`),
-  KEY `product_featured_idx` (`status`, `is_featured`, `sort_order`),
-  FULLTEXT KEY `product_search_ft` (`name`, `short_description`, `description`),
-  CONSTRAINT `product_category_fk`
-    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `product_brand_fk`
-    FOREIGN KEY (`brand_id`) REFERENCES `brands` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `product_catalog_idx` (`category_id`,`status`,`is_featured`),
+  KEY `product_type_idx` (`product_type`,`status`),
+  CONSTRAINT `product_base_price_check` CHECK (`base_price` > 0),
+  CONSTRAINT `product_price_check` CHECK (`old_price` IS NULL OR `old_price` >= `base_price`),
+  CONSTRAINT `product_status_check` CHECK (`status` IN (0,1)),
+  CONSTRAINT `product_featured_check` CHECK (`is_featured` IN (0,1)),
+  CONSTRAINT `product_category_fk` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dùng khi một sản phẩm cần xuất hiện ở nhiều danh mục. V1 vẫn có thể chỉ dùng product.category_id.
-CREATE TABLE IF NOT EXISTS `product_categories` (
-  `product_id` INT UNSIGNED NOT NULL,
-  `category_id` INT UNSIGNED NOT NULL,
-  `is_primary` TINYINT(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`product_id`, `category_id`),
-  KEY `product_categories_category_idx` (`category_id`, `product_id`),
-  CONSTRAINT `product_categories_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_categories_category_fk`
-    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Đối tác cung cấp hàng và chứng từ nguồn gốc giúp kiểm soát hàng hóa hợp pháp.
-CREATE TABLE IF NOT EXISTS `suppliers` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `supplier_code` VARCHAR(50) NOT NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `tax_code` VARCHAR(50) DEFAULT NULL,
-  `contact_name` VARCHAR(150) DEFAULT NULL,
-  `email` VARCHAR(255) DEFAULT NULL,
-  `phone` VARCHAR(30) DEFAULT NULL,
-  `address` VARCHAR(500) DEFAULT NULL,
-  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `product_variants` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int unsigned NOT NULL,
+  `size` varchar(50) NOT NULL DEFAULT 'Mặc định',
+  `color` varchar(50) NOT NULL DEFAULT 'Mặc định',
+  `stock_quantity` int unsigned NOT NULL DEFAULT 0 COMMENT 'Tồn kho thực tế của biến thể',
+  `price_modifier` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `suppliers_code_unique` (`supplier_code`),
-  KEY `suppliers_status_idx` (`status`, `name`)
+  UNIQUE KEY `product_variant_unique` (`product_id`,`size`,`color`),
+  KEY `product_variants_stock_idx` (`product_id`,`status`,`stock_quantity`),
+  CONSTRAINT `product_variant_price_modifier_check` CHECK (`price_modifier` >= 0),
+  CONSTRAINT `product_variant_status_check` CHECK (`status` IN (0,1)),
+  CONSTRAINT `product_variants_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `product_suppliers` (
-  `product_id` INT UNSIGNED NOT NULL,
-  `supplier_id` INT UNSIGNED NOT NULL,
-  `supplier_product_code` VARCHAR(100) DEFAULT NULL,
-  `is_primary` TINYINT(1) NOT NULL DEFAULT 0,
-  `last_cost_price` DECIMAL(12,2) DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`product_id`, `supplier_id`),
-  KEY `product_suppliers_supplier_idx` (`supplier_id`, `is_primary`),
-  CONSTRAINT `product_suppliers_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_suppliers_supplier_fk`
-    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `product_variants` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `product_id` INT UNSIGNED NOT NULL,
-  `sku` VARCHAR(100) NOT NULL,
-  `barcode` VARCHAR(100) DEFAULT NULL,
-  `variant_name` VARCHAR(255) NOT NULL COMMENT 'Ví dụ: Size M - Nâu; Hạt 10mm - 108 hạt',
-  `variant_key` VARCHAR(255) NOT NULL COMMENT 'Tổ hợp chuẩn hóa, ví dụ: size=m|color=nau',
-  `size` VARCHAR(50) DEFAULT NULL COMMENT 'Cột tương thích nhanh cho giao diện áo quần',
-  `color` VARCHAR(100) DEFAULT NULL COMMENT 'Cột tương thích nhanh cho giao diện áo quần',
-  `price_modifier` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `price_override` DECIMAL(12,2) DEFAULT NULL,
-  `cost_price` DECIMAL(12,2) DEFAULT NULL,
-  `stock_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `reserved_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `low_stock_threshold` INT UNSIGNED NOT NULL DEFAULT 5,
-  `weight_grams` INT UNSIGNED DEFAULT NULL,
-  `status` ENUM('active', 'inactive', 'archived') NOT NULL DEFAULT 'active',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `product_images` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int unsigned NOT NULL,
+  `image_url` varchar(500) NOT NULL COMMENT 'Đường dẫn ảnh local trong source code',
+  `alt_text` varchar(255) DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `product_variants_sku_unique` (`sku`),
-  UNIQUE KEY `product_variants_product_key_unique` (`product_id`, `variant_key`),
-  KEY `product_variants_catalog_idx` (`product_id`, `status`, `stock_quantity`),
-  CONSTRAINT `product_variants_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_variants_reserved_check`
-    CHECK (`reserved_quantity` <= `stock_quantity`)
+  KEY `product_images_primary_idx` (`product_id`,`is_primary`,`id`),
+  CONSTRAINT `product_image_primary_check` CHECK (`is_primary` IN (0,1)),
+  CONSTRAINT `product_images_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `product_images` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `product_id` INT UNSIGNED NOT NULL,
-  `variant_id` INT UNSIGNED DEFAULT NULL COMMENT 'NULL nghĩa là ảnh chung của product',
-  `image_url` VARCHAR(500) NOT NULL,
-  `alt_text` VARCHAR(255) DEFAULT NULL,
-  `is_primary` TINYINT(1) NOT NULL DEFAULT 0,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `product_images_product_idx` (`product_id`, `is_primary`, `sort_order`),
-  KEY `product_images_variant_idx` (`variant_id`),
-  CONSTRAINT `product_images_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_images_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+CREATE TABLE `product_sources` (
+  `product_id` int unsigned NOT NULL,
+  `source_site` varchar(255) NOT NULL,
+  `source_product_url` varchar(1000) NOT NULL,
+  `source_image_url` varchar(1000) NOT NULL,
+  `source_name` varchar(500) NOT NULL,
+  `synced_at` datetime NOT NULL,
+  PRIMARY KEY (`product_id`),
+  CONSTRAINT `product_sources_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Thuộc tính dùng chung cho cả product, ví dụ: chất liệu, xuất xứ, hướng dẫn bảo quản.
-CREATE TABLE IF NOT EXISTS `product_attribute_values` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `product_id` INT UNSIGNED NOT NULL,
-  `attribute_id` INT UNSIGNED NOT NULL,
-  `option_id` INT UNSIGNED DEFAULT NULL,
-  `value_text` TEXT DEFAULT NULL,
-  `value_number` DECIMAL(12,2) DEFAULT NULL,
-  `value_boolean` TINYINT(1) DEFAULT NULL,
+CREATE TABLE `inventory_logs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `variant_id` int unsigned NOT NULL,
+  `quantity_changed` int NOT NULL,
+  `reason` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `product_attribute_unique` (`product_id`, `attribute_id`),
-  KEY `product_attribute_filter_idx` (`attribute_id`, `option_id`, `value_number`),
-  CONSTRAINT `product_attribute_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_attribute_attribute_fk`
-    FOREIGN KEY (`attribute_id`) REFERENCES `catalog_attributes` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `product_attribute_option_fk`
-    FOREIGN KEY (`option_id`) REFERENCES `catalog_attribute_options` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `inventory_logs_variant_idx` (`variant_id`,`created_at`),
+  CONSTRAINT `inventory_logs_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Thuộc tính thay đổi theo biến thể, ví dụ: size, màu, đường kính hạt, chiều dài.
-CREATE TABLE IF NOT EXISTS `variant_attribute_values` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `variant_id` INT UNSIGNED NOT NULL,
-  `attribute_id` INT UNSIGNED NOT NULL,
-  `option_id` INT UNSIGNED DEFAULT NULL,
-  `value_text` TEXT DEFAULT NULL,
-  `value_number` DECIMAL(12,2) DEFAULT NULL,
-  `value_boolean` TINYINT(1) DEFAULT NULL,
+CREATE TABLE `cart` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned DEFAULT NULL,
+  `session_id` varchar(100) DEFAULT NULL,
+  `variant_id` int unsigned NOT NULL,
+  `quantity` int unsigned NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `variant_attribute_unique` (`variant_id`, `attribute_id`),
-  KEY `variant_attribute_filter_idx` (`attribute_id`, `option_id`, `value_number`),
-  CONSTRAINT `variant_attribute_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `variant_attribute_attribute_fk`
-    FOREIGN KEY (`attribute_id`) REFERENCES `catalog_attributes` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `variant_attribute_option_fk`
-    FOREIGN KEY (`option_id`) REFERENCES `catalog_attribute_options` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Hạ tầng kho: V1 dùng một kho mặc định. Khi có nhiều kho, inventory_stocks
--- là nguồn dữ liệu tồn theo kho; product_variants.stock_quantity là tổng cache.
-CREATE TABLE IF NOT EXISTS `warehouses` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(50) NOT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `contact_name` VARCHAR(150) DEFAULT NULL,
-  `phone` VARCHAR(30) DEFAULT NULL,
-  `address` VARCHAR(500) NOT NULL,
-  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `warehouses_code_unique` (`code`),
-  KEY `warehouses_status_idx` (`status`, `is_default`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `inventory_stocks` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `warehouse_id` INT UNSIGNED NOT NULL,
-  `variant_id` INT UNSIGNED NOT NULL,
-  `on_hand_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `reserved_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `inventory_stocks_warehouse_variant_unique` (`warehouse_id`, `variant_id`),
-  KEY `inventory_stocks_variant_idx` (`variant_id`),
-  CONSTRAINT `inventory_stocks_warehouse_fk`
-    FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `inventory_stocks_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `inventory_stocks_reserved_check`
-    CHECK (`reserved_quantity` <= `on_hand_quantity`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `purchase_orders` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `purchase_code` VARCHAR(50) NOT NULL,
-  `supplier_id` INT UNSIGNED NOT NULL,
-  `warehouse_id` INT UNSIGNED NOT NULL,
-  `created_by` INT UNSIGNED DEFAULT NULL,
-  `status` ENUM('draft', 'ordered', 'partially_received', 'received', 'canceled') NOT NULL DEFAULT 'draft',
-  `expected_at` DATETIME DEFAULT NULL,
-  `received_at` DATETIME DEFAULT NULL,
-  `subtotal` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `discount_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `shipping_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `tax_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `note` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `purchase_orders_code_unique` (`purchase_code`),
-  KEY `purchase_orders_supplier_status_idx` (`supplier_id`, `status`, `created_at`),
-  KEY `purchase_orders_warehouse_status_idx` (`warehouse_id`, `status`),
-  CONSTRAINT `purchase_orders_supplier_fk`
-    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `purchase_orders_warehouse_fk`
-    FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `purchase_orders_user_fk`
-    FOREIGN KEY (`created_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `purchase_order_items` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `purchase_order_items` INT UNSIGNED NOT NULL,
-  `purchase_order_id` INT UNSIGNED NOT NULL,
-  `variant_id` INT UNSIGNED NOT NULL,
-  `ordered_quantity` INT UNSIGNED NOT NULL,
-  `received_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `unit_cost` DECIMAL(12,2) NOT NULL,
-  `line_total` DECIMAL(12,2) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `purchase_order_items_unique` (`purchase_order_id`, `variant_id`),
-  KEY `purchase_order_items_variant_idx` (`variant_id`),
-  CONSTRAINT `purchase_order_items_order_fk`
-    FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `purchase_order_items_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `purchase_order_items_received_check`
-    CHECK (`received_quantity` <= `ordered_quantity`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `product_compliance_documents` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `product_id` INT UNSIGNED NOT NULL,
-  `document_type` ENUM('supplier_invoice', 'origin_certificate', 'quality_certificate', 'trademark_authorization', 'other') NOT NULL,
-  `document_number` VARCHAR(100) DEFAULT NULL,
-  `issued_at` DATE DEFAULT NULL,
-  `expires_at` DATE DEFAULT NULL,
-  `file_url` VARCHAR(500) NOT NULL,
-  `verification_status` ENUM('pending', 'verified', 'rejected', 'expired') NOT NULL DEFAULT 'pending',
-  `verified_by` INT UNSIGNED DEFAULT NULL,
-  `verified_at` DATETIME DEFAULT NULL,
-  `note` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `product_compliance_product_idx` (`product_id`, `verification_status`),
-  CONSTRAINT `product_compliance_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `product_compliance_verifier_fk`
-    FOREIGN KEY (`verified_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 3. GIỎ HÀNG, YÊU THÍCH VÀ KHUYẾN MÃI
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `cart` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `session_id` VARCHAR(100) DEFAULT NULL COMMENT 'Dành cho khách chưa đăng nhập',
-  `variant_id` INT UNSIGNED NOT NULL,
-  `quantity` INT UNSIGNED NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `cart_user_variant_unique` (`user_id`, `variant_id`),
-  UNIQUE KEY `cart_session_variant_unique` (`session_id`, `variant_id`),
+  UNIQUE KEY `cart_user_variant_unique` (`user_id`,`variant_id`),
+  UNIQUE KEY `cart_session_variant_unique` (`session_id`,`variant_id`),
+  KEY `cart_user_idx` (`user_id`),
+  KEY `cart_session_idx` (`session_id`),
   KEY `cart_variant_idx` (`variant_id`),
-  CONSTRAINT `cart_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `cart_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `cart_owner_check`
-    CHECK ((`user_id` IS NOT NULL AND `session_id` IS NULL) OR (`user_id` IS NULL AND `session_id` IS NOT NULL)),
-  CONSTRAINT `cart_quantity_check`
-    CHECK (`quantity` > 0)
+  CONSTRAINT `cart_quantity_check` CHECK (`quantity` > 0),
+  CONSTRAINT `cart_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `cart_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `cart_owner_check` CHECK ((`user_id` IS NOT NULL AND `session_id` IS NULL) OR (`user_id` IS NULL AND `session_id` IS NOT NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `wishlist` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED NOT NULL,
-  `product_id` INT UNSIGNED NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `wishlist` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `product_id` int unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `wishlist_user_product_unique` (`user_id`, `product_id`),
-  KEY `wishlist_product_idx` (`product_id`),
-  CONSTRAINT `wishlist_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `wishlist_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  UNIQUE KEY `wishlist_unique` (`user_id`,`product_id`),
+  CONSTRAINT `wishlist_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `wishlist_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `coupons` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(50) NOT NULL,
-  `description` VARCHAR(500) DEFAULT NULL,
-  `discount_type` ENUM('percent', 'fixed', 'free_shipping') NOT NULL,
-  `discount_value` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `max_discount` DECIMAL(12,2) DEFAULT NULL,
-  `min_order_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `usage_limit` INT UNSIGNED DEFAULT NULL COMMENT 'NULL nghĩa là không giới hạn',
-  `used_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  `per_user_limit` INT UNSIGNED DEFAULT NULL,
-  `start_at` DATETIME DEFAULT NULL,
-  `end_at` DATETIME DEFAULT NULL,
-  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `coupons` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) NOT NULL,
+  `discount_percent` decimal(5,2) DEFAULT NULL,
+  `max_discount` decimal(12,2) DEFAULT NULL,
+  `min_order_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `usage_limit` int unsigned NOT NULL DEFAULT 0,
+  `usage_limit_per_user` int unsigned NOT NULL DEFAULT 1,
+  `used_count` int unsigned NOT NULL DEFAULT 0,
+  `start_date` datetime DEFAULT NULL,
+  `expiry_date` datetime NOT NULL,
+  `category_id` int unsigned DEFAULT NULL,
+  `product_id` int unsigned DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `coupons_code_unique` (`code`),
-  KEY `coupons_validity_idx` (`status`, `start_at`, `end_at`)
+  KEY `coupons_active_idx` (`status`,`start_date`,`expiry_date`),
+  CONSTRAINT `coupons_category_fk` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `coupons_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dữ liệu cho chiến dịch tiếp thị và đo lường phễu marketing.
-CREATE TABLE IF NOT EXISTS `marketing_campaigns` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(80) NOT NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `objective` ENUM('awareness', 'interest', 'consideration', 'conversion', 'retention') NOT NULL,
-  `channel` ENUM('website', 'email', 'social', 'search_ads', 'display_ads', 'other') NOT NULL,
-  `budget_amount` DECIMAL(12,2) DEFAULT NULL,
-  `start_at` DATETIME DEFAULT NULL,
-  `end_at` DATETIME DEFAULT NULL,
-  `status` ENUM('draft', 'active', 'paused', 'completed', 'archived') NOT NULL DEFAULT 'draft',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `marketing_campaigns_code_unique` (`code`),
-  KEY `marketing_campaigns_status_date_idx` (`status`, `start_at`, `end_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `campaign_products` (
-  `campaign_id` INT UNSIGNED NOT NULL,
-  `product_id` INT UNSIGNED NOT NULL,
-  PRIMARY KEY (`campaign_id`, `product_id`),
-  KEY `campaign_products_product_idx` (`product_id`),
-  CONSTRAINT `campaign_products_campaign_fk`
-    FOREIGN KEY (`campaign_id`) REFERENCES `marketing_campaigns` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `campaign_products_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `campaign_coupons` (
-  `campaign_id` INT UNSIGNED NOT NULL,
-  `coupon_id` INT UNSIGNED NOT NULL,
-  PRIMARY KEY (`campaign_id`, `coupon_id`),
-  KEY `campaign_coupons_coupon_idx` (`coupon_id`),
-  CONSTRAINT `campaign_coupons_campaign_fk`
-    FOREIGN KEY (`campaign_id`) REFERENCES `marketing_campaigns` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `campaign_coupons_coupon_fk`
-    FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `customer_segments` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(80) NOT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `description` VARCHAR(500) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `customer_segments_code_unique` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `customer_segment_members` (
-  `segment_id` INT UNSIGNED NOT NULL,
-  `user_id` INT UNSIGNED NOT NULL,
-  `assigned_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`segment_id`, `user_id`),
-  KEY `customer_segment_members_user_idx` (`user_id`),
-  CONSTRAINT `customer_segment_members_segment_fk`
-    FOREIGN KEY (`segment_id`) REFERENCES `customer_segments` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `customer_segment_members_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Chính sách/điều khoản được version hóa để khách có thể xem lại bản đã chấp nhận.
-CREATE TABLE IF NOT EXISTS `legal_documents` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `document_type` ENUM('terms', 'privacy', 'shipping', 'return_refund', 'warranty', 'payment', 'dispute_resolution') NOT NULL,
-  `version` VARCHAR(50) NOT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `content` LONGTEXT NOT NULL,
-  `content_hash` CHAR(64) NOT NULL COMMENT 'SHA-256 của nội dung được công bố',
-  `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft',
-  `effective_at` DATETIME DEFAULT NULL,
-  `published_at` DATETIME DEFAULT NULL,
-  `created_by` INT UNSIGNED DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `legal_documents_version_unique` (`document_type`, `version`),
-  KEY `legal_documents_status_idx` (`document_type`, `status`, `effective_at`),
-  CONSTRAINT `legal_documents_author_fk`
-    FOREIGN KEY (`created_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 4. ĐƠN HÀNG, THANH TOÁN VÀ HẬU MÃI
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `orders` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_code` VARCHAR(50) NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL COMMENT 'NULL cho đơn hàng khách vãng lai',
-  `coupon_id` INT UNSIGNED DEFAULT NULL,
-  `coupon_code_snapshot` VARCHAR(50) DEFAULT NULL,
-  `subtotal` DECIMAL(12,2) NOT NULL,
-  `discount_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `shipping_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `tax_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `final_amount` DECIMAL(12,2) NOT NULL,
-  `currency` CHAR(3) NOT NULL DEFAULT 'VND',
-  `shipping_name` VARCHAR(150) NOT NULL,
-  `shipping_phone` VARCHAR(30) NOT NULL,
-  `shipping_email` VARCHAR(255) DEFAULT NULL,
-  `shipping_province` VARCHAR(100) NOT NULL,
-  `shipping_district` VARCHAR(100) NOT NULL,
-  `shipping_ward` VARCHAR(100) DEFAULT NULL,
-  `shipping_address` VARCHAR(255) NOT NULL,
-  `shipping_postal_code` VARCHAR(20) DEFAULT NULL,
-  `shipping_carrier` VARCHAR(100) DEFAULT NULL COMMENT 'Tóm tắt; chi tiết nằm ở shipments.',
-  `tracking_code` VARCHAR(100) DEFAULT NULL COMMENT 'Tóm tắt; chi tiết nằm ở shipments.',
-  `shipping_status` ENUM('not_shipped', 'preparing', 'shipped', 'delivered', 'failed', 'returned') NOT NULL DEFAULT 'not_shipped' COMMENT 'Tóm tắt; chi tiết nằm ở shipments.',
-  `customer_note` TEXT DEFAULT NULL,
-  `status` ENUM('pending', 'confirmed', 'preparing', 'shipping', 'delivered', 'completed', 'canceled') NOT NULL DEFAULT 'pending',
-  `terms_accepted` TINYINT(1) NOT NULL DEFAULT 0,
-  `terms_accepted_at` DATETIME DEFAULT NULL,
-  `contract_version` VARCHAR(30) NOT NULL DEFAULT 'v1.0',
-  `terms_accepted_ip` VARCHAR(45) DEFAULT NULL,
-  `terms_accepted_user_agent` VARCHAR(1000) DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `confirmed_at` DATETIME DEFAULT NULL,
-  `shipped_at` DATETIME DEFAULT NULL,
-  `delivered_at` DATETIME DEFAULT NULL,
-  `completed_at` DATETIME DEFAULT NULL,
-  `canceled_at` DATETIME DEFAULT NULL,
+CREATE TABLE `orders` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_code` varchar(50) NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `total_amount` decimal(12,2) NOT NULL,
+  `coupon_id` int unsigned DEFAULT NULL,
+  `final_amount` decimal(12,2) NOT NULL,
+  `shipping_fee` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `shipping_name` varchar(100) NOT NULL,
+  `shipping_phone` varchar(20) NOT NULL,
+  `shipping_address` varchar(255) NOT NULL,
+  `shipping_carrier` varchar(100) DEFAULT NULL,
+  `tracking_code` varchar(100) DEFAULT NULL,
+  `shipping_status` varchar(30) NOT NULL DEFAULT 'not_shipped',
+  `status` enum('pending','confirmed','preparing','shipping','delivered','completed','canceled') NOT NULL DEFAULT 'pending',
+  `shipping_email` varchar(100) DEFAULT NULL,
+  `customer_note` text DEFAULT NULL,
+  `terms_accepted` tinyint(1) NOT NULL DEFAULT 0,
+  `terms_accepted_at` datetime DEFAULT NULL,
+  `contract_version` varchar(30) NOT NULL DEFAULT 'v1.0',
+  `terms_accepted_ip` varchar(45) DEFAULT NULL,
+  `terms_accepted_user_agent` varchar(1000) DEFAULT NULL,
+  `shipped_at` datetime DEFAULT NULL,
+  `delivered_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `orders_code_unique` (`order_code`),
-  KEY `orders_user_created_idx` (`user_id`, `created_at`),
-  KEY `orders_status_created_idx` (`status`, `created_at`),
-  KEY `orders_coupon_idx` (`coupon_id`),
-  CONSTRAINT `orders_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `orders_coupon_fk`
-    FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `orders_user_status_idx` (`user_id`,`status`,`created_at`),
+  CONSTRAINT `orders_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `orders_coupon_fk` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `order_items` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `product_id` INT UNSIGNED DEFAULT NULL,
-  `variant_id` INT UNSIGNED DEFAULT NULL,
-  `product_name_snapshot` VARCHAR(255) NOT NULL,
-  `variant_name_snapshot` VARCHAR(255) DEFAULT NULL,
-  `variant_attributes_snapshot` LONGTEXT DEFAULT NULL COMMENT 'JSON/text thuộc tính tại thời điểm mua',
-  `sku_snapshot` VARCHAR(100) DEFAULT NULL,
-  `image_snapshot` VARCHAR(500) DEFAULT NULL,
-  `unit_price` DECIMAL(12,2) NOT NULL,
-  `quantity` INT UNSIGNED NOT NULL,
-  `line_total` DECIMAL(12,2) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `order_items` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `product_id` int unsigned DEFAULT NULL,
+  `variant_id` int unsigned DEFAULT NULL,
+  `quantity` int unsigned NOT NULL,
+  `price_at_time` decimal(12,2) NOT NULL,
+  `product_name_snapshot` varchar(255) NOT NULL,
+  `variant_size_snapshot` varchar(50) DEFAULT NULL,
+  `variant_color_snapshot` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `order_items_order_idx` (`order_id`),
   KEY `order_items_product_idx` (`product_id`),
   KEY `order_items_variant_idx` (`variant_id`),
-  CONSTRAINT `order_items_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `order_items_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `order_items_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `order_items_quantity_check`
-    CHECK (`quantity` > 0)
+  CONSTRAINT `order_item_quantity_check` CHECK (`quantity` > 0),
+  CONSTRAINT `order_items_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_items_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `order_items_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `order_status_logs` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `status` VARCHAR(30) NOT NULL,
-  `changed_by` INT UNSIGNED DEFAULT NULL,
-  `note` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `order_status_logs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `status` varchar(50) NOT NULL,
+  `changed_by` int unsigned DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `order_status_logs_order_idx` (`order_id`, `created_at`),
-  KEY `order_status_logs_user_idx` (`changed_by`),
-  CONSTRAINT `order_status_logs_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `order_status_logs_user_fk`
-    FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `order_status_logs_order_idx` (`order_id`,`created_at`),
+  CONSTRAINT `order_status_logs_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_status_logs_user_fk` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `order_legal_acceptances` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `legal_document_id` INT UNSIGNED DEFAULT NULL,
-  `document_type` VARCHAR(50) NOT NULL,
-  `document_version_snapshot` VARCHAR(50) NOT NULL,
-  `document_hash_snapshot` CHAR(64) NOT NULL,
-  `accepted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `ip_address` VARCHAR(45) DEFAULT NULL,
-  `user_agent` VARCHAR(1000) DEFAULT NULL,
+CREATE TABLE `payments` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `payment_method` varchar(50) NOT NULL,
+  `payment_status` tinyint(1) NOT NULL DEFAULT 0,
+  `payment_state` varchar(30) NOT NULL DEFAULT 'pending',
+  `transaction_code` varchar(120) DEFAULT NULL,
+  `paid_at` datetime DEFAULT NULL,
+  `failed_at` datetime DEFAULT NULL,
+  `refund_status` varchar(30) NOT NULL DEFAULT 'not_requested',
+  `refund_transaction_code` varchar(120) DEFAULT NULL,
+  `refunded_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `refunded_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `order_legal_acceptances_unique` (`order_id`, `document_type`, `document_version_snapshot`),
-  KEY `order_legal_acceptances_document_idx` (`legal_document_id`),
-  CONSTRAINT `order_legal_acceptances_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `order_legal_acceptances_document_fk`
-    FOREIGN KEY (`legal_document_id`) REFERENCES `legal_documents` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `payments_order_idx` (`order_id`),
+  CONSTRAINT `payments_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Lưu yêu cầu sửa thông tin hoặc hủy đơn để xử lý lỗi nhập sai trên môi trường mạng.
-CREATE TABLE IF NOT EXISTS `order_change_requests` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `request_code` VARCHAR(50) NOT NULL,
-  `order_id` INT UNSIGNED NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `request_type` ENUM('correct_information', 'cancel_order') NOT NULL,
-  `requested_changes` LONGTEXT DEFAULT NULL COMMENT 'JSON/text thông tin trước và sau khi khách yêu cầu sửa',
-  `reason` TEXT DEFAULT NULL,
-  `status` ENUM('pending', 'approved', 'rejected', 'completed', 'canceled') NOT NULL DEFAULT 'pending',
-  `handled_by` INT UNSIGNED DEFAULT NULL,
-  `resolution_note` TEXT DEFAULT NULL,
-  `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `handled_at` DATETIME DEFAULT NULL,
+CREATE TABLE `coupon_usages` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `coupon_id` int unsigned NOT NULL,
+  `user_id` int unsigned NOT NULL,
+  `order_id` int unsigned NOT NULL,
+  `used_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `order_change_requests_code_unique` (`request_code`),
-  KEY `order_change_requests_order_idx` (`order_id`, `status`, `requested_at`),
-  CONSTRAINT `order_change_requests_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `order_change_requests_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `order_change_requests_handler_fk`
-    FOREIGN KEY (`handled_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  UNIQUE KEY `coupon_order_unique` (`coupon_id`,`order_id`),
+  KEY `coupon_user_idx` (`coupon_id`,`user_id`),
+  CONSTRAINT `coupon_usages_coupon_fk` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usages_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usages_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `shipping_carriers` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(50) NOT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `website_url` VARCHAR(500) DEFAULT NULL,
-  `tracking_url_template` VARCHAR(500) DEFAULT NULL COMMENT 'Ví dụ: https://.../{tracking_code}',
-  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `reviews` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned DEFAULT NULL,
+  `product_id` int unsigned DEFAULT NULL,
+  `order_id` int unsigned DEFAULT NULL,
+  `order_item_id` int unsigned DEFAULT NULL,
+  `rating` tinyint unsigned NOT NULL,
+  `comment` text DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `shipping_carriers_code_unique` (`code`)
+  UNIQUE KEY `reviews_user_order_item_unique` (`user_id`,`order_item_id`),
+  KEY `reviews_product_status_idx` (`product_id`,`status`,`created_at`),
+  CONSTRAINT `review_rating_check` CHECK (`rating` BETWEEN 1 AND 5),
+  CONSTRAINT `reviews_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `reviews_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `reviews_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `reviews_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `shipments` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `shipment_code` VARCHAR(50) NOT NULL,
-  `order_id` INT UNSIGNED NOT NULL,
-  `carrier_id` INT UNSIGNED DEFAULT NULL,
-  `warehouse_id` INT UNSIGNED DEFAULT NULL,
-  `tracking_code` VARCHAR(100) DEFAULT NULL,
-  `shipping_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `recipient_name_snapshot` VARCHAR(150) NOT NULL,
-  `recipient_phone_snapshot` VARCHAR(30) NOT NULL,
-  `recipient_address_snapshot` VARCHAR(500) NOT NULL,
-  `status` ENUM('pending', 'packed', 'picked_up', 'in_transit', 'delivered', 'delivery_failed', 'returned', 'canceled') NOT NULL DEFAULT 'pending',
-  `shipped_at` DATETIME DEFAULT NULL,
-  `delivered_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `daily_revenue_reports` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `report_date` date NOT NULL,
+  `total_orders` int unsigned NOT NULL DEFAULT 0,
+  `gross_revenue` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `total_discount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `net_revenue` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `refunded_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `shipments_code_unique` (`shipment_code`),
-  UNIQUE KEY `shipments_tracking_unique` (`carrier_id`, `tracking_code`),
-  KEY `shipments_order_status_idx` (`order_id`, `status`),
-  CONSTRAINT `shipments_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `shipments_carrier_fk`
-    FOREIGN KEY (`carrier_id`) REFERENCES `shipping_carriers` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `shipments_warehouse_fk`
-    FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  UNIQUE KEY `daily_revenue_date_unique` (`report_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `shipment_status_logs` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `shipment_id` INT UNSIGNED NOT NULL,
-  `status` VARCHAR(30) NOT NULL,
-  `location_note` VARCHAR(500) DEFAULT NULL,
-  `note` TEXT DEFAULT NULL,
-  `occurred_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `product_sales_reports` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `report_date` date NOT NULL,
+  `product_id` int unsigned DEFAULT NULL,
+  `variant_id` int unsigned DEFAULT NULL,
+  `quantity_sold` int unsigned NOT NULL DEFAULT 0,
+  `total_revenue` decimal(12,2) NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`id`),
-  KEY `shipment_status_logs_shipment_idx` (`shipment_id`, `occurred_at`),
-  CONSTRAINT `shipment_status_logs_shipment_fk`
-    FOREIGN KEY (`shipment_id`) REFERENCES `shipments` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  UNIQUE KEY `product_sales_report_unique` (`report_date`,`variant_id`),
+  CONSTRAINT `product_sales_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `product_sales_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `payments` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `payment_method` ENUM('cod', 'bank_transfer', 'momo', 'vnpay', 'zalopay', 'other') NOT NULL,
-  `amount` DECIMAL(12,2) NOT NULL,
-  `payment_state` ENUM('pending', 'paid', 'failed', 'canceled', 'refund_pending', 'refunded') NOT NULL DEFAULT 'pending',
-  `transaction_code` VARCHAR(120) DEFAULT NULL,
-  `gateway_code` VARCHAR(50) DEFAULT NULL COMMENT 'Ví dụ: vnpay, momo, zalopay',
-  `gateway_reference` VARCHAR(150) DEFAULT NULL COMMENT 'Mã tham chiếu do cổng thanh toán trả về',
-  `gateway_response_hash` CHAR(64) DEFAULT NULL COMMENT 'Hash payload để đối soát, không lưu số thẻ/CVV/OTP.',
-  `paid_at` DATETIME DEFAULT NULL,
-  `failed_at` DATETIME DEFAULT NULL,
-  `refunded_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `refund_transaction_code` VARCHAR(120) DEFAULT NULL,
-  `refunded_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `payments_transaction_unique` (`transaction_code`),
-  UNIQUE KEY `payments_gateway_reference_unique` (`gateway_code`, `gateway_reference`),
-  KEY `payments_order_idx` (`order_id`, `payment_state`),
-  CONSTRAINT `payments_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Một payment có thể có nhiều lần thử, tránh ghi đè khi khách thanh toán lại.
-CREATE TABLE IF NOT EXISTS `payment_transactions` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `payment_id` INT UNSIGNED NOT NULL,
-  `merchant_request_code` VARCHAR(120) NOT NULL,
-  `provider_transaction_code` VARCHAR(150) DEFAULT NULL,
-  `transaction_type` ENUM('authorize', 'capture', 'payment', 'refund') NOT NULL DEFAULT 'payment',
-  `amount` DECIMAL(12,2) NOT NULL,
-  `status` ENUM('initiated', 'pending', 'succeeded', 'failed', 'canceled') NOT NULL DEFAULT 'initiated',
-  `failure_code` VARCHAR(100) DEFAULT NULL,
-  `failure_message` VARCHAR(500) DEFAULT NULL,
-  `response_hash` CHAR(64) DEFAULT NULL COMMENT 'Hash dữ liệu phản hồi, không lưu dữ liệu thẻ/OTP.',
-  `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `completed_at` DATETIME DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `payment_transactions_request_unique` (`merchant_request_code`),
-  UNIQUE KEY `payment_transactions_provider_unique` (`provider_transaction_code`),
-  KEY `payment_transactions_payment_idx` (`payment_id`, `status`, `requested_at`),
-  CONSTRAINT `payment_transactions_payment_fk`
-    FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `payment_webhook_events` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `gateway_code` VARCHAR(50) NOT NULL,
-  `gateway_event_id` VARCHAR(150) NOT NULL,
-  `payment_transaction_id` INT UNSIGNED DEFAULT NULL,
-  `payload_hash` CHAR(64) NOT NULL,
-  `signature_verified` TINYINT(1) NOT NULL DEFAULT 0,
-  `processing_status` ENUM('received', 'processed', 'ignored', 'failed') NOT NULL DEFAULT 'received',
-  `processing_error` TEXT DEFAULT NULL,
-  `received_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `processed_at` DATETIME DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `payment_webhook_events_unique` (`gateway_code`, `gateway_event_id`),
-  KEY `payment_webhook_events_transaction_idx` (`payment_transaction_id`, `processing_status`),
-  CONSTRAINT `payment_webhook_events_transaction_fk`
-    FOREIGN KEY (`payment_transaction_id`) REFERENCES `payment_transactions` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `invoices` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `invoice_number` VARCHAR(100) NOT NULL,
-  `order_id` INT UNSIGNED NOT NULL,
-  `buyer_name` VARCHAR(255) DEFAULT NULL,
-  `buyer_tax_code` VARCHAR(50) DEFAULT NULL,
-  `buyer_email` VARCHAR(255) DEFAULT NULL,
-  `subtotal` DECIMAL(12,2) NOT NULL,
-  `discount_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `tax_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `total_amount` DECIMAL(12,2) NOT NULL,
-  `status` ENUM('draft', 'issued', 'canceled') NOT NULL DEFAULT 'draft',
-  `issued_at` DATETIME DEFAULT NULL,
-  `invoice_url` VARCHAR(500) DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `invoices_number_unique` (`invoice_number`),
-  UNIQUE KEY `invoices_order_unique` (`order_id`),
-  CONSTRAINT `invoices_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `coupon_usages` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `coupon_id` INT UNSIGNED NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `order_id` INT UNSIGNED NOT NULL,
-  `discount_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `used_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `coupon_usages_coupon_order_unique` (`coupon_id`, `order_id`),
-  KEY `coupon_usages_user_idx` (`coupon_id`, `user_id`, `used_at`),
-  CONSTRAINT `coupon_usages_coupon_fk`
-    FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `coupon_usages_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `coupon_usages_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `after_sale_requests` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `request_code` VARCHAR(50) NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `order_id` INT UNSIGNED NOT NULL,
-  `order_item_id` INT UNSIGNED NOT NULL,
-  `request_type` ENUM('return', 'refund', 'exchange') NOT NULL,
-  `reason` TEXT NOT NULL,
-  `requested_quantity` INT UNSIGNED NOT NULL DEFAULT 1,
-  `approved_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `restockable` TINYINT(1) NOT NULL DEFAULT 1,
-  `inventory_processed_quantity` INT UNSIGNED NOT NULL DEFAULT 0,
-  `refund_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `refund_status` ENUM('not_requested', 'pending', 'processed', 'failed') NOT NULL DEFAULT 'not_requested',
-  `refund_transaction_code` VARCHAR(120) DEFAULT NULL,
-  `status` ENUM('requested', 'approved', 'rejected', 'returning', 'received', 'refunded', 'completed', 'canceled') NOT NULL DEFAULT 'requested',
-  `resolution_note` TEXT DEFAULT NULL,
-  `requested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `approved_at` DATETIME DEFAULT NULL,
-  `received_at` DATETIME DEFAULT NULL,
-  `completed_at` DATETIME DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `after_sale_requests_code_unique` (`request_code`),
-  KEY `after_sale_user_idx` (`user_id`, `requested_at`),
-  KEY `after_sale_order_idx` (`order_id`, `order_item_id`),
-  KEY `after_sale_status_idx` (`status`, `requested_at`),
-  CONSTRAINT `after_sale_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `after_sale_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `after_sale_order_item_fk`
-    FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `after_sale_evidence` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `request_id` INT UNSIGNED NOT NULL,
-  `image_url` VARCHAR(500) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `after_sale_evidence_request_idx` (`request_id`),
-  CONSTRAINT `after_sale_evidence_request_fk`
-    FOREIGN KEY (`request_id`) REFERENCES `after_sale_requests` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 5. KHO, ĐÁNH GIÁ VÀ BÁO CÁO
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `inventory_logs` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `warehouse_id` INT UNSIGNED DEFAULT NULL,
-  `variant_id` INT UNSIGNED DEFAULT NULL,
-  `movement_type` ENUM('initial', 'purchase', 'sale', 'reserve', 'release', 'return', 'adjustment', 'damage') NOT NULL,
-  `quantity_changed` INT NOT NULL COMMENT 'Dương: tăng kho, âm: giảm kho',
-  `quantity_before` INT UNSIGNED DEFAULT NULL,
-  `quantity_after` INT UNSIGNED DEFAULT NULL,
-  `reference_type` VARCHAR(50) DEFAULT NULL COMMENT 'order, return, manual...',
-  `reference_id` INT UNSIGNED DEFAULT NULL,
-  `reason` VARCHAR(500) DEFAULT NULL,
-  `changed_by` INT UNSIGNED DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `inventory_logs_warehouse_created_idx` (`warehouse_id`, `created_at`),
-  KEY `inventory_logs_variant_created_idx` (`variant_id`, `created_at`),
-  KEY `inventory_logs_reference_idx` (`reference_type`, `reference_id`),
-  KEY `inventory_logs_changed_by_idx` (`changed_by`),
-  CONSTRAINT `inventory_logs_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `inventory_logs_warehouse_fk`
-    FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `inventory_logs_changed_by_fk`
-    FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `reviews` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `product_id` INT UNSIGNED DEFAULT NULL,
-  `order_item_id` INT UNSIGNED DEFAULT NULL COMMENT 'Chỉ review khi đã mua hàng',
-  `rating` TINYINT UNSIGNED NOT NULL,
-  `title` VARCHAR(255) DEFAULT NULL,
-  `comment` TEXT DEFAULT NULL,
-  `status` ENUM('pending', 'approved', 'rejected', 'hidden') NOT NULL DEFAULT 'pending',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `reviews_order_item_unique` (`order_item_id`),
-  KEY `reviews_product_status_idx` (`product_id`, `status`, `created_at`),
-  KEY `reviews_user_idx` (`user_id`, `created_at`),
-  CONSTRAINT `reviews_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `reviews_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `reviews_order_item_fk`
-    FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `reviews_rating_check`
-    CHECK (`rating` BETWEEN 1 AND 5)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `review_images` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `review_id` INT UNSIGNED NOT NULL,
-  `image_url` VARCHAR(500) NOT NULL,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `review_images_review_idx` (`review_id`, `sort_order`),
-  CONSTRAINT `review_images_review_fk`
-    FOREIGN KEY (`review_id`) REFERENCES `reviews` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `daily_revenue_reports` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `report_date` DATE NOT NULL,
-  `total_orders` INT UNSIGNED NOT NULL DEFAULT 0,
-  `gross_revenue` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `total_discount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `shipping_revenue` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `refunded_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `net_revenue` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `daily_revenue_reports_date_unique` (`report_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `product_sales_reports` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `report_date` DATE NOT NULL,
-  `product_id` INT UNSIGNED NOT NULL,
-  `variant_id` INT UNSIGNED NOT NULL,
-  `quantity_sold` INT UNSIGNED NOT NULL DEFAULT 0,
-  `total_revenue` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `product_sales_reports_unique` (`report_date`, `product_id`, `variant_id`),
-  KEY `product_sales_reports_product_idx` (`product_id`, `report_date`),
-  CONSTRAINT `product_sales_reports_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `product_sales_reports_variant_fk`
-    FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `order_sales_recognition` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `recognized_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `order_sales_recognition` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `recognized_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `order_sales_recognition_order_unique` (`order_id`),
-  CONSTRAINT `order_sales_recognition_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `order_sales_recognition_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================================
--- 6. NỘI DUNG, HỖ TRỢ KHÁCH HÀNG, THÔNG BÁO VÀ NHẬT KÝ
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS `post_categories` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(100) NOT NULL,
-  `slug` VARCHAR(120) NOT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
+CREATE TABLE `after_sale_requests` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `order_id` int unsigned NOT NULL,
+  `order_item_id` int unsigned NOT NULL,
+  `request_type` varchar(30) NOT NULL,
+  `reason` text NOT NULL,
+  `requested_quantity` int unsigned NOT NULL DEFAULT 1,
+  `approved_quantity` int unsigned NOT NULL DEFAULT 0,
+  `return_deadline` datetime DEFAULT NULL,
+  `restockable` tinyint(1) NOT NULL DEFAULT 1,
+  `inventory_processed_quantity` int unsigned NOT NULL DEFAULT 0,
+  `sales_reversed_quantity` int unsigned NOT NULL DEFAULT 0,
+  `status` varchar(30) NOT NULL DEFAULT 'pending',
+  `refund_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `refund_status` varchar(30) NOT NULL DEFAULT 'not_requested',
+  `refund_transaction_code` varchar(120) DEFAULT NULL,
+  `refund_processed_at` datetime DEFAULT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `received_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `resolution_note` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `post_categories_slug_unique` (`slug`)
+  KEY `after_sale_order_item_idx` (`order_id`,`order_item_id`),
+  CONSTRAINT `after_sale_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `after_sale_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `after_sale_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `posts` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `category_id` INT UNSIGNED DEFAULT NULL,
-  `author_id` INT UNSIGNED DEFAULT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `slug` VARCHAR(255) NOT NULL,
-  `excerpt` VARCHAR(500) DEFAULT NULL,
-  `content` LONGTEXT NOT NULL,
-  `thumbnail` VARCHAR(500) DEFAULT NULL,
-  `meta_title` VARCHAR(255) DEFAULT NULL,
-  `meta_description` VARCHAR(500) DEFAULT NULL,
-  `meta_image_url` VARCHAR(500) DEFAULT NULL,
-  `status` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft',
-  `published_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `after_sale_evidence` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `request_id` int unsigned NOT NULL,
+  `image_url` varchar(500) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `posts_slug_unique` (`slug`),
-  KEY `posts_category_status_idx` (`category_id`, `status`, `published_at`),
-  FULLTEXT KEY `posts_search_ft` (`title`, `excerpt`, `content`),
-  CONSTRAINT `posts_category_fk`
-    FOREIGN KEY (`category_id`) REFERENCES `post_categories` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `posts_author_fk`
-    FOREIGN KEY (`author_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `after_sale_evidence_request_idx` (`request_id`),
+  CONSTRAINT `after_sale_evidence_request_fk` FOREIGN KEY (`request_id`) REFERENCES `after_sale_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `banner` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(255) DEFAULT NULL,
-  `image_url` VARCHAR(500) NOT NULL,
-  `alt_text` VARCHAR(255) DEFAULT NULL,
-  `link_url` VARCHAR(500) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `sort_order` INT NOT NULL DEFAULT 0,
-  `start_at` DATETIME DEFAULT NULL,
-  `end_at` DATETIME DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `banner_display_idx` (`status`, `start_at`, `end_at`, `sort_order`)
+CREATE TABLE `banner` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `image_url` varchar(500) NOT NULL,
+  `link_url` varchar(255) DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `setting` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `key_name` VARCHAR(100) NOT NULL,
-  `value` LONGTEXT DEFAULT NULL,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `setting` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `key_name` varchar(50) NOT NULL,
+  `value` text DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `setting_key_unique` (`key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---  thông tin đơn vị bán hàng và giấy phép để công bố minh bạch trên website.
-CREATE TABLE IF NOT EXISTS `merchant_profiles` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `legal_name` VARCHAR(255) NOT NULL,
-  `display_name` VARCHAR(255) NOT NULL,
-  `business_registration_number` VARCHAR(100) DEFAULT NULL,
-  `tax_code` VARCHAR(50) DEFAULT NULL,
-  `legal_representative` VARCHAR(150) DEFAULT NULL,
-  `phone` VARCHAR(30) NOT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `address` VARCHAR(500) NOT NULL,
-  -- Dùng để website nhúng Google Maps theo vị trí cửa hàng được cấu hình.
-  `latitude` DECIMAL(10,8) DEFAULT NULL,
-  `longitude` DECIMAL(11,8) DEFAULT NULL,
-  `google_maps_url` VARCHAR(500) DEFAULT NULL,
-  `website_url` VARCHAR(500) DEFAULT NULL,
-  `status` TINYINT(1) NOT NULL DEFAULT 1,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `logs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned DEFAULT NULL,
+  `action` varchar(100) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `logs_user_idx` (`user_id`,`created_at`),
+  CONSTRAINT `logs_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `custom_notes` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `entity_type` varchar(50) NOT NULL,
+  `entity_id` int unsigned NOT NULL,
+  `note_content` text NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `custom_notes_entity_idx` (`entity_type`,`entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `cart_reminders` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `unsubscribe_token` varchar(100) DEFAULT NULL,
+  `unsubscribed_at` datetime DEFAULT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'pending',
+  `last_seen_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sent_at` datetime DEFAULT NULL,
+  `attempt_count` int unsigned NOT NULL DEFAULT 0,
+  `next_attempt_at` datetime DEFAULT NULL,
+  `last_error` text DEFAULT NULL,
+  `converted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cart_reminder_user_unique` (`user_id`),
+  UNIQUE KEY `cart_reminder_token_unique` (`unsubscribe_token`),
+  KEY `cart_reminder_queue_idx` (`status`,`next_attempt_at`),
+  CONSTRAINT `cart_reminder_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `order_notifications` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `recipient_email` varchar(255) NOT NULL,
+  `notification_type` varchar(60) NOT NULL,
+  `subject` varchar(255) NOT NULL,
+  `body_html` longtext NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'pending',
+  `attempt_count` int unsigned NOT NULL DEFAULT 0,
+  `next_attempt_at` datetime DEFAULT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `last_error` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `order_notification_unique` (`order_id`,`notification_type`),
+  KEY `order_notification_queue_idx` (`status`,`next_attempt_at`,`attempt_count`),
+  CONSTRAINT `order_notifications_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_notifications_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `support_tickets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `ticket_code` varchar(40) NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `name` varchar(150) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `subject` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'pending',
+  `auto_reply_status` varchar(20) NOT NULL DEFAULT 'pending',
+  `auto_reply_attempts` int unsigned NOT NULL DEFAULT 0,
+  `auto_reply_next_attempt_at` datetime DEFAULT NULL,
+  `auto_reply_sent_at` datetime DEFAULT NULL,
+  `auto_reply_last_error` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `support_ticket_code_unique` (`ticket_code`),
+  KEY `support_ticket_queue_idx` (`auto_reply_status`,`auto_reply_next_attempt_at`),
+  CONSTRAINT `support_tickets_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `post_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `merchant_documents` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` INT UNSIGNED NOT NULL,
-  `document_type` ENUM('business_license', 'tax_registration', 'website_notification', 'other') NOT NULL,
-  `document_number` VARCHAR(100) DEFAULT NULL,
-  `issued_at` DATE DEFAULT NULL,
-  `expires_at` DATE DEFAULT NULL,
-  `file_url` VARCHAR(500) NOT NULL,
-  `status` ENUM('active', 'expired', 'archived') NOT NULL DEFAULT 'active',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `posts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `category_id` int unsigned DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `content` text NOT NULL,
+  `thumbnail` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `merchant_documents_merchant_idx` (`merchant_id`, `document_type`, `status`),
-  CONSTRAINT `merchant_documents_merchant_fk`
-    FOREIGN KEY (`merchant_id`) REFERENCES `merchant_profiles` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `posts_category_fk` FOREIGN KEY (`category_id`) REFERENCES `post_categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Chỉ ghi marketing_events khi người dùng đã đồng ý analytics/cookies phù hợp.
--- visitor_key là mã ngẫu nhiên hoặc hash, không lưu dữ liệu thẻ/OTP/mật khẩu.
-CREATE TABLE IF NOT EXISTS `marketing_events` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `event_name` ENUM('page_view', 'product_view', 'search', 'add_to_cart', 'begin_checkout', 'purchase', 'wishlist_add', 'review_submit') NOT NULL,
-  `visitor_key` VARCHAR(128) DEFAULT NULL,
-  `session_id` VARCHAR(100) DEFAULT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `campaign_id` INT UNSIGNED DEFAULT NULL,
-  `product_id` INT UNSIGNED DEFAULT NULL,
-  `order_id` INT UNSIGNED DEFAULT NULL,
-  `utm_source` VARCHAR(100) DEFAULT NULL,
-  `utm_medium` VARCHAR(100) DEFAULT NULL,
-  `utm_campaign` VARCHAR(100) DEFAULT NULL,
-  `event_value` DECIMAL(12,2) DEFAULT NULL COMMENT 'Ví dụ doanh thu purchase',
-  `occurred_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `marketing_events_funnel_idx` (`event_name`, `occurred_at`),
-  KEY `marketing_events_user_idx` (`user_id`, `occurred_at`),
-  KEY `marketing_events_campaign_idx` (`campaign_id`, `occurred_at`),
-  KEY `marketing_events_product_idx` (`product_id`, `occurred_at`),
-  CONSTRAINT `marketing_events_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `marketing_events_campaign_fk`
-    FOREIGN KEY (`campaign_id`) REFERENCES `marketing_campaigns` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `marketing_events_product_fk`
-    FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `marketing_events_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- TÀI KHOẢN DEMO
+INSERT INTO `user` (`id`,`full_name`,`display_name`,`email`,`phone`,`password`,`role`,`status`) VALUES
+(1,'Quản trị viên PaceUp','Admin','admin@paceup.local','0900000001','$2y$12$LkN2NQeZXS0RR3BOFATEYOPsMzw1tDNlFbYoPAI6.La.M9VZ1NhAq','admin',1),
+(2,'Khách hàng thử nghiệm','Khách demo','customer@paceup.local','0900000002','$2y$12$37vL39EFj.OhI09soBV65eugRZdKX7Iv4yMHQTCJ/LZXQ52ewqxH2','user',1);
 
-CREATE TABLE IF NOT EXISTS `support_tickets` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `ticket_code` VARCHAR(40) NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `name` VARCHAR(150) NOT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `phone` VARCHAR(30) DEFAULT NULL,
-  `subject` VARCHAR(255) NOT NULL,
-  `message` TEXT NOT NULL,
-  `status` ENUM('pending', 'in_progress', 'resolved', 'closed') NOT NULL DEFAULT 'pending',
-  `auto_reply_status` ENUM('pending', 'sent', 'failed', 'skipped') NOT NULL DEFAULT 'pending',
-  `auto_reply_attempts` INT UNSIGNED NOT NULL DEFAULT 0,
-  `auto_reply_next_attempt_at` DATETIME DEFAULT NULL,
-  `auto_reply_sent_at` DATETIME DEFAULT NULL,
-  `auto_reply_last_error` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `support_tickets_code_unique` (`ticket_code`),
-  KEY `support_tickets_status_idx` (`status`, `created_at`),
-  KEY `support_tickets_reply_idx` (`auto_reply_status`, `auto_reply_next_attempt_at`),
-  CONSTRAINT `support_tickets_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- DANH MỤC VÀ SẢN PHẨM ĐỒ LAM
+INSERT INTO `categories` (`id`,`name`,`slug`,`status`) VALUES
+(111,'Quần áo Tăng - Ni','quan-ao-tang-ni',1),
+(112,'Đồ lam đi chùa','do-lam-di-chua',1),
+(113,'Quần áo ngồi thiền','quan-ao-ngoi-thien',1),
+(114,'Túi đeo đi chùa','tui-deo-di-chua',1),
+(115,'Vòng tay - chuỗi hạt','vong-tay-chuoi-hat',1),
+(116,'Phụ kiện đi chùa','phu-kien-di-chua',1);
 
-CREATE TABLE IF NOT EXISTS `order_notifications` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` INT UNSIGNED NOT NULL,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `recipient_email` VARCHAR(255) NOT NULL,
-  `notification_type` VARCHAR(60) NOT NULL COMMENT 'order_created, order_confirmed...',
-  `subject` VARCHAR(255) NOT NULL,
-  `body_html` LONGTEXT NOT NULL,
-  `status` ENUM('pending', 'sent', 'failed', 'skipped') NOT NULL DEFAULT 'pending',
-  `attempt_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  `next_attempt_at` DATETIME DEFAULT NULL,
-  `sent_at` DATETIME DEFAULT NULL,
-  `last_error` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `order_notifications_unique` (`order_id`, `notification_type`),
-  KEY `order_notifications_queue_idx` (`status`, `next_attempt_at`, `attempt_count`),
-  CONSTRAINT `order_notifications_order_fk`
-    FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `order_notifications_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `product` (`id`,`category_id`,`name`,`slug`,`description`,`base_price`,`sold_count`,`reserved_quantity`,`returned_count`,`status`,`is_featured`,`product_type`) VALUES
+(1000,111,'Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất','lam-ao-trang-hai-thanh-phap-phuc-y-hau-quy-thay-mau-vang-dat-1000','Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',540000,0,0,0,1,1,'apparel'),
+(1001,111,'Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất','lam-ao-trang-truong-sam-7-vat-mau-vang-dat-1001','Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,1,'apparel'),
+(1002,111,'Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen, Nữ','lam-ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co-1002','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,1,'apparel'),
+(1003,111,'Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam','lam-ao-hai-thanh-ong-tay-rong-ao-hau-quy-thay-mau-vang-cam-phap-phuc-dai-duc-hoa-thuong-quy-thay-tang-ni-xuat-gia-1003','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,0,'apparel'),
+(1004,111,'Áo Hải Thanh Ống Tay, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia','lam-ao-hai-thanh-ao-hau-quy-thay-1004','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',540000,0,0,0,1,0,'apparel'),
+(1005,111,'Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia','lam-ao-trang-truong-sam-7-vat-mau-vang-1005','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
+(1006,111,'Áo Tràng Trường Sam 7 Vạt Màu Xám','lam-ao-trang-truong-sam-7-vat-mau-xam-2-1006','Áo Tràng Trường Sam 7 Vạt Màu Xám. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
+(1007,111,'Áo Trường Sam, Màu Nâu Đất','lam-ao-viet-hai-mau-nau-size-40-41-42-1007','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',800000,0,0,0,1,0,'apparel'),
+(1008,111,'Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni','lam-ao-trang-lot-long-mua-dong-nhieu-size-1008','Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
+(1009,111,'Áo Tràng Lót Lông Màu Xám','lam-ao-trang-lot-long-mau-xam-size-37-cao-155cm-1009','Áo Tràng Lót Lông Màu Xám. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
+(1010,111,'Áo Tràng Lót Lông Màu Nâu','lam-ao-trang-lot-long-mau-nau-nhieu-size-1010','Áo Tràng Lót Lông Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
+(1011,111,'Áo Tuỳ Y Màu Vàng','lam-ao-tuy-y-mau-vang-size-3536373839-1011','Áo Tuỳ Y Màu Vàng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
+(1012,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe','lam-ao-tu-y-nau-25-dieu-1012','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel')
+(1013,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ','lam-ao-tu-y-do-25-dieu-1013','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
+(1014,111,'Áo Tràng Hải Thanh Đài Loan','lam-ao-trang-hai-thanh-dai-loan-cao-cap-1014','Áo Tràng Hải Thanh Đài Loan Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
+(1015,111,'Áo Tràng Đài Loan Chất Silk','lam-ao-trang-dai-loan-chat-silk-cao-cap-1015','Áo Tràng Đài Loan Chất Silk Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'apparel'),
+(1016,111,'Áo Tràng Đài Loan Màu Lam','lam-ao-trang-dai-loan-mau-lam-1016','Áo Tràng Đài Loan Màu Lam. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'apparel'),
+(1017,111,'Áo Tràng Đài Loan','lam-ao-trang-dai-loan-cao-cap-mau-bo-1017','Áo Tràng Đài Loan Cao Cấp – Màu Bò. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
+(1018,111,'Áo Tràng','lam-ao-trang-cao-cap-silk-dai-loan-nam-nu-1018','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',345000,0,0,0,1,0,'apparel'),
+(1019,111,'Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ','lam-ao-trang-ao-di-duong-nha-su-tu-si-1019','Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'apparel'),
+(1020,111,'Áo Tràng Đài Loan','lam-ao-trang-dai-loan-cao-cap-mau-trang-1020','Áo Tràng Đài Loan Cao Cấp màu Trắng. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',755000,0,0,0,1,0,'apparel'),
+(1021,111,'Áo Tràng Hải Thanh Nam/Nữ','lam-ao-trang-hai-thanh-cho-tu-si-phat-tu-1021','Áo Tràng Hải Thanh Nam/Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
+(1022,111,'Áo Tràng Đài Loan Nam/Nữ','lam-ao-trang-dai-loan-cho-tu-si-phat-tu-1022','Áo Tràng Đài Loan Nam/Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'apparel'),
+(1023,111,'Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ','lam-ao-khoac-gile-phat-tu-hien-dai-cao-cap-mau-xam-1023','Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',255000,0,0,0,1,0,'apparel'),
+(1024,111,'Áo Tràng Kate Lam (không thêu)','lam-ao-trang-phat-tu-kate-khong-theu-mau-lam-1024','Áo Tràng Kate Lam (không thêu). Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',175000,0,0,0,1,0,'apparel'),
+(1025,112,'Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột –','lam-bo-quan-ao-nu-thanh-van-vai-linen-bot-size-s-m-l-1025','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,1,'apparel'),
+(1026,112,'Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be','lam-bo-nu-thanh-lieu-vai-lanh-bang-mau-be-size-s-m-l-1026','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',580000,0,0,0,1,1,'apparel'),
+(1027,112,'Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-trang-size-l-1027','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,1,'apparel'),
+(1028,112,'Bộ Quần Áo Nữ Vải Linen, Cổ Tròn Màu Be','lam-bo-quan-ao-nu-vai-linen-cao-cap-co-tron-mau-be-size-xl-1028','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1160000,0,0,0,1,0,'apparel'),
+(1029,112,'Bộ Pháp Phục Đi Chùa Nữ Vải Linen','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-xam-size-xl-1029','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,0,'apparel'),
+(1030,112,'Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm','lam-bo-phap-phuc-nu-tam-bo-de-vai-dui-tam-quan-ao-di-chua-trang-nghiem-1030','Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',460000,0,0,0,1,0,'apparel'),
+(1031,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-mau-nau-size-smlxlxxl-1031','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel'),
+(1032,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi, Quần Nâu','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-ao-be-quan-nau-size-smlxlxxl-1032','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel')
+(1033,112,'Bộ Quần Áo Nữ Linen','lam-ao-nu-linen-cao-cap-ke-xam-size-m-1033','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1490000,0,0,0,1,0,'apparel'),
+(1034,112,'Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen','lam-bo-quan-ao-di-chua-nu-an-nhien-mau-trang-nga-vai-linen-1034','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
+(1035,112,'Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen','lam-bo-quan-ao-di-chua-nu-an-nhien-ao-be-quan-nau-1035','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
+(1036,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1036','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1037,112,'Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-den-1037','Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1038,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xs-1038','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1039,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1039','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel')
+(1040,112,'Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen','lam-bo-quan-ao-phap-phuc-le-chua-nu-theu-hoa-sen-mau-nau-den-1040','Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1041,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-sam-maunau-size-s-m-l-xs-1041','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1042,112,'Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu','lam-bo-quan-ao-phat-tu-nu-co-chu-y-theu-nhu-y-mau-nau-size-xs-s-m-l-1042','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',400000,0,0,0,1,0,'apparel')
+(1043,112,'Áo','lam-ao-dai-cach-tan-di-chua-hoa-sen-mau-nau-size-s-m-l-1043','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',270000,0,0,0,1,0,'apparel'),
+(1044,112,'Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu','lam-bo-vat-ho-tho-dui-size-27-28-1044','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel')
+(1045,112,'Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay','lam-bo-quan-ao-nu-vai-cotton-mau-nau-tay-lung-size-s-m-l-xl-1045','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1046,112,'Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay','lam-bo-quan-ao-nu-cu-si-mau-vang-nhat-vai-cotton-nhieu-kich-co-1046','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1047,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-xam-nhieu-size-1047','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1048,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1048','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1049,112,'Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ','lam-bo-quan-ao-phat-tu-cu-si-nu-ao-chu-y-mau-xam-1049','Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',400000,0,0,0,1,0,'apparel'),
+(1050,113,'Bộ Pháp Phục Nam Tuệ Quang','lam-bo-phap-phuc-nam-tue-quang-dai-tay-vai-tho-dui-1050','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,1,'apparel'),
+(1051,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-nau-den-size-s-m-l-xl-1051','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel')
+(1052,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xl-1052','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel')
+(1053,113,'Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-xam-size-s-m-l-xl-1053','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,0,'apparel')
+(1054,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1054','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1055,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-nut-nhua-size-s-m-l-xl-1055','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1056,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều','lam-ma-ten-hang-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-xam-nau-nau-den-size-s-m-l-xl-1056','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1057,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-nam-co-tru-ngan-tay-vai-linen-han-quoc-mau-nau-den-size-s-m-l-xl-1057','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1058,113,'Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều','lam-bo-phat-tu-nam-co-tru-vai-linen-tay-ngan-mau-trang-nhieu-size-1058','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1059,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, M, L, XL','lam-bo-nam-co-tru-vai-line-han-quoc-mau-xanh-duong-nhieu-size-1059','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1060,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều','lam-bo-nam-co-tru-vai-line-han-quoc-xanh-duong-nhieu-loai-1060','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
+(1061,113,'Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám, Nhiều','lam-bo-nam-thien-minh-tho-dui-cao-cap-mau-xam-1061','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,0,'apparel')
+(1062,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay, Màu Nâu Đen, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-1062','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1063,113,'Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-xl-1063','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1064,113,'Bộ Nam Cổ Trụ, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-xam-size-s-m-1064','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1065,113,'Bộ Cư Sĩ Nam Nút Nhựa Tay, Màu Nâu Đen, Nhiều','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1065','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1066,113,'Bộ Quần Áo Cư Sĩ Nam, Vải Linen Màu Nâu Nút Nhựa, M, L, XL','lam-bo-quan-ao-cu-sy-nam-dai-tay-bang-vai-linen-han-quoc-mau-nau-mau-ghi-size-s-m-l-xl-1066','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1067,113,'Bộ Quần Áo Phật Tử Nam Màu Trắng, Nhiều','lam-bo-quan-ao-phat-tu-nam-co-tru-mau-trang-dai-tay-vai-linen-1067','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1068,113,'Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay, Màu Xám Nút Nhựa, Nhiều','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-sam-nut-nhua-size-s-m-l-xl-1068','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
+(1069,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1069','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1070,113,'Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều','lam-bo-phap-phuc-le-chua-vat-ho-tho-dui-phat-tu-nam-di-le-chua-mau-nau-nhieu-size-1070','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel')
+(1071,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-xam-nhieu-size-1071','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1072,113,'Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều','lam-bo-nam-la-han-nut-tau-mau-nau-mau-sam-size-s-m-l-1072','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1073,113,'Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều','lam-bo-nam-la-han-nut-tau-mau-nau-mau-nau-den-size-s-m-l-1073','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1074,113,'Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều','lam-bo-nam-la-han-nut-tau-mau-xam-nhieu-size-1074','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1075,114,'Túi Nải Đi Chùa','lam-tui-nai-di-chua-cao-cap-3-mau-kich-thuoc-37-47cm-1075','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',295000,0,0,0,1,1,'bag')
+(1076,114,'Túi Đi Chùa Đài Loan – 3 Màu','lam-tui-di-chua-dai-loan-3-mau-1076','Túi Đi Chùa Đài Loan – 3 Màu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',195000,0,0,0,1,1,'bag'),
+(1077,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang-1077','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,1,'bag'),
+(1078,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-nau-1078','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'bag'),
+(1079,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','lam-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang-1079','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'bag'),
+(1080,114,'Túi Xách Đi Chùa','lam-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-cao-cap-cho-phat-tu-cu-si-1080','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',545000,0,0,0,1,0,'bag'),
+(1081,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-kem-nha-nhan-1081','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',565000,0,0,0,1,0,'bag'),
+(1082,114,'Túi Đi Chùa','lam-tui-di-chua-cao-cap-hoa-sen-dai-loan-1082','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',325000,0,0,0,1,0,'bag'),
+(1083,114,'Túi Xách Đi Chùa','lam-tui-xach-di-chua-theu-hoa-sen-1083','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',275000,0,0,0,1,0,'bag'),
+(1084,114,'Túi Tây Tạng “OM”','lam-tui-tay-tang-theu-chu-om-1084','Túi Tây Tạng “OM”. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',125000,0,0,0,1,0,'bag'),
+(1085,114,'Túi Xách Sen Vàng','lam-tui-xach-di-chua-theu-sen-1085','Túi Xách Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',325000,0,0,0,1,0,'bag'),
+(1086,114,'Túi Sen Cách Điệu Lam','lam-tui-di-chua-tu-si-phat-tu-lam-1086','Túi Sen Cách Điệu Lam. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'bag'),
+(1087,114,'Túi Sen Cách Điệu Nâu','lam-tui-di-chua-tu-si-phat-tu-nau-1087','Túi Sen Cách Điệu Nâu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'bag'),
+(1088,114,'Túi Đeo Vai Hiện Đại','lam-tui-deo-cheo-di-chua-1088','Túi Đeo Vai Hiện Đại. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'bag'),
+(1089,114,'Túi Đi Chùa Họa Tiết Tròn','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-2-1089','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',215000,0,0,0,1,0,'bag')
+(1090,114,'Túi Đi Chùa Họa Tiết Tròn','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-1090','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',145000,0,0,0,1,0,'bag')
+(1091,114,'Túi Xách La Hán','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-4-1091','Túi Xách La Hán. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',225000,0,0,0,1,0,'bag'),
+(1092,114,'Túi Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-3-1092','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',425000,0,0,0,1,0,'bag'),
+(1093,114,'Túi Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-2-1093','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',365000,0,0,0,1,0,'bag'),
+(1094,114,'Túi Đeo Vai Sen Vàng','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-3-1094','Túi Đeo Vai Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',175000,0,0,0,1,0,'bag'),
+(1095,114,'Túi Đeo Chéo Sen Vàng','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-1095','Túi Đeo Chéo Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',295000,0,0,0,1,0,'bag'),
+(1096,114,'Ba Lô Vải','lam-tui-di-chua-dai-loan-cao-cap-du-lich-dung-y-phat-tu-1096','Ba Lô Vải Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',305000,0,0,0,1,0,'bag'),
+(1097,114,'Ba Lô Rút Nhỏ Gọn','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-2-1097','Ba Lô Rút Nhỏ Gọn. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',245000,0,0,0,1,0,'bag'),
+(1098,114,'Túi Du Lịch Thêu Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-1098','Túi Du Lịch Thêu Sen. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'bag'),
+(1099,114,'Túi Du Lịch Sen Vàng','lam-tui-di-chua-dai-loan-cao-cap-mau-moi-nam-2023-1099','Túi Du Lịch Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',525000,0,0,0,1,0,'bag'),
+(1100,115,'Vòng Đeo Tay Trầm Xí','lam-vong-deo-tay-tram-xi-cao-cap-10mm-x-18-hat-1100','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads')
+(1101,115,'Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam','lam-chuoi-vong-tay-go-sua-do-viet-nam-1101','Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',5489000,0,0,0,1,1,'beads'),
+(1102,115,'Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí','lam-chuoi-vong-tay-tram-huong-toc-viet-nam-tram-xi-cao-cap-10mm-13mm-18mm-1102','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads')
+(1103,115,'Chuỗi Vòng Tay Gỗ Sưa Quảng Bình','lam-chuoi-vong-tay-go-sua-quang-binh-1103','Chuỗi Vòng Tay Gỗ Sưa Quảng Bình. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads'),
+(1104,115,'Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt','lam-chuoi-vong-tay-tram-xi-viet-nam-dot-truc-7-dot-20mm-x-8mm-1104','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads')
+(1105,115,'Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc','lam-chuoi-vong-tay-tram-huong-xi-dau-xanh-de-moc-kich-thuoc-18mm-20mm-1105','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2079000,0,0,0,1,0,'beads')
+(1106,115,'Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt','lam-chuoi-vong-tram-huong-viet-nam-dot-truc-30-dot-1106','Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1089000,0,0,0,1,0,'beads'),
+(1107,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc)','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-2-1107','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc). Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads'),
+(1108,115,'Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam','lam-chuoi-vong-108-hat-tram-huong-toc-viet-nam-1108','Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2079000,0,0,0,1,0,'beads'),
+(1109,115,'Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục','lam-chuoi-vong-tay-go-dan-huong-xanh-10mm-20mm-1109','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',176000,0,0,0,1,0,'beads')
+(1110,115,'Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều','lam-chuoi-vong-tay-deo-tay-bang-go-chien-dan-kich-thuoc-10mm-12mm-14mm-16mm-1110','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1320000,0,0,0,1,0,'beads')
+(1111,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-10-dot-1111','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1639000,0,0,0,1,0,'beads'),
+(1112,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-1112','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads')
+(1113,115,'Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo','lam-chuoi-vong-108-hat-tram-huong-banh-indo-5mm-6mm-8mm-1113','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2739000,0,0,0,1,0,'beads')
+(1114,115,'Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần','lam-chuoi-vong-tay-go-tram-huong-indo-toc-quan-15mm-2-1114','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1639000,0,0,0,1,0,'beads')
+(1115,115,'Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo)','lam-chuoi-vong-tay-tram-huong-nguyen-chat-tram-banh-indo-13-hat-14-hat-1115','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm). Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1529000,0,0,0,1,0,'beads')
+(1116,115,'Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k','lam-day-chuyen-mat-hinh-hu-khong-tang-bo-tat-kham-vang-1116','Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',3069000,0,0,0,1,0,'beads'),
+(1117,115,'Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k','lam-day-chuyen-mat-hinh-dai-nhat-nhu-lai-kham-vang-1117','Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',3069000,0,0,0,1,0,'beads'),
+(1118,115,'Vòng Thạch Anh Tóc Mầu Vàng, Nhiều','lam-vong-thach-anh-toc-mau-vang-11mm-1118','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1859000,0,0,0,1,0,'beads')
+(1119,115,'Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều','lam-chuoi-vong-tay-go-dan-huong-ngu-sac-cvt-014-1119','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',429000,0,0,0,1,0,'beads')
+(1120,115,'Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều','lam-chuoi-vong-tay-go-tung-bach-cvt-013-1120','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads')
+(1121,115,'Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều','lam-chuoi-vong-tay-go-hong-lao-nhieu-kich-co-1121','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads')
+(1122,115,'Vòng Thạch Anh Tóc Mầu Tím','lam-vong-thach-anh-toc-mau-tim-kich-thuoc-6mm-10mm-1122','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',979000,0,0,0,1,0,'beads')
+(1123,115,'Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật','lam-chuoi-vong-deo-tay-da-luu-ly-vang-khac-chu-nam-mo-a-di-da-phat-kich-thuoc-12mm-14mm-1123','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads')
+(1124,115,'Chuỗi Vòng Tay Pha Lê Hồng Tím','lam-chuoi-vong-tay-pha-le-hong-tim-10mm-1124','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',130000,0,0,0,1,0,'beads')
+(1125,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Nâu','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-nau-kich-thuoc-60cmx60cm-70cmx70cm-80cmx80cm-1125','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
+(1126,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Vàng','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-vang-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1126','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
+(1127,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Xám','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-xam-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1127','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
+(1128,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám','lam-bo-dem-doc-xo-dua-ngoi-thien-tinh-toa-niem-phat-theu-hoa-sen-mau-xam-kich-thuoc-60x60cm-70x70cm-80x80cm-1128','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory')
+(1129,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu','lam-bo-dem-doc-ngoi-thien-ruot-dua-lot-theu-hoa-sen-70x70cm-1129','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory')
+(1130,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám','lam-93982-1130','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
+(1131,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-xam-kich-thuoc-60cm-x-60cm-1131','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory')
+(1132,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-nau-kich-thuoc-60cm-x-60cm-1132','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory')
+(1133,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-nau-kich-thuoc-60cm-x-60cm-1133','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
+(1134,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Vàngx70','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-vang-kich-thuoc-60cm-x-60cm-1134','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
+(1135,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-xam-kich-thuoc-23cm-x-45cm-1135','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
+(1136,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-30cm-x-50cm-1136','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory')
+(1137,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-30cm-x-50cm-1137','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory')
+(1138,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu','lam-bo-doan-cat-tuong-theu-hoa-sen-vo-do-mau-nau-kich-thuoc-30cm-x-8cm-1138','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory')
+(1139,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ','lam-bo-doan-cat-tuong-theu-hoa-senvo-do-mau-do-kich-thuoc-30cm-x-8cm-1139','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory')
+(1140,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-xam-nhieu-co-60cm-70cm-1140','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory')
+(1141,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-nau-nhieu-co-60cm-70cm-1141','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory')
+(1142,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, 58x6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-40cm-x-6cm-1142','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
+(1143,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, 58*6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-49cm-x-6cm-1143','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
+(1144,116,'Đệm Lễ Phật Hoa Sen Vàng Viền Nâu','lam-dem-le-phat-hoa-sen-vang-vien-nau-kich-co-50x180cm-60x180cm-1144','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
+(1145,116,'Đệm Phẳng Lễ Phật','lam-dem-phang-le-phat-co-60x150-1145','Đệm Phẳng Lễ Phật, Cỡ 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',390000,0,0,0,1,0,'accessory')
+(1146,116,'Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu','lam-bo-dem-phang-le-phat-kich-thuoc-60x150cm-1146','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',550000,0,0,0,1,0,'accessory')
+(1147,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-23cm-x-45cm-1147','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
+(1148,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm-1148','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
+(1149,116,'Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen','lam-dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm-1149','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',830000,0,0,0,1,0,'accessory');
 
-CREATE TABLE IF NOT EXISTS `cart_reminders` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED NOT NULL,
-  `unsubscribe_token` VARCHAR(100) NOT NULL,
-  `status` ENUM('pending', 'sent', 'failed', 'converted', 'unsubscribed') NOT NULL DEFAULT 'pending',
-  `last_seen_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `sent_at` DATETIME DEFAULT NULL,
-  `converted_at` DATETIME DEFAULT NULL,
-  `unsubscribed_at` DATETIME DEFAULT NULL,
-  `attempt_count` INT UNSIGNED NOT NULL DEFAULT 0,
-  `next_attempt_at` DATETIME DEFAULT NULL,
-  `last_error` TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `cart_reminders_user_unique` (`user_id`),
-  UNIQUE KEY `cart_reminders_token_unique` (`unsubscribe_token`),
-  KEY `cart_reminders_queue_idx` (`status`, `next_attempt_at`, `attempt_count`),
-  CONSTRAINT `cart_reminders_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Giá cũ được sinh từ giá bán hiện tại để dữ liệu mẫu thể hiện đúng nghiệp vụ khuyến mại.
+-- Toàn bộ sản phẩm mẫu có giá niêm yết cao hơn giá bán hiện tại 15%.UPDATE `product`
+SET `old_price` = ROUND(`base_price` * 1.15, -3)
+WHERE `id` BETWEEN 1000 AND 1149;
+INSERT INTO `product_variants` (`id`,`product_id`,`size`,`color`,`stock_quantity`,`price_modifier`,`status`) VALUES
+(10001,1000,'S','Lam',20,0,1),
+(10002,1000,'M','Lam',20,0,1),
+(10003,1000,'L','Lam',20,10000,1),
+(10004,1000,'XL','Lam',20,20000,1),
+(10011,1001,'S','Nâu',20,0,1),
+(10012,1001,'M','Nâu',20,0,1),
+(10013,1001,'L','Nâu',20,10000,1),
+(10014,1001,'XL','Nâu',20,20000,1),
+(10021,1002,'S','Xám',20,0,1),
+(10022,1002,'M','Xám',20,0,1),
+(10023,1002,'L','Xám',20,10000,1),
+(10024,1002,'XL','Xám',20,20000,1),
+(10031,1003,'S','Kem',20,0,1),
+(10032,1003,'M','Kem',20,0,1),
+(10033,1003,'L','Kem',20,10000,1),
+(10034,1003,'XL','Kem',20,20000,1),
+(10041,1004,'S','Đen',20,0,1),
+(10042,1004,'M','Đen',20,0,1),
+(10043,1004,'L','Đen',20,10000,1),
+(10044,1004,'XL','Đen',20,20000,1),
+(10051,1005,'S','Lam',20,0,1),
+(10052,1005,'M','Lam',20,0,1),
+(10053,1005,'L','Lam',20,10000,1),
+(10054,1005,'XL','Lam',20,20000,1),
+(10061,1006,'S','Nâu',20,0,1),
+(10062,1006,'M','Nâu',20,0,1),
+(10063,1006,'L','Nâu',20,10000,1),
+(10064,1006,'XL','Nâu',20,20000,1),
+(10071,1007,'S','Xám',20,0,1),
+(10072,1007,'M','Xám',20,0,1),
+(10073,1007,'L','Xám',20,10000,1),
+(10074,1007,'XL','Xám',20,20000,1),
+(10081,1008,'S','Kem',20,0,1),
+(10082,1008,'M','Kem',20,0,1),
+(10083,1008,'L','Kem',20,10000,1),
+(10084,1008,'XL','Kem',20,20000,1),
+(10091,1009,'S','Đen',20,0,1),
+(10092,1009,'M','Đen',20,0,1),
+(10093,1009,'L','Đen',20,10000,1),
+(10094,1009,'XL','Đen',20,20000,1),
+(10101,1010,'S','Lam',20,0,1),
+(10102,1010,'M','Lam',20,0,1),
+(10103,1010,'L','Lam',20,10000,1),
+(10104,1010,'XL','Lam',20,20000,1),
+(10111,1011,'S','Nâu',20,0,1),
+(10112,1011,'M','Nâu',20,0,1),
+(10113,1011,'L','Nâu',20,10000,1),
+(10114,1011,'XL','Nâu',20,20000,1),
+(10121,1012,'S','Xám',20,0,1),
+(10122,1012,'M','Xám',20,0,1),
+(10123,1012,'L','Xám',20,10000,1),
+(10124,1012,'XL','Xám',20,20000,1),
+(10131,1013,'S','Kem',20,0,1),
+(10132,1013,'M','Kem',20,0,1),
+(10133,1013,'L','Kem',20,10000,1),
+(10134,1013,'XL','Kem',20,20000,1),
+(10141,1014,'S','Đen',20,0,1),
+(10142,1014,'M','Đen',20,0,1),
+(10143,1014,'L','Đen',20,10000,1),
+(10144,1014,'XL','Đen',20,20000,1),
+(10151,1015,'S','Lam',20,0,1),
+(10152,1015,'M','Lam',20,0,1),
+(10153,1015,'L','Lam',20,10000,1),
+(10154,1015,'XL','Lam',20,20000,1),
+(10161,1016,'S','Nâu',20,0,1),
+(10162,1016,'M','Nâu',20,0,1),
+(10163,1016,'L','Nâu',20,10000,1),
+(10164,1016,'XL','Nâu',20,20000,1),
+(10171,1017,'S','Xám',20,0,1),
+(10172,1017,'M','Xám',20,0,1),
+(10173,1017,'L','Xám',20,10000,1),
+(10174,1017,'XL','Xám',20,20000,1),
+(10181,1018,'S','Kem',20,0,1),
+(10182,1018,'M','Kem',20,0,1),
+(10183,1018,'L','Kem',20,10000,1),
+(10184,1018,'XL','Kem',20,20000,1),
+(10191,1019,'S','Đen',20,0,1),
+(10192,1019,'M','Đen',20,0,1),
+(10193,1019,'L','Đen',20,10000,1),
+(10194,1019,'XL','Đen',20,20000,1),
+(10201,1020,'S','Lam',20,0,1),
+(10202,1020,'M','Lam',20,0,1),
+(10203,1020,'L','Lam',20,10000,1),
+(10204,1020,'XL','Lam',20,20000,1),
+(10211,1021,'S','Nâu',20,0,1),
+(10212,1021,'M','Nâu',20,0,1),
+(10213,1021,'L','Nâu',20,10000,1),
+(10214,1021,'XL','Nâu',20,20000,1),
+(10221,1022,'S','Xám',20,0,1),
+(10222,1022,'M','Xám',20,0,1),
+(10223,1022,'L','Xám',20,10000,1),
+(10224,1022,'XL','Xám',20,20000,1),
+(10231,1023,'S','Kem',20,0,1),
+(10232,1023,'M','Kem',20,0,1),
+(10233,1023,'L','Kem',20,10000,1),
+(10234,1023,'XL','Kem',20,20000,1),
+(10241,1024,'S','Đen',20,0,1),
+(10242,1024,'M','Đen',20,0,1),
+(10243,1024,'L','Đen',20,10000,1),
+(10244,1024,'XL','Đen',20,20000,1),
+(10251,1025,'S','Lam',20,0,1),
+(10252,1025,'M','Lam',20,0,1),
+(10253,1025,'L','Lam',20,10000,1),
+(10254,1025,'XL','Lam',20,20000,1),
+(10261,1026,'S','Nâu',20,0,1),
+(10262,1026,'M','Nâu',20,0,1),
+(10263,1026,'L','Nâu',20,10000,1),
+(10264,1026,'XL','Nâu',20,20000,1),
+(10271,1027,'S','Xám',20,0,1),
+(10272,1027,'M','Xám',20,0,1),
+(10273,1027,'L','Xám',20,10000,1),
+(10274,1027,'XL','Xám',20,20000,1),
+(10281,1028,'S','Kem',20,0,1),
+(10282,1028,'M','Kem',20,0,1),
+(10283,1028,'L','Kem',20,10000,1),
+(10284,1028,'XL','Kem',20,20000,1),
+(10291,1029,'S','Đen',20,0,1),
+(10292,1029,'M','Đen',20,0,1),
+(10293,1029,'L','Đen',20,10000,1),
+(10294,1029,'XL','Đen',20,20000,1),
+(10301,1030,'S','Lam',20,0,1),
+(10302,1030,'M','Lam',20,0,1),
+(10303,1030,'L','Lam',20,10000,1),
+(10304,1030,'XL','Lam',20,20000,1),
+(10311,1031,'S','Nâu',20,0,1),
+(10312,1031,'M','Nâu',20,0,1),
+(10313,1031,'L','Nâu',20,10000,1),
+(10314,1031,'XL','Nâu',20,20000,1),
+(10321,1032,'S','Xám',20,0,1),
+(10322,1032,'M','Xám',20,0,1),
+(10323,1032,'L','Xám',20,10000,1),
+(10324,1032,'XL','Xám',20,20000,1),
+(10331,1033,'S','Kem',20,0,1),
+(10332,1033,'M','Kem',20,0,1),
+(10333,1033,'L','Kem',20,10000,1),
+(10334,1033,'XL','Kem',20,20000,1),
+(10341,1034,'S','Đen',20,0,1),
+(10342,1034,'M','Đen',20,0,1),
+(10343,1034,'L','Đen',20,10000,1),
+(10344,1034,'XL','Đen',20,20000,1),
+(10351,1035,'S','Lam',20,0,1),
+(10352,1035,'M','Lam',20,0,1),
+(10353,1035,'L','Lam',20,10000,1),
+(10354,1035,'XL','Lam',20,20000,1),
+(10361,1036,'S','Nâu',20,0,1),
+(10362,1036,'M','Nâu',20,0,1),
+(10363,1036,'L','Nâu',20,10000,1),
+(10364,1036,'XL','Nâu',20,20000,1),
+(10371,1037,'S','Xám',20,0,1),
+(10372,1037,'M','Xám',20,0,1),
+(10373,1037,'L','Xám',20,10000,1),
+(10374,1037,'XL','Xám',20,20000,1),
+(10381,1038,'S','Kem',20,0,1),
+(10382,1038,'M','Kem',20,0,1),
+(10383,1038,'L','Kem',20,10000,1),
+(10384,1038,'XL','Kem',20,20000,1),
+(10391,1039,'S','Đen',20,0,1),
+(10392,1039,'M','Đen',20,0,1),
+(10393,1039,'L','Đen',20,10000,1),
+(10394,1039,'XL','Đen',20,20000,1),
+(10401,1040,'S','Lam',20,0,1),
+(10402,1040,'M','Lam',20,0,1),
+(10403,1040,'L','Lam',20,10000,1),
+(10404,1040,'XL','Lam',20,20000,1),
+(10411,1041,'S','Nâu',20,0,1),
+(10412,1041,'M','Nâu',20,0,1),
+(10413,1041,'L','Nâu',20,10000,1),
+(10414,1041,'XL','Nâu',20,20000,1),
+(10421,1042,'S','Xám',20,0,1),
+(10422,1042,'M','Xám',20,0,1),
+(10423,1042,'L','Xám',20,10000,1),
+(10424,1042,'XL','Xám',20,20000,1),
+(10431,1043,'S','Kem',20,0,1),
+(10432,1043,'M','Kem',20,0,1),
+(10433,1043,'L','Kem',20,10000,1),
+(10434,1043,'XL','Kem',20,20000,1),
+(10441,1044,'S','Đen',20,0,1),
+(10442,1044,'M','Đen',20,0,1),
+(10443,1044,'L','Đen',20,10000,1),
+(10444,1044,'XL','Đen',20,20000,1),
+(10451,1045,'S','Lam',20,0,1),
+(10452,1045,'M','Lam',20,0,1),
+(10453,1045,'L','Lam',20,10000,1),
+(10454,1045,'XL','Lam',20,20000,1),
+(10461,1046,'S','Nâu',20,0,1),
+(10462,1046,'M','Nâu',20,0,1),
+(10463,1046,'L','Nâu',20,10000,1),
+(10464,1046,'XL','Nâu',20,20000,1),
+(10471,1047,'S','Xám',20,0,1),
+(10472,1047,'M','Xám',20,0,1),
+(10473,1047,'L','Xám',20,10000,1),
+(10474,1047,'XL','Xám',20,20000,1),
+(10481,1048,'S','Kem',20,0,1),
+(10482,1048,'M','Kem',20,0,1),
+(10483,1048,'L','Kem',20,10000,1),
+(10484,1048,'XL','Kem',20,20000,1),
+(10491,1049,'S','Đen',20,0,1),
+(10492,1049,'M','Đen',20,0,1),
+(10493,1049,'L','Đen',20,10000,1),
+(10494,1049,'XL','Đen',20,20000,1),
+(10501,1050,'S','Lam',20,0,1),
+(10502,1050,'M','Lam',20,0,1),
+(10503,1050,'L','Lam',20,10000,1),
+(10504,1050,'XL','Lam',20,20000,1),
+(10511,1051,'S','Nâu',20,0,1),
+(10512,1051,'M','Nâu',20,0,1),
+(10513,1051,'L','Nâu',20,10000,1),
+(10514,1051,'XL','Nâu',20,20000,1),
+(10521,1052,'S','Xám',20,0,1),
+(10522,1052,'M','Xám',20,0,1),
+(10523,1052,'L','Xám',20,10000,1),
+(10524,1052,'XL','Xám',20,20000,1),
+(10531,1053,'S','Kem',20,0,1),
+(10532,1053,'M','Kem',20,0,1),
+(10533,1053,'L','Kem',20,10000,1),
+(10534,1053,'XL','Kem',20,20000,1),
+(10541,1054,'S','Đen',20,0,1),
+(10542,1054,'M','Đen',20,0,1),
+(10543,1054,'L','Đen',20,10000,1),
+(10544,1054,'XL','Đen',20,20000,1),
+(10551,1055,'S','Lam',20,0,1),
+(10552,1055,'M','Lam',20,0,1),
+(10553,1055,'L','Lam',20,10000,1),
+(10554,1055,'XL','Lam',20,20000,1),
+(10561,1056,'S','Nâu',20,0,1),
+(10562,1056,'M','Nâu',20,0,1),
+(10563,1056,'L','Nâu',20,10000,1),
+(10564,1056,'XL','Nâu',20,20000,1),
+(10571,1057,'S','Xám',20,0,1),
+(10572,1057,'M','Xám',20,0,1),
+(10573,1057,'L','Xám',20,10000,1),
+(10574,1057,'XL','Xám',20,20000,1),
+(10581,1058,'S','Kem',20,0,1),
+(10582,1058,'M','Kem',20,0,1),
+(10583,1058,'L','Kem',20,10000,1),
+(10584,1058,'XL','Kem',20,20000,1),
+(10591,1059,'S','Đen',20,0,1),
+(10592,1059,'M','Đen',20,0,1),
+(10593,1059,'L','Đen',20,10000,1),
+(10594,1059,'XL','Đen',20,20000,1),
+(10601,1060,'S','Lam',20,0,1),
+(10602,1060,'M','Lam',20,0,1),
+(10603,1060,'L','Lam',20,10000,1),
+(10604,1060,'XL','Lam',20,20000,1),
+(10611,1061,'S','Nâu',20,0,1),
+(10612,1061,'M','Nâu',20,0,1),
+(10613,1061,'L','Nâu',20,10000,1),
+(10614,1061,'XL','Nâu',20,20000,1),
+(10621,1062,'S','Xám',20,0,1),
+(10622,1062,'M','Xám',20,0,1),
+(10623,1062,'L','Xám',20,10000,1),
+(10624,1062,'XL','Xám',20,20000,1),
+(10631,1063,'S','Kem',20,0,1),
+(10632,1063,'M','Kem',20,0,1),
+(10633,1063,'L','Kem',20,10000,1),
+(10634,1063,'XL','Kem',20,20000,1),
+(10641,1064,'S','Đen',20,0,1),
+(10642,1064,'M','Đen',20,0,1),
+(10643,1064,'L','Đen',20,10000,1),
+(10644,1064,'XL','Đen',20,20000,1),
+(10651,1065,'S','Lam',20,0,1),
+(10652,1065,'M','Lam',20,0,1),
+(10653,1065,'L','Lam',20,10000,1),
+(10654,1065,'XL','Lam',20,20000,1),
+(10661,1066,'S','Nâu',20,0,1),
+(10662,1066,'M','Nâu',20,0,1),
+(10663,1066,'L','Nâu',20,10000,1),
+(10664,1066,'XL','Nâu',20,20000,1),
+(10671,1067,'S','Xám',20,0,1),
+(10672,1067,'M','Xám',20,0,1),
+(10673,1067,'L','Xám',20,10000,1),
+(10674,1067,'XL','Xám',20,20000,1),
+(10681,1068,'S','Kem',20,0,1),
+(10682,1068,'M','Kem',20,0,1),
+(10683,1068,'L','Kem',20,10000,1),
+(10684,1068,'XL','Kem',20,20000,1),
+(10691,1069,'S','Đen',20,0,1),
+(10692,1069,'M','Đen',20,0,1),
+(10693,1069,'L','Đen',20,10000,1),
+(10694,1069,'XL','Đen',20,20000,1),
+(10701,1070,'S','Lam',20,0,1),
+(10702,1070,'M','Lam',20,0,1),
+(10703,1070,'L','Lam',20,10000,1),
+(10704,1070,'XL','Lam',20,20000,1),
+(10711,1071,'S','Nâu',20,0,1),
+(10712,1071,'M','Nâu',20,0,1),
+(10713,1071,'L','Nâu',20,10000,1),
+(10714,1071,'XL','Nâu',20,20000,1),
+(10721,1072,'S','Xám',20,0,1),
+(10722,1072,'M','Xám',20,0,1),
+(10723,1072,'L','Xám',20,10000,1),
+(10724,1072,'XL','Xám',20,20000,1),
+(10731,1073,'S','Kem',20,0,1),
+(10732,1073,'M','Kem',20,0,1),
+(10733,1073,'L','Kem',20,10000,1),
+(10734,1073,'XL','Kem',20,20000,1),
+(10741,1074,'S','Đen',20,0,1),
+(10742,1074,'M','Đen',20,0,1),
+(10743,1074,'L','Đen',20,10000,1),
+(10744,1074,'XL','Đen',20,20000,1),
+(10751,1075,'Free size','Nâu',20,0,1),
+(10752,1075,'Free size','Đen',20,0,1),
+(10753,1075,'Free size','Xám',20,10000,1),
+(10761,1076,'Free size','Nâu',20,0,1),
+(10762,1076,'Free size','Đen',20,0,1),
+(10763,1076,'Free size','Xám',20,10000,1),
+(10771,1077,'Free size','Nâu',20,0,1),
+(10772,1077,'Free size','Đen',20,0,1),
+(10773,1077,'Free size','Xám',20,10000,1),
+(10781,1078,'Free size','Nâu',20,0,1),
+(10782,1078,'Free size','Đen',20,0,1),
+(10783,1078,'Free size','Xám',20,10000,1),
+(10791,1079,'Free size','Nâu',20,0,1),
+(10792,1079,'Free size','Đen',20,0,1),
+(10793,1079,'Free size','Xám',20,10000,1),
+(10801,1080,'Free size','Nâu',20,0,1),
+(10802,1080,'Free size','Đen',20,0,1),
+(10803,1080,'Free size','Xám',20,10000,1),
+(10811,1081,'Free size','Nâu',20,0,1),
+(10812,1081,'Free size','Đen',20,0,1),
+(10813,1081,'Free size','Xám',20,10000,1),
+(10821,1082,'Free size','Nâu',20,0,1),
+(10822,1082,'Free size','Đen',20,0,1),
+(10823,1082,'Free size','Xám',20,10000,1),
+(10831,1083,'Free size','Nâu',20,0,1),
+(10832,1083,'Free size','Đen',20,0,1),
+(10833,1083,'Free size','Xám',20,10000,1),
+(10841,1084,'Free size','Nâu',20,0,1),
+(10842,1084,'Free size','Đen',20,0,1),
+(10843,1084,'Free size','Xám',20,10000,1),
+(10851,1085,'Free size','Nâu',20,0,1),
+(10852,1085,'Free size','Đen',20,0,1),
+(10853,1085,'Free size','Xám',20,10000,1),
+(10861,1086,'Free size','Nâu',20,0,1),
+(10862,1086,'Free size','Đen',20,0,1),
+(10863,1086,'Free size','Xám',20,10000,1),
+(10871,1087,'Free size','Nâu',20,0,1),
+(10872,1087,'Free size','Đen',20,0,1),
+(10873,1087,'Free size','Xám',20,10000,1),
+(10881,1088,'Free size','Nâu',20,0,1),
+(10882,1088,'Free size','Đen',20,0,1),
+(10883,1088,'Free size','Xám',20,10000,1),
+(10891,1089,'Free size','Nâu',20,0,1),
+(10892,1089,'Free size','Đen',20,0,1),
+(10893,1089,'Free size','Xám',20,10000,1),
+(10901,1090,'Free size','Nâu',20,0,1),
+(10902,1090,'Free size','Đen',20,0,1),
+(10903,1090,'Free size','Xám',20,10000,1),
+(10911,1091,'Free size','Nâu',20,0,1),
+(10912,1091,'Free size','Đen',20,0,1),
+(10913,1091,'Free size','Xám',20,10000,1),
+(10921,1092,'Free size','Nâu',20,0,1),
+(10922,1092,'Free size','Đen',20,0,1),
+(10923,1092,'Free size','Xám',20,10000,1),
+(10931,1093,'Free size','Nâu',20,0,1),
+(10932,1093,'Free size','Đen',20,0,1),
+(10933,1093,'Free size','Xám',20,10000,1),
+(10941,1094,'Free size','Nâu',20,0,1),
+(10942,1094,'Free size','Đen',20,0,1),
+(10943,1094,'Free size','Xám',20,10000,1),
+(10951,1095,'Free size','Nâu',20,0,1),
+(10952,1095,'Free size','Đen',20,0,1),
+(10953,1095,'Free size','Xám',20,10000,1),
+(10961,1096,'Free size','Nâu',20,0,1),
+(10962,1096,'Free size','Đen',20,0,1),
+(10963,1096,'Free size','Xám',20,10000,1),
+(10971,1097,'Free size','Nâu',20,0,1),
+(10972,1097,'Free size','Đen',20,0,1),
+(10973,1097,'Free size','Xám',20,10000,1),
+(10981,1098,'Free size','Nâu',20,0,1),
+(10982,1098,'Free size','Đen',20,0,1),
+(10983,1098,'Free size','Xám',20,10000,1),
+(10991,1099,'Free size','Nâu',20,0,1),
+(10992,1099,'Free size','Đen',20,0,1),
+(10993,1099,'Free size','Xám',20,10000,1),
+(11001,1100,'8mm','Nâu',20,0,1),
+(11002,1100,'10mm','Nâu',20,50000,1),
+(11003,1100,'12mm','Nâu',20,100000,1),
+(11011,1101,'8mm','Nâu',20,0,1),
+(11012,1101,'10mm','Nâu',20,50000,1),
+(11013,1101,'12mm','Nâu',20,100000,1),
+(11021,1102,'8mm','Nâu',20,0,1),
+(11022,1102,'10mm','Nâu',20,50000,1),
+(11023,1102,'12mm','Nâu',20,100000,1),
+(11031,1103,'8mm','Nâu',20,0,1),
+(11032,1103,'10mm','Nâu',20,50000,1),
+(11033,1103,'12mm','Nâu',20,100000,1),
+(11041,1104,'8mm','Nâu',20,0,1),
+(11042,1104,'10mm','Nâu',20,50000,1),
+(11043,1104,'12mm','Nâu',20,100000,1),
+(11051,1105,'8mm','Nâu',20,0,1),
+(11052,1105,'10mm','Nâu',20,50000,1),
+(11053,1105,'12mm','Nâu',20,100000,1),
+(11061,1106,'8mm','Nâu',20,0,1),
+(11062,1106,'10mm','Nâu',20,50000,1),
+(11063,1106,'12mm','Nâu',20,100000,1),
+(11071,1107,'8mm','Nâu',20,0,1),
+(11072,1107,'10mm','Nâu',20,50000,1),
+(11073,1107,'12mm','Nâu',20,100000,1),
+(11081,1108,'8mm','Nâu',20,0,1),
+(11082,1108,'10mm','Nâu',20,50000,1),
+(11083,1108,'12mm','Nâu',20,100000,1),
+(11091,1109,'8mm','Nâu',20,0,1),
+(11092,1109,'10mm','Nâu',20,50000,1),
+(11093,1109,'12mm','Nâu',20,100000,1),
+(11101,1110,'8mm','Nâu',20,0,1),
+(11102,1110,'10mm','Nâu',20,50000,1),
+(11103,1110,'12mm','Nâu',20,100000,1),
+(11111,1111,'8mm','Nâu',20,0,1),
+(11112,1111,'10mm','Nâu',20,50000,1),
+(11113,1111,'12mm','Nâu',20,100000,1),
+(11121,1112,'8mm','Nâu',20,0,1),
+(11122,1112,'10mm','Nâu',20,50000,1),
+(11123,1112,'12mm','Nâu',20,100000,1),
+(11131,1113,'8mm','Nâu',20,0,1),
+(11132,1113,'10mm','Nâu',20,50000,1),
+(11133,1113,'12mm','Nâu',20,100000,1),
+(11141,1114,'8mm','Nâu',20,0,1),
+(11142,1114,'10mm','Nâu',20,50000,1),
+(11143,1114,'12mm','Nâu',20,100000,1),
+(11151,1115,'8mm','Nâu',20,0,1),
+(11152,1115,'10mm','Nâu',20,50000,1),
+(11153,1115,'12mm','Nâu',20,100000,1),
+(11161,1116,'8mm','Nâu',20,0,1),
+(11162,1116,'10mm','Nâu',20,50000,1),
+(11163,1116,'12mm','Nâu',20,100000,1),
+(11171,1117,'8mm','Nâu',20,0,1),
+(11172,1117,'10mm','Nâu',20,50000,1),
+(11173,1117,'12mm','Nâu',20,100000,1),
+(11181,1118,'8mm','Nâu',20,0,1),
+(11182,1118,'10mm','Nâu',20,50000,1),
+(11183,1118,'12mm','Nâu',20,100000,1),
+(11191,1119,'8mm','Nâu',20,0,1),
+(11192,1119,'10mm','Nâu',20,50000,1),
+(11193,1119,'12mm','Nâu',20,100000,1),
+(11201,1120,'8mm','Nâu',20,0,1),
+(11202,1120,'10mm','Nâu',20,50000,1),
+(11203,1120,'12mm','Nâu',20,100000,1),
+(11211,1121,'8mm','Nâu',20,0,1),
+(11212,1121,'10mm','Nâu',20,50000,1),
+(11213,1121,'12mm','Nâu',20,100000,1),
+(11221,1122,'8mm','Nâu',20,0,1),
+(11222,1122,'10mm','Nâu',20,50000,1),
+(11223,1122,'12mm','Nâu',20,100000,1),
+(11231,1123,'8mm','Nâu',20,0,1),
+(11232,1123,'10mm','Nâu',20,50000,1),
+(11233,1123,'12mm','Nâu',20,100000,1),
+(11241,1124,'8mm','Nâu',20,0,1),
+(11242,1124,'10mm','Nâu',20,50000,1),
+(11243,1124,'12mm','Nâu',20,100000,1),
+(11251,1125,'Mặc định','Lam',20,0,1),
+(11252,1125,'Mặc định','Nâu',20,0,1),
+(11253,1125,'Mặc định','Đen',20,5000,1),
+(11261,1126,'Mặc định','Lam',20,0,1),
+(11262,1126,'Mặc định','Nâu',20,0,1),
+(11263,1126,'Mặc định','Đen',20,5000,1),
+(11271,1127,'Mặc định','Lam',20,0,1),
+(11272,1127,'Mặc định','Nâu',20,0,1),
+(11273,1127,'Mặc định','Đen',20,5000,1),
+(11281,1128,'Mặc định','Lam',20,0,1),
+(11282,1128,'Mặc định','Nâu',20,0,1),
+(11283,1128,'Mặc định','Đen',20,5000,1),
+(11291,1129,'Mặc định','Lam',20,0,1),
+(11292,1129,'Mặc định','Nâu',20,0,1),
+(11293,1129,'Mặc định','Đen',20,5000,1),
+(11301,1130,'Mặc định','Lam',20,0,1),
+(11302,1130,'Mặc định','Nâu',20,0,1),
+(11303,1130,'Mặc định','Đen',20,5000,1),
+(11311,1131,'Mặc định','Lam',20,0,1),
+(11312,1131,'Mặc định','Nâu',20,0,1),
+(11313,1131,'Mặc định','Đen',20,5000,1),
+(11321,1132,'Mặc định','Lam',20,0,1),
+(11322,1132,'Mặc định','Nâu',20,0,1),
+(11323,1132,'Mặc định','Đen',20,5000,1),
+(11331,1133,'Mặc định','Lam',20,0,1),
+(11332,1133,'Mặc định','Nâu',20,0,1),
+(11333,1133,'Mặc định','Đen',20,5000,1),
+(11341,1134,'Mặc định','Lam',20,0,1),
+(11342,1134,'Mặc định','Nâu',20,0,1),
+(11343,1134,'Mặc định','Đen',20,5000,1),
+(11351,1135,'Mặc định','Lam',20,0,1),
+(11352,1135,'Mặc định','Nâu',20,0,1),
+(11353,1135,'Mặc định','Đen',20,5000,1),
+(11361,1136,'Mặc định','Lam',20,0,1),
+(11362,1136,'Mặc định','Nâu',20,0,1),
+(11363,1136,'Mặc định','Đen',20,5000,1),
+(11371,1137,'Mặc định','Lam',20,0,1),
+(11372,1137,'Mặc định','Nâu',20,0,1),
+(11373,1137,'Mặc định','Đen',20,5000,1),
+(11381,1138,'Mặc định','Lam',20,0,1),
+(11382,1138,'Mặc định','Nâu',20,0,1),
+(11383,1138,'Mặc định','Đen',20,5000,1),
+(11391,1139,'Mặc định','Lam',20,0,1),
+(11392,1139,'Mặc định','Nâu',20,0,1),
+(11393,1139,'Mặc định','Đen',20,5000,1),
+(11401,1140,'Mặc định','Lam',20,0,1),
+(11402,1140,'Mặc định','Nâu',20,0,1),
+(11403,1140,'Mặc định','Đen',20,5000,1),
+(11411,1141,'Mặc định','Lam',20,0,1),
+(11412,1141,'Mặc định','Nâu',20,0,1),
+(11413,1141,'Mặc định','Đen',20,5000,1),
+(11421,1142,'Mặc định','Lam',20,0,1),
+(11422,1142,'Mặc định','Nâu',20,0,1),
+(11423,1142,'Mặc định','Đen',20,5000,1),
+(11431,1143,'Mặc định','Lam',20,0,1),
+(11432,1143,'Mặc định','Nâu',20,0,1),
+(11433,1143,'Mặc định','Đen',20,5000,1),
+(11441,1144,'Mặc định','Lam',20,0,1),
+(11442,1144,'Mặc định','Nâu',20,0,1),
+(11443,1144,'Mặc định','Đen',20,5000,1),
+(11451,1145,'Mặc định','Lam',20,0,1),
+(11452,1145,'Mặc định','Nâu',20,0,1),
+(11453,1145,'Mặc định','Đen',20,5000,1),
+(11461,1146,'Mặc định','Lam',20,0,1),
+(11462,1146,'Mặc định','Nâu',20,0,1),
+(11463,1146,'Mặc định','Đen',20,5000,1),
+(11471,1147,'Mặc định','Lam',20,0,1),
+(11472,1147,'Mặc định','Nâu',20,0,1),
+(11473,1147,'Mặc định','Đen',20,5000,1),
+(11481,1148,'Mặc định','Lam',20,0,1),
+(11482,1148,'Mặc định','Nâu',20,0,1),
+(11483,1148,'Mặc định','Đen',20,5000,1),
+(11491,1149,'Mặc định','Lam',20,0,1),
+(11492,1149,'Mặc định','Nâu',20,0,1),
+(11493,1149,'Mặc định','Đen',20,5000,1);
 
-CREATE TABLE IF NOT EXISTS `logs` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT UNSIGNED DEFAULT NULL,
-  `action` VARCHAR(150) NOT NULL,
-  `metadata` LONGTEXT DEFAULT NULL COMMENT 'JSON/text phục vụ audit',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `logs_user_created_idx` (`user_id`, `created_at`),
-  CONSTRAINT `logs_user_fk`
-    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `product_images` (`id`,`product_id`,`image_url`,`alt_text`,`is_primary`) VALUES
+(1000,1000,'public/uploads/products/lam/lam-1000.jpg','Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất',1),
+(1001,1001,'public/uploads/products/lam/lam-1001.jpg','Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất',1),
+(1002,1002,'public/uploads/products/lam/lam-1002.jpg','Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ',1),
+(1003,1003,'public/uploads/products/lam/lam-1003.jpg','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size',1),
+(1004,1004,'public/uploads/products/lam/lam-1004.jpg','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia',1),
+(1005,1005,'public/uploads/products/lam/lam-1005.jpg','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia',1),
+(1006,1006,'public/uploads/products/lam/lam-1006.jpg','Áo Tràng Trường Sam 7 Vạt Màu Xám',1),
+(1007,1007,'public/uploads/products/lam/lam-1007.jpg','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size',1),
+(1008,1008,'public/uploads/products/lam/lam-1008.jpg','Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni',1),
+(1009,1009,'public/uploads/products/lam/lam-1009.jpg','Áo Tràng Lót Lông Màu Xám',1),
+(1010,1010,'public/uploads/products/lam/lam-1010.jpg','Áo Tràng Lót Lông Màu Nâu, Nhiều Size',1),
+(1011,1011,'public/uploads/products/lam/lam-1011.jpg','Áo Tuỳ Y Màu Vàng, Nhiều Size',1),
+(1012,1012,'public/uploads/products/lam/lam-1012.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size',1),
+(1013,1013,'public/uploads/products/lam/lam-1013.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size',1),
+(1014,1014,'public/uploads/products/lam/lam-1014.webp','Áo Tràng Hải Thanh Đài Loan Cao Cấp',1),
+(1015,1015,'public/uploads/products/lam/lam-1015.webp','Áo Tràng Đài Loan Chất Silk Cao Cấp',1),
+(1016,1016,'public/uploads/products/lam/lam-1016.webp','Áo Tràng Đài Loan Màu Lam',1),
+(1017,1017,'public/uploads/products/lam/lam-1017.webp','Áo Tràng Đài Loan Cao Cấp – Màu Bò',1),
+(1018,1018,'public/uploads/products/lam/lam-1018.webp','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ',1),
+(1019,1019,'public/uploads/products/lam/lam-1019.webp','Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ',1),
+(1020,1020,'public/uploads/products/lam/lam-1020.webp','Áo Tràng Đài Loan Cao Cấp màu Trắng',1),
+(1021,1021,'public/uploads/products/lam/lam-1021.jpg','Áo Tràng Hải Thanh Nam/Nữ',1),
+(1022,1022,'public/uploads/products/lam/lam-1022.jpg','Áo Tràng Đài Loan Nam/Nữ',1),
+(1023,1023,'public/uploads/products/lam/lam-1023.webp','Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ',1),
+(1024,1024,'public/uploads/products/lam/lam-1024.jpg','Áo Tràng Kate Lam (không thêu)',1),
+(1025,1025,'public/uploads/products/lam/lam-1025.jpg','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L',1),
+(1026,1026,'public/uploads/products/lam/lam-1026.jpg','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L',1),
+(1027,1027,'public/uploads/products/lam/lam-1027.jpg','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng',1),
+(1028,1028,'public/uploads/products/lam/lam-1028.jpg','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be',1),
+(1029,1029,'public/uploads/products/lam/lam-1029.jpg','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám',1),
+(1030,1030,'public/uploads/products/lam/lam-1030.jpg','Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm',1),
+(1031,1031,'public/uploads/products/lam/lam-1031.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL',1),
+(1032,1032,'public/uploads/products/lam/lam-1032.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL',1),
+(1033,1033,'public/uploads/products/lam/lam-1033.jpg','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám',1),
+(1034,1034,'public/uploads/products/lam/lam-1034.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen',1),
+(1035,1035,'public/uploads/products/lam/lam-1035.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen',1),
+(1036,1036,'public/uploads/products/lam/lam-1036.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL',1),
+(1037,1037,'public/uploads/products/lam/lam-1037.jpg','Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen',1),
+(1038,1038,'public/uploads/products/lam/lam-1038.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS',1),
+(1039,1039,'public/uploads/products/lam/lam-1039.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size',1),
+(1040,1040,'public/uploads/products/lam/lam-1040.jpg','Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen',1),
+(1041,1041,'public/uploads/products/lam/lam-1041.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size',1),
+(1042,1042,'public/uploads/products/lam/lam-1042.jpg','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L',1),
+(1043,1043,'public/uploads/products/lam/lam-1043.jpg','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L',1),
+(1044,1044,'public/uploads/products/lam/lam-1044.jpg','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size',1),
+(1045,1045,'public/uploads/products/lam/lam-1045.jpg','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL',1),
+(1046,1046,'public/uploads/products/lam/lam-1046.jpg','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL',1),
+(1047,1047,'public/uploads/products/lam/lam-1047.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size',1),
+(1048,1048,'public/uploads/products/lam/lam-1048.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size',1),
+(1049,1049,'public/uploads/products/lam/lam-1049.jpg','Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ',1),
+(1050,1050,'public/uploads/products/lam/lam-1050.jpg','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi',1),
+(1051,1051,'public/uploads/products/lam/lam-1051.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size',1),
+(1052,1052,'public/uploads/products/lam/lam-1052.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size',1),
+(1053,1053,'public/uploads/products/lam/lam-1053.jpg','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size',1),
+(1054,1054,'public/uploads/products/lam/lam-1054.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size',1),
+(1055,1055,'public/uploads/products/lam/lam-1055.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size',1),
+(1056,1056,'public/uploads/products/lam/lam-1056.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size',1),
+(1057,1057,'public/uploads/products/lam/lam-1057.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size',1),
+(1058,1058,'public/uploads/products/lam/lam-1058.jpg','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size',1),
+(1059,1059,'public/uploads/products/lam/lam-1059.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL',1),
+(1060,1060,'public/uploads/products/lam/lam-1060.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size',1),
+(1061,1061,'public/uploads/products/lam/lam-1061.jpg','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size',1),
+(1062,1062,'public/uploads/products/lam/lam-1062.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size',1),
+(1063,1063,'public/uploads/products/lam/lam-1063.jpg','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size',1),
+(1064,1064,'public/uploads/products/lam/lam-1064.jpg','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size',1),
+(1065,1065,'public/uploads/products/lam/lam-1065.jpg','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size',1),
+(1066,1066,'public/uploads/products/lam/lam-1066.jpg','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL',1),
+(1067,1067,'public/uploads/products/lam/lam-1067.jpg','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size',1),
+(1068,1068,'public/uploads/products/lam/lam-1068.jpg','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size',1),
+(1069,1069,'public/uploads/products/lam/lam-1069.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size',1),
+(1070,1070,'public/uploads/products/lam/lam-1070.jpg','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size',1),
+(1071,1071,'public/uploads/products/lam/lam-1071.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size',1),
+(1072,1072,'public/uploads/products/lam/lam-1072.jpg','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size',1),
+(1073,1073,'public/uploads/products/lam/lam-1073.jpg','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size',1),
+(1074,1074,'public/uploads/products/lam/lam-1074.jpg','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size',1),
+(1075,1075,'public/uploads/products/lam/lam-1075.webp','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm',1),
+(1076,1076,'public/uploads/products/lam/lam-1076.webp','Túi Đi Chùa Đài Loan – 3 Màu',1),
+(1077,1077,'public/uploads/products/lam/lam-1077.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng',1),
+(1078,1078,'public/uploads/products/lam/lam-1078.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu',1),
+(1079,1079,'public/uploads/products/lam/lam-1079.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng',1),
+(1080,1080,'public/uploads/products/lam/lam-1080.webp','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ',1),
+(1081,1081,'public/uploads/products/lam/lam-1081.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn',1),
+(1082,1082,'public/uploads/products/lam/lam-1082.webp','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan',1),
+(1083,1083,'public/uploads/products/lam/lam-1083.webp','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu',1),
+(1084,1084,'public/uploads/products/lam/lam-1084.webp','Túi Tây Tạng “OM”',1),
+(1085,1085,'public/uploads/products/lam/lam-1085.webp','Túi Xách Sen Vàng',1),
+(1086,1086,'public/uploads/products/lam/lam-1086.jpg','Túi Sen Cách Điệu Lam',1),
+(1087,1087,'public/uploads/products/lam/lam-1087.jpg','Túi Sen Cách Điệu Nâu',1),
+(1088,1088,'public/uploads/products/lam/lam-1088.jpg','Túi Đeo Vai Hiện Đại',1),
+(1089,1089,'public/uploads/products/lam/lam-1089.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm',1),
+(1090,1090,'public/uploads/products/lam/lam-1090.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm',1),
+(1091,1091,'public/uploads/products/lam/lam-1091.jpg','Túi Xách La Hán',1),
+(1092,1092,'public/uploads/products/lam/lam-1092.jpg','Túi Sen Cao Cấp',1),
+(1093,1093,'public/uploads/products/lam/lam-1093.jpg','Túi Sen Cao Cấp',1),
+(1094,1094,'public/uploads/products/lam/lam-1094.jpg','Túi Đeo Vai Sen Vàng',1),
+(1095,1095,'public/uploads/products/lam/lam-1095.jpg','Túi Đeo Chéo Sen Vàng',1),
+(1096,1096,'public/uploads/products/lam/lam-1096.jpg','Ba Lô Vải Cao Cấp',1),
+(1097,1097,'public/uploads/products/lam/lam-1097.jpg','Ba Lô Rút Nhỏ Gọn',1),
+(1098,1098,'public/uploads/products/lam/lam-1098.jpg','Túi Du Lịch Thêu Sen',1),
+(1099,1099,'public/uploads/products/lam/lam-1099.jpg','Túi Du Lịch Sen Vàng',1),
+(1100,1100,'public/uploads/products/lam/lam-1100.jpg','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt',1),
+(1101,1101,'public/uploads/products/lam/lam-1101.jpg','Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam',1),
+(1102,1102,'public/uploads/products/lam/lam-1102.jpg','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm',1),
+(1103,1103,'public/uploads/products/lam/lam-1103.jpg','Chuỗi Vòng Tay Gỗ Sưa Quảng Bình',1),
+(1104,1104,'public/uploads/products/lam/lam-1104.jpg','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm',1),
+(1105,1105,'public/uploads/products/lam/lam-1105.jpg','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm',1),
+(1106,1106,'public/uploads/products/lam/lam-1106.jpg','Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt',1),
+(1107,1107,'public/uploads/products/lam/lam-1107.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc)',1),
+(1108,1108,'public/uploads/products/lam/lam-1108.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam',1),
+(1109,1109,'public/uploads/products/lam/lam-1109.jpg','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm',1),
+(1110,1110,'public/uploads/products/lam/lam-1110.jpg','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước',1),
+(1111,1111,'public/uploads/products/lam/lam-1111.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt',1),
+(1112,1112,'public/uploads/products/lam/lam-1112.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm',1),
+(1113,1113,'public/uploads/products/lam/lam-1113.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm',1),
+(1114,1114,'public/uploads/products/lam/lam-1114.jpg','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm',1),
+(1115,1115,'public/uploads/products/lam/lam-1115.jpg','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm)',1),
+(1116,1116,'public/uploads/products/lam/lam-1116.jpg','Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k',1),
+(1117,1117,'public/uploads/products/lam/lam-1117.jpg','Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k',1),
+(1118,1118,'public/uploads/products/lam/lam-1118.jpg','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước',1),
+(1119,1119,'public/uploads/products/lam/lam-1119.jpg','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ',1),
+(1120,1120,'public/uploads/products/lam/lam-1120.jpg','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ',1),
+(1121,1121,'public/uploads/products/lam/lam-1121.jpg','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ',1),
+(1122,1122,'public/uploads/products/lam/lam-1122.jpg','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm',1),
+(1123,1123,'public/uploads/products/lam/lam-1123.jpg','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm',1),
+(1124,1124,'public/uploads/products/lam/lam-1124.jpg','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm',1),
+(1125,1125,'public/uploads/products/lam/lam-1125.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm',1),
+(1126,1126,'public/uploads/products/lam/lam-1126.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm',1),
+(1127,1127,'public/uploads/products/lam/lam-1127.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm',1),
+(1128,1128,'public/uploads/products/lam/lam-1128.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm',1),
+(1129,1129,'public/uploads/products/lam/lam-1129.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm',1),
+(1130,1130,'public/uploads/products/lam/lam-1130.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm',1),
+(1131,1131,'public/uploads/products/lam/lam-1131.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm',1),
+(1132,1132,'public/uploads/products/lam/lam-1132.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm',1),
+(1133,1133,'public/uploads/products/lam/lam-1133.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm',1),
+(1134,1134,'public/uploads/products/lam/lam-1134.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm',1),
+(1135,1135,'public/uploads/products/lam/lam-1135.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm',1),
+(1136,1136,'public/uploads/products/lam/lam-1136.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm',1),
+(1137,1137,'public/uploads/products/lam/lam-1137.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm',1),
+(1138,1138,'public/uploads/products/lam/lam-1138.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm',1),
+(1139,1139,'public/uploads/products/lam/lam-1139.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm',1),
+(1140,1140,'public/uploads/products/lam/lam-1140.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm',1),
+(1141,1141,'public/uploads/products/lam/lam-1141.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm',1),
+(1142,1142,'public/uploads/products/lam/lam-1142.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm',1),
+(1143,1143,'public/uploads/products/lam/lam-1143.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm',1),
+(1144,1144,'public/uploads/products/lam/lam-1144.jpg','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm',1),
+(1145,1145,'public/uploads/products/lam/lam-1145.jpg','Đệm Phẳng Lễ Phật, Cỡ 60x150cm',1),
+(1146,1146,'public/uploads/products/lam/lam-1146.jpg','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm',1),
+(1147,1147,'public/uploads/products/lam/lam-1147.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm',1),
+(1148,1148,'public/uploads/products/lam/lam-1148.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm',1),
+(1149,1149,'public/uploads/products/lam/lam-1149.jpg','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm',1);
 
-CREATE TABLE IF NOT EXISTS `custom_notes` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `entity_type` VARCHAR(50) NOT NULL COMMENT 'order, user, product...',
-  `entity_id` INT UNSIGNED NOT NULL,
-  `note_content` TEXT NOT NULL,
-  `created_by` INT UNSIGNED DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `custom_notes_entity_idx` (`entity_type`, `entity_id`),
-  CONSTRAINT `custom_notes_user_fk`
-    FOREIGN KEY (`created_by`) REFERENCES `user` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `product_sources` (`product_id`,`source_site`,`source_product_url`,`source_image_url`,`source_name`,`synced_at`) VALUES
+(1000,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-hai-thanh-phap-phuc-y-hau-quy-thay-mau-vang-dat/','https://phapduyen.com/wp-content/uploads/2024/05/Hai-Thanh-vang-dat-0-2.jpg','Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất','2026-08-11 00:00:00'),
+(1001,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-vang-dat/','https://phapduyen.com/wp-content/uploads/2023/12/7-vat-vang-dat-0.jpg','Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất','2026-08-11 00:00:00'),
+(1002,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2023/10/00-48.jpg','Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ','2026-08-11 00:00:00'),
+(1003,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-hai-thanh-ong-tay-rong-ao-hau-quy-thay-mau-vang-cam-phap-phuc-dai-duc-hoa-thuong-quy-thay-tang-ni-xuat-gia/','https://phapduyen.com/wp-content/uploads/2019/11/00-3.jpg','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size','2026-08-11 00:00:00'),
+(1004,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-hai-thanh-ao-hau-quy-thay/','https://phapduyen.com/wp-content/uploads/2018/07/Hai-Thanh-Vang_001-1.jpg','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia','2026-08-11 00:00:00'),
+(1005,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-vang/','https://phapduyen.com/wp-content/uploads/2017/07/ATTS-7VB.jpg','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia','2026-08-11 00:00:00'),
+(1006,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-xam-2/','https://phapduyen.com/wp-content/uploads/2023/07/Ao-Trang-7-vat-xam-0.jpg','Áo Tràng Trường Sam 7 Vạt Màu Xám','2026-08-11 00:00:00'),
+(1007,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-viet-hai-mau-nau-size-40-41-42/','https://phapduyen.com/wp-content/uploads/2023/02/00.jpg','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1008,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mua-dong-nhieu-size/','https://phapduyen.com/wp-content/uploads/2018/11/ATLL01-V44-00.jpg','Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni','2026-08-11 00:00:00'),
+(1009,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mau-xam-size-37-cao-155cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-53.jpg','Áo Tràng Lót Lông Màu Xám','2026-08-11 00:00:00'),
+(1010,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mau-nau-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/01/00-5.jpg','Áo Tràng Lót Lông Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
+(1011,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tuy-y-mau-vang-size-3536373839/','https://phapduyen.com/wp-content/uploads/2023/02/00-25.jpg','Áo Tuỳ Y Màu Vàng, Nhiều Size','2026-08-11 00:00:00'),
+(1012,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tu-y-nau-25-dieu/','https://phapduyen.com/wp-content/uploads/2021/11/00-2.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size','2026-08-11 00:00:00'),
+(1013,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tu-y-do-25-dieu/','https://phapduyen.com/wp-content/uploads/2021/11/00-copy.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size','2026-08-11 00:00:00'),
+(1014,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-hai-thanh-dai-loan-cao-cap/','https://dolamdichua.vn/wp-content/uploads/2026/08/ao-trang-dai-loan-hai-thanh-5-2.webp','Áo Tràng Hải Thanh Đài Loan Cao Cấp','2026-08-11 00:00:00'),
+(1015,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-chat-silk-cao-cap/','https://dolamdichua.vn/wp-content/uploads/2026/08/ao-trang-dai-loan-17-1.webp','Áo Tràng Đài Loan Chất Silk Cao Cấp','2026-08-11 00:00:00'),
+(1016,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-mau-lam/','https://dolamdichua.vn/wp-content/uploads/2026/04/ao-trang-lam-dai-loan-1.webp','Áo Tràng Đài Loan Màu Lam','2026-08-11 00:00:00'),
+(1017,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cao-cap-mau-bo/','https://dolamdichua.vn/wp-content/uploads/2025/07/ao-trang-dai-loan-mau-vang.webp','Áo Tràng Đài Loan Cao Cấp – Màu Bò','2026-08-11 00:00:00'),
+(1018,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-cao-cap-silk-dai-loan-nam-nu/','https://dolamdichua.vn/wp-content/uploads/2025/05/ao-trang-cao-cap.webp','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ','2026-08-11 00:00:00'),
+(1019,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-ao-di-duong-nha-su-tu-si/','https://dolamdichua.vn/wp-content/uploads/2025/05/ao-trang-la-han.webp','Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ','2026-08-11 00:00:00'),
+(1020,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cao-cap-mau-trang/','https://dolamdichua.vn/wp-content/uploads/2025/04/ao-trang-dai-loan5.webp','Áo Tràng Đài Loan Cao Cấp màu Trắng','2026-08-11 00:00:00'),
+(1021,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-hai-thanh-cho-tu-si-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2024/09/ao_trang_hai_thanh.jpg','Áo Tràng Hải Thanh Nam/Nữ','2026-08-11 00:00:00'),
+(1022,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cho-tu-si-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2024/09/ao_trang_Dai_Loan_Nam.jpg','Áo Tràng Đài Loan Nam/Nữ','2026-08-11 00:00:00'),
+(1023,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-khoac-gile-phat-tu-hien-dai-cao-cap-mau-xam/','https://dolamdichua.vn/wp-content/uploads/2021/12/ao-khoac-di-chua-gi-le.webp','Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ','2026-08-11 00:00:00'),
+(1024,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-phat-tu-kate-khong-theu-mau-lam/','https://dolamdichua.vn/wp-content/uploads/2021/12/ao_trang_phat_tu_mau_lam_2.jpg','Áo Tràng Kate Lam (không thêu)','2026-08-11 00:00:00'),
+(1025,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-thanh-van-vai-linen-bot-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2026/06/00-3.jpg','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L','2026-08-11 00:00:00'),
+(1026,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-thanh-lieu-vai-lanh-bang-mau-be-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2026/06/00-2.jpg','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L','2026-08-11 00:00:00'),
+(1027,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-mau-trang-size-l/','https://phapduyen.com/wp-content/uploads/2025/08/00-3.jpg','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng','2026-08-11 00:00:00'),
+(1028,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-co-tron-mau-be-size-xl/','https://phapduyen.com/wp-content/uploads/2025/08/CE0A4076-2.jpg','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be','2026-08-11 00:00:00'),
+(1029,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-mau-xam-size-xl/','https://phapduyen.com/wp-content/uploads/2025/08/00-2.jpg','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám','2026-08-11 00:00:00'),
+(1030,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-nu-tam-bo-de-vai-dui-tam-quan-ao-di-chua-trang-nghiem/','https://phapduyen.com/wp-content/uploads/2024/12/Tam-Bo-De-1000-1.jpg','Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm','2026-08-11 00:00:00'),
+(1031,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-mau-nau-size-smlxlxxl/','https://phapduyen.com/wp-content/uploads/2024/11/5-BNAH-MN-1.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL','2026-08-11 00:00:00'),
+(1032,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-ao-be-quan-nau-size-smlxlxxl/','https://phapduyen.com/wp-content/uploads/2024/11/BNAH-MB-1.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL','2026-08-11 00:00:00'),
+(1033,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-nu-linen-cao-cap-ke-xam-size-m/','https://phapduyen.com/wp-content/uploads/2025/08/00-4.jpg','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám','2026-08-11 00:00:00'),
+(1034,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-di-chua-nu-an-nhien-mau-trang-nga-vai-linen/','https://phapduyen.com/wp-content/uploads/2024/05/00a-1.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen','2026-08-11 00:00:00'),
+(1035,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-di-chua-nu-an-nhien-ao-be-quan-nau/','https://phapduyen.com/wp-content/uploads/2024/05/00a-2.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen','2026-08-11 00:00:00'),
+(1036,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-xam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-52.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL','2026-08-11 00:00:00'),
+(1037,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-den/','https://phapduyen.com/wp-content/uploads/2023/10/00-51.jpg','Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen','2026-08-11 00:00:00'),
+(1038,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-53.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS','2026-08-11 00:00:00'),
+(1039,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-xam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/04-44.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
+(1040,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phap-phuc-le-chua-nu-theu-hoa-sen-mau-nau-den/','https://phapduyen.com/wp-content/uploads/2023/10/00-61.jpg','Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen','2026-08-11 00:00:00'),
+(1041,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-sam-maunau-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-62.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
+(1042,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-nu-co-chu-y-theu-nhu-y-mau-nau-size-xs-s-m-l/','https://phapduyen.com/wp-content/uploads/2022/10/00-44.jpg','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L','2026-08-11 00:00:00'),
+(1043,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-dai-cach-tan-di-chua-hoa-sen-mau-nau-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/06/00-27.jpg','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L','2026-08-11 00:00:00'),
+(1044,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-tho-dui-size-27-28/','https://phapduyen.com/wp-content/uploads/2023/07/00-37.jpg','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
+(1045,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-cotton-mau-nau-tay-lung-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/05/00a-2.jpg','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL','2026-08-11 00:00:00'),
+(1046,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-cu-si-mau-vang-nhat-vai-cotton-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2019/10/00-8.jpg','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL','2026-08-11 00:00:00'),
+(1047,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-ho-xam-0.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
+(1048,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-nau-den-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-ho-nau-0.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1049,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-cu-si-nu-ao-chu-y-mau-xam/','https://phapduyen.com/wp-content/uploads/2017/06/IMG_0903.jpg','Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ','2026-08-11 00:00:00'),
+(1050,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-nam-tue-quang-dai-tay-vai-tho-dui/','https://phapduyen.com/wp-content/uploads/2025/11/IMG_5590.jpg','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi','2026-08-11 00:00:00'),
+(1051,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Ba-Lai-nau-den-0.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1052,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2021/05/00-79.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1053,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-xam-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-44.jpg','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size','2026-08-11 00:00:00'),
+(1054,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-nau-den-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1055,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-nau-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1056,'https://phapduyen.com','https://phapduyen.com/san-pham/ma-ten-hang-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-xam-nau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-xam-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size','2026-08-11 00:00:00'),
+(1057,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-ngan-tay-vai-linen-han-quoc-mau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/09/00-6.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1058,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phat-tu-nam-co-tru-vai-linen-tay-ngan-mau-trang-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Co-tru-trang-0-1.jpg','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size','2026-08-11 00:00:00'),
+(1059,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-vai-line-han-quoc-mau-xanh-duong-nhieu-size/','https://phapduyen.com/wp-content/uploads/2019/06/00-6.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL','2026-08-11 00:00:00'),
+(1060,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-vai-line-han-quoc-xanh-duong-nhieu-loai/','https://phapduyen.com/wp-content/uploads/2019/06/04-8.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1061,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-thien-minh-tho-dui-cao-cap-mau-xam/','https://phapduyen.com/wp-content/uploads/2024/01/00-4.jpg','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size','2026-08-11 00:00:00'),
+(1062,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2021/12/00-64.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1063,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/08/Co-tru-nam-dai-tay-nau-0.jpg','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1064,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-xam-size-s-m/','https://phapduyen.com/wp-content/uploads/2021/05/00-58.jpg','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
+(1065,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-13.jpg','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1066,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-bang-vai-linen-han-quoc-mau-nau-mau-ghi-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-45.jpg','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL','2026-08-11 00:00:00'),
+(1067,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-nam-co-tru-mau-trang-dai-tay-vai-linen/','https://phapduyen.com/wp-content/uploads/2024/04/IMG_6654-scaled.jpg','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size','2026-08-11 00:00:00'),
+(1068,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-sam-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-xam-dai-tay-0.jpg','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size','2026-08-11 00:00:00'),
+(1069,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-nau-den-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/vat-ho-nam-nau-linen-00.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1070,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-le-chua-vat-ho-tho-dui-phat-tu-nam-di-le-chua-mau-nau-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-Ho-Nam-dui-0.jpg','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
+(1071,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/05/00-23.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
+(1072,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-nau-mau-sam-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/08/La-Han-nau-0.jpg','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
+(1073,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-nau-mau-nau-den-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/08/01-36-1.jpg','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
+(1074,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2023/08/La-Han-xam-0.jpg','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
+(1075,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-nai-di-chua-cao-cap-3-mau-kich-thuoc-37-47cm/','https://dolamdichua.vn/wp-content/uploads/2026/07/tui-dai-di-chua-cho-nha-su.webp','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm','2026-08-11 00:00:00'),
+(1076,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-3-mau/','https://dolamdichua.vn/wp-content/uploads/2026/03/tui-di-chua-dai-loan-2.webp','Túi Đi Chùa Đài Loan – 3 Màu','2026-08-11 00:00:00'),
+(1077,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-19.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','2026-08-11 00:00:00'),
+(1078,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-nau/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-7.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu','2026-08-11 00:00:00'),
+(1079,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-8.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','2026-08-11 00:00:00'),
+(1080,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-cao-cap-cho-phat-tu-cu-si/','https://dolamdichua.vn/wp-content/uploads/2025/12/tui-di-chua-cao-cap-3.webp','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ','2026-08-11 00:00:00'),
+(1081,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-kem-nha-nhan/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-15.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn','2026-08-11 00:00:00'),
+(1082,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-cao-cap-hoa-sen-dai-loan/','https://dolamdichua.vn/wp-content/uploads/2025/07/tui-di-chua-dai-loan-cao-cap.webp','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan','2026-08-11 00:00:00'),
+(1083,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-theu-hoa-sen/','https://dolamdichua.vn/wp-content/uploads/2025/03/tui-xach-di-chua.webp','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu','2026-08-11 00:00:00'),
+(1084,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-tay-tang-theu-chu-om/','https://dolamdichua.vn/wp-content/uploads/2024/10/tui-di-chua.webp','Túi Tây Tạng “OM”','2026-08-11 00:00:00'),
+(1085,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-theu-sen/','https://dolamdichua.vn/wp-content/uploads/2024/10/tui_di_chua_sen_vang-4.webp','Túi Xách Sen Vàng','2026-08-11 00:00:00'),
+(1086,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-tu-si-phat-tu-lam/','https://dolamdichua.vn/wp-content/uploads/2024/09/tui_di_chua_cao_cap-1.jpg','Túi Sen Cách Điệu Lam','2026-08-11 00:00:00'),
+(1087,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-tu-si-phat-tu-nau/','https://dolamdichua.vn/wp-content/uploads/2024/09/tui_di_chua_Dai_Loan.jpg','Túi Sen Cách Điệu Nâu','2026-08-11 00:00:00'),
+(1088,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua/','https://dolamdichua.vn/wp-content/uploads/2023/11/tui-di-chua-02.jpg','Túi Đeo Vai Hiện Đại','2026-08-11 00:00:00'),
+(1089,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-14.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm','2026-08-11 00:00:00'),
+(1090,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-4-1-1.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm','2026-08-11 00:00:00'),
+(1091,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-4/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-11.jpg','Túi Xách La Hán','2026-08-11 00:00:00'),
+(1092,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-3/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-6.jpg','Túi Sen Cao Cấp','2026-08-11 00:00:00'),
+(1093,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-5.jpg','Túi Sen Cao Cấp','2026-08-11 00:00:00'),
+(1094,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-3/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-8.jpg','Túi Đeo Vai Sen Vàng','2026-08-11 00:00:00'),
+(1095,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-3.jpg','Túi Đeo Chéo Sen Vàng','2026-08-11 00:00:00'),
+(1096,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-cao-cap-du-lich-dung-y-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-2.jpg','Ba Lô Vải Cao Cấp','2026-08-11 00:00:00'),
+(1097,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-1.jpg','Ba Lô Rút Nhỏ Gọn','2026-08-11 00:00:00'),
+(1098,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-nau.jpg','Túi Du Lịch Thêu Sen','2026-08-11 00:00:00'),
+(1099,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-cao-cap-mau-moi-nam-2023/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-1.jpg','Túi Du Lịch Sen Vàng','2026-08-11 00:00:00'),
+(1100,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-deo-tay-tram-xi-cao-cap-10mm-x-18-hat/','https://phapduyen.com/wp-content/uploads/2026/04/00-2-scaled.jpg','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt','2026-08-11 00:00:00'),
+(1101,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-sua-do-viet-nam/','https://phapduyen.com/wp-content/uploads/2025/12/00-19-scaled.jpg','Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam','2026-08-11 00:00:00'),
+(1102,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-toc-viet-nam-tram-xi-cao-cap-10mm-13mm-18mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-18-scaled.jpg','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm','2026-08-11 00:00:00'),
+(1103,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-sua-quang-binh/','https://phapduyen.com/wp-content/uploads/2025/12/00-17-scaled.jpg','Chuỗi Vòng Tay Gỗ Sưa Quảng Bình','2026-08-11 00:00:00'),
+(1104,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-xi-viet-nam-dot-truc-7-dot-20mm-x-8mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-16-scaled.jpg','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm','2026-08-11 00:00:00'),
+(1105,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-xi-dau-xanh-de-moc-kich-thuoc-18mm-20mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-15-scaled.jpg','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm','2026-08-11 00:00:00'),
+(1106,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-viet-nam-dot-truc-30-dot/','https://phapduyen.com/wp-content/uploads/2025/12/00-14-scaled.jpg','Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt','2026-08-11 00:00:00'),
+(1107,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-2/','https://phapduyen.com/wp-content/uploads/2025/12/00-11-scaled.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc)','2026-08-11 00:00:00'),
+(1108,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-108-hat-tram-huong-toc-viet-nam/','https://phapduyen.com/wp-content/uploads/2025/12/00-10-scaled.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam','2026-08-11 00:00:00'),
+(1109,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-dan-huong-xanh-10mm-20mm/','https://phapduyen.com/wp-content/uploads/2023/04/bc4ace77d8dd4cbf96cd86e577c8a2ae.jpg','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm','2026-08-11 00:00:00'),
+(1110,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-deo-tay-bang-go-chien-dan-kich-thuoc-10mm-12mm-14mm-16mm/','https://phapduyen.com/wp-content/uploads/2023/02/00-15.jpg','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước','2026-08-11 00:00:00'),
+(1111,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-10-dot/','https://phapduyen.com/wp-content/uploads/2022/11/00-27.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt','2026-08-11 00:00:00'),
+(1112,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot/','https://phapduyen.com/wp-content/uploads/2022/11/00-17.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm','2026-08-11 00:00:00'),
+(1113,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-108-hat-tram-huong-banh-indo-5mm-6mm-8mm/','https://phapduyen.com/wp-content/uploads/2022/10/01-35a-scaled.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm','2026-08-11 00:00:00'),
+(1114,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-tram-huong-indo-toc-quan-15mm-2/','https://phapduyen.com/wp-content/uploads/2022/10/00-32.jpg','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm','2026-08-11 00:00:00'),
+(1115,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-nguyen-chat-tram-banh-indo-13-hat-14-hat/','https://phapduyen.com/wp-content/uploads/2022/10/00-20.jpg','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm)','2026-08-11 00:00:00'),
+(1116,'https://phapduyen.com','https://phapduyen.com/san-pham/day-chuyen-mat-hinh-hu-khong-tang-bo-tat-kham-vang/','https://phapduyen.com/wp-content/uploads/2020/11/00-32.jpg','Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k','2026-08-11 00:00:00'),
+(1117,'https://phapduyen.com','https://phapduyen.com/san-pham/day-chuyen-mat-hinh-dai-nhat-nhu-lai-kham-vang/','https://phapduyen.com/wp-content/uploads/2020/11/00-30.jpg','Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k','2026-08-11 00:00:00'),
+(1118,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-thach-anh-toc-mau-vang-11mm/','https://phapduyen.com/wp-content/uploads/2020/04/00-28.jpg','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước','2026-08-11 00:00:00'),
+(1119,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-dan-huong-ngu-sac-cvt-014/','https://phapduyen.com/wp-content/uploads/2016/06/CVT-014-15x15-00.jpg','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ','2026-08-11 00:00:00'),
+(1120,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-tung-bach-cvt-013/','https://phapduyen.com/wp-content/uploads/2016/06/CVT-013.jpg','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ','2026-08-11 00:00:00'),
+(1121,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-hong-lao-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2017/06/CVT-GHL-15x15-001-1.jpg','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ','2026-08-11 00:00:00'),
+(1122,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-thach-anh-toc-mau-tim-kich-thuoc-6mm-10mm/','https://phapduyen.com/wp-content/uploads/2026/01/00-14-scaled.jpg','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm','2026-08-11 00:00:00'),
+(1123,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-deo-tay-da-luu-ly-vang-khac-chu-nam-mo-a-di-da-phat-kich-thuoc-12mm-14mm/','https://phapduyen.com/wp-content/uploads/2016/06/00-2-scaled.jpg','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm','2026-08-11 00:00:00'),
+(1124,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-pha-le-hong-tim-10mm/','https://phapduyen.com/wp-content/uploads/2026/01/00-12-scaled.jpg','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm','2026-08-11 00:00:00'),
+(1125,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-nau-kich-thuoc-60cmx60cm-70cmx70cm-80cmx80cm/','https://phapduyen.com/wp-content/uploads/2024/03/00.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','2026-08-11 00:00:00'),
+(1126,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-vang-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/02/00b-1.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm','2026-08-11 00:00:00'),
+(1127,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-xam-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/02/00.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
+(1128,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-ngoi-thien-tinh-toa-niem-phat-theu-hoa-sen-mau-xam-kich-thuoc-60x60cm-70x70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/01/00-50.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
+(1129,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-ngoi-thien-ruot-dua-lot-theu-hoa-sen-70x70cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-105.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
+(1130,'https://phapduyen.com','https://phapduyen.com/san-pham/93982/','https://phapduyen.com/wp-content/uploads/2022/10/00-4.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
+(1131,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-xam-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/11/03-Copy.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
+(1132,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-nau-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/11/02a-7.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
+(1133,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-nau-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-19.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','2026-08-11 00:00:00'),
+(1134,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-vang-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-18.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm','2026-08-11 00:00:00'),
+(1135,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-xam-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-31.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm','2026-08-11 00:00:00'),
+(1136,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-30cm-x-50cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-28.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm','2026-08-11 00:00:00'),
+(1137,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-30cm-x-50cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-26.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm','2026-08-11 00:00:00'),
+(1138,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-cat-tuong-theu-hoa-sen-vo-do-mau-nau-kich-thuoc-30cm-x-8cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-47.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm','2026-08-11 00:00:00'),
+(1139,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-cat-tuong-theu-hoa-senvo-do-mau-do-kich-thuoc-30cm-x-8cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-46.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm','2026-08-11 00:00:00'),
+(1140,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-xam-nhieu-co-60cm-70cm/','https://phapduyen.com/wp-content/uploads/2022/11/Dem-mong-hoa-sen-xam-0.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm','2026-08-11 00:00:00'),
+(1141,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-nau-nhieu-co-60cm-70cm/','https://phapduyen.com/wp-content/uploads/2022/11/Dem-mong-hoa-sen-nau-0.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm','2026-08-11 00:00:00'),
+(1142,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-40cm-x-6cm/','https://phapduyen.com/wp-content/uploads/2020/11/ada-2.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm','2026-08-11 00:00:00'),
+(1143,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-49cm-x-6cm/','https://phapduyen.com/wp-content/uploads/2020/11/01-23-1.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm','2026-08-11 00:00:00'),
+(1144,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-le-phat-hoa-sen-vang-vien-nau-kich-co-50x180cm-60x180cm/','https://phapduyen.com/wp-content/uploads/2021/12/c6f30c2f-06ac-4409-961a-a5ee1c159e4b.jpg','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm','2026-08-11 00:00:00'),
+(1145,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-phang-le-phat-co-60x150/','https://phapduyen.com/wp-content/uploads/2018/05/DTP-02.jpg','Đệm Phẳng Lễ Phật, Cỡ 60x150cm','2026-08-11 00:00:00'),
+(1146,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-phang-le-phat-kich-thuoc-60x150cm/','https://phapduyen.com/wp-content/uploads/2021/07/00-56.jpg','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm','2026-08-11 00:00:00'),
+(1147,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-29.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm','2026-08-11 00:00:00'),
+(1148,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-30.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm','2026-08-11 00:00:00'),
+(1149,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm/','https://phapduyen.com/wp-content/uploads/2017/09/SCP-G811.jpg','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm','2026-08-11 00:00:00');
 
--- ============================================================================
--- 7. DỮ LIỆU MẪU: DANH MỤC VÀ THUỘC TÍNH
--- Các ID cố định chỉ dùng để tạo một database demo mới, không import vào
--- database cũ vì có thể trùng ID.
--- ============================================================================
+INSERT INTO `inventory_logs` (`variant_id`,`quantity_changed`,`reason`) VALUES
+(10001,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10002,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10003,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10004,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10011,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10012,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10013,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10014,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10021,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10022,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10023,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10024,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10031,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10032,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10033,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10034,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10041,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10042,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10043,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10044,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10051,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10052,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10053,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10054,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10061,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10062,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10063,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10064,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10071,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10072,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10073,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10074,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10081,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10082,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10083,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10084,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10091,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10092,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10093,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10094,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10101,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10102,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10103,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10104,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10111,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10112,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10113,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10114,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10121,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10122,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10123,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10124,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10131,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10132,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10133,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10134,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10141,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10142,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10143,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10144,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10151,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10152,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10153,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10154,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10161,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10162,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10163,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10164,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10171,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10172,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10173,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10174,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10181,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10182,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10183,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10184,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10191,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10192,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10193,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10194,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10201,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10202,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10203,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10204,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10211,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10212,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10213,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10214,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10221,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10222,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10223,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10224,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10231,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10232,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10233,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10234,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10241,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10242,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10243,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10244,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10251,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10252,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10253,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10254,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10261,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10262,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10263,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10264,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10271,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10272,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10273,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10274,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10281,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10282,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10283,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10284,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10291,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10292,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10293,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10294,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10301,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10302,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10303,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10304,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10311,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10312,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10313,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10314,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10321,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10322,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10323,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10324,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10331,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10332,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10333,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10334,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10341,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10342,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10343,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10344,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10351,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10352,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10353,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10354,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10361,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10362,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10363,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10364,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10371,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10372,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10373,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10374,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10381,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10382,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10383,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10384,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10391,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10392,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10393,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10394,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10401,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10402,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10403,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10404,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10411,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10412,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10413,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10414,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10421,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10422,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10423,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10424,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10431,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10432,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10433,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10434,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10441,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10442,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10443,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10444,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10451,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10452,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10453,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10454,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10461,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10462,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10463,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10464,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10471,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10472,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10473,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10474,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10481,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10482,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10483,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10484,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10491,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10492,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10493,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10494,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10501,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10502,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10503,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10504,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10511,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10512,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10513,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10514,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10521,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10522,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10523,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10524,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10531,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10532,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10533,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10534,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10541,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10542,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10543,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10544,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10551,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10552,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10553,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10554,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10561,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10562,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10563,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10564,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10571,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10572,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10573,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10574,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10581,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10582,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10583,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10584,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10591,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10592,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10593,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10594,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10601,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10602,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10603,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10604,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10611,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10612,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10613,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10614,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10621,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10622,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10623,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10624,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10631,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10632,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10633,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10634,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10641,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10642,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10643,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10644,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10651,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10652,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10653,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10654,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10661,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10662,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10663,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10664,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10671,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10672,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10673,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10674,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10681,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10682,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10683,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10684,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10691,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10692,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10693,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10694,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10701,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10702,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10703,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10704,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10711,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10712,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10713,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10714,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10721,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10722,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10723,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10724,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10731,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10732,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10733,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10734,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10741,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10742,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10743,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10744,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10751,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10752,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10753,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10761,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10762,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10763,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10771,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10772,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10773,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10781,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10782,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10783,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10791,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10792,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10793,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10801,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10802,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10803,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10811,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10812,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10813,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10821,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10822,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10823,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10831,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10832,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10833,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10841,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10842,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10843,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10851,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10852,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10853,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10861,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10862,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10863,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10871,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10872,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10873,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10881,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10882,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10883,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10891,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10892,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10893,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10901,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10902,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10903,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10911,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10912,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10913,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10921,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10922,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10923,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10931,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10932,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10933,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10941,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10942,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10943,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10951,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10952,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10953,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10961,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10962,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10963,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10971,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10972,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10973,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10981,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10982,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10983,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10991,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10992,20,'Tồn kho khởi tạo catalog đồ lam'),
+(10993,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11001,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11002,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11003,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11011,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11012,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11013,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11021,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11022,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11023,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11031,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11032,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11033,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11041,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11042,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11043,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11051,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11052,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11053,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11061,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11062,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11063,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11071,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11072,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11073,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11081,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11082,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11083,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11091,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11092,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11093,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11101,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11102,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11103,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11111,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11112,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11113,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11121,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11122,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11123,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11131,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11132,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11133,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11141,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11142,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11143,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11151,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11152,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11153,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11161,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11162,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11163,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11171,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11172,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11173,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11181,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11182,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11183,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11191,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11192,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11193,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11201,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11202,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11203,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11211,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11212,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11213,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11221,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11222,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11223,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11231,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11232,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11233,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11241,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11242,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11243,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11251,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11252,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11253,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11261,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11262,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11263,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11271,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11272,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11273,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11281,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11282,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11283,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11291,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11292,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11293,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11301,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11302,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11303,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11311,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11312,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11313,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11321,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11322,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11323,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11331,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11332,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11333,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11341,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11342,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11343,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11351,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11352,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11353,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11361,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11362,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11363,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11371,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11372,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11373,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11381,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11382,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11383,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11391,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11392,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11393,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11401,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11402,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11403,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11411,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11412,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11413,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11421,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11422,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11423,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11431,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11432,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11433,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11441,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11442,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11443,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11451,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11452,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11453,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11461,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11462,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11463,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11471,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11472,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11473,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11481,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11482,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11483,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11491,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11492,20,'Tồn kho khởi tạo catalog đồ lam'),
+(11493,20,'Tồn kho khởi tạo catalog đồ lam');
 
-INSERT INTO `roles` (`id`, `code`, `name`, `description`, `status`) VALUES
-  (1, 'admin', 'Quản trị viên', 'Toàn quyền quản trị hệ thống.', 1),
-  (2, 'staff', 'Nhân viên vận hành', 'Quản lý đơn, kho và nội dung theo quyền được cấp.', 1),
-  (3, 'customer', 'Khách hàng', 'Mua hàng và quản lý dữ liệu cá nhân của chính mình.', 1)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `status` = VALUES(`status`);
+-- KHUYẾN MẠI VÀ NỘI DUNG MẪU
+INSERT INTO `coupons` (`id`,`code`,`discount_percent`,`max_discount`,`min_order_amount`,`usage_limit`,`usage_limit_per_user`,`used_count`,`start_date`,`expiry_date`,`category_id`,`product_id`,`status`) VALUES
+(1,'LAMANLAC',15,150000,200000,500,1,0,'2026-08-01 00:00:00','2026-12-31 23:59:59',NULL,NULL,1),
+(2,'PHAPVUCP20',20,300000,500000,300,1,0,'2026-08-01 00:00:00','2026-12-31 23:59:59',NULL,NULL,1);
 
-INSERT INTO `permissions` (`id`, `code`, `name`, `group_name`, `description`) VALUES
-  (1, 'catalog.manage', 'Quản lý danh mục và sản phẩm', 'catalog', NULL),
-  (2, 'inventory.manage', 'Quản lý tồn kho', 'inventory', NULL),
-  (3, 'orders.manage', 'Quản lý đơn hàng', 'orders', NULL),
-  (4, 'payments.view', 'Xem và đối soát thanh toán', 'payments', NULL),
-  (5, 'customers.manage', 'Quản lý khách hàng', 'customers', NULL),
-  (6, 'promotions.manage', 'Quản lý khuyến mãi', 'marketing', NULL),
-  (7, 'content.manage', 'Quản lý bài viết và banner', 'content', NULL),
-  (8, 'reports.view', 'Xem báo cáo', 'reports', NULL),
-  (9, 'settings.manage', 'Quản lý cấu hình và thông tin pháp lý', 'settings', NULL),
-  (10, 'security.manage', 'Xem nhật ký và cấu hình an ninh', 'security', NULL),
-  (11, 'suppliers.manage', 'Quản lý nhà cung cấp và phiếu nhập', 'supply', NULL),
-  (12, 'after_sales.manage', 'Quản lý đổi trả và hoàn tiền', 'after_sales', NULL)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `group_name` = VALUES(`group_name`), `description` = VALUES(`description`);
+INSERT INTO `banner` (`id`,`image_url`,`link_url`,`status`) VALUES
+(1,'assets/images/lam-hero-lanterns.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(2,'assets/images/lam-hero-courtyard.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(3,'assets/images/lam-hero-pagoda.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(4,'assets/images/lam-hero-temple.jpg','shop?category=Đồ+lam+đi+chùa',1);
 
-INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
-SELECT 1, `id` FROM `permissions`;
+INSERT INTO `setting` (`id`,`key_name`,`value`) VALUES
+(1,'store_name','PaceUp - Đồ lam & Pháp phục'),
+(2,'store_address','Hồ Chí Minh, Việt Nam'),
+(3,'store_phone','0900 000 001'),
+(4,'store_email','cskh@paceup.local');
 
-INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
-  (2, 1), (2, 2), (2, 3), (2, 4), (2, 6), (2, 7), (2, 8), (2, 11), (2, 12);
+INSERT INTO `post_categories` (`id`,`name`) VALUES
+(1,'Cẩm nang đi chùa');
 
--- Không seed tài khoản admin/password để tránh có thông tin đăng nhập mặc định.
--- Khi triển khai, tạo admin bằng script riêng và gán user_roles tương ứng.
+INSERT INTO `posts` (`id`,`category_id`,`title`,`content`,`thumbnail`) VALUES
+(1,1,'Gợi ý chọn trang phục đi chùa trang nhã','Ưu tiên trang phục kín đáo, màu sắc nhã nhặn và chất liệu thoải mái khi đi chùa hoặc ngồi thiền.','assets/images/lam-hero-temple.jpg');
 
-INSERT INTO `warehouses` (`id`, `code`, `name`, `address`, `status`, `is_default`) VALUES
-  (1, 'KHO-MAC-DINH', 'Kho mặc định', 'Cập nhật địa chỉ kho thật trước khi vận hành.', 'active', 1)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `address` = VALUES(`address`), `status` = VALUES(`status`), `is_default` = VALUES(`is_default`);
+INSERT INTO `schema_migrations` (`version`) VALUES
+('paceup_db_v1_single_import');
 
-INSERT INTO `categories` (`id`, `parent_id`, `name`, `slug`, `description`, `status`, `sort_order`) VALUES
-  (1, NULL, 'Quần áo', 'quan-ao', 'Các sản phẩm quần áo mặc đi chùa, ngồi thiền và dành cho Tăng - Ni.', 1, 10),
-  (2, 1, 'Quần áo Tăng - Ni', 'quan-ao-tang-ni', 'Trang phục dành cho Tăng - Ni.', 1, 11),
-  (3, 1, 'Đồ lam đi chùa', 'do-lam-di-chua', 'Trang phục lam lịch sự, trang nhã khi đi chùa.', 1, 12),
-  (4, 1, 'Quần áo ngồi thiền', 'quan-ao-ngoi-thien', 'Trang phục thoải mái phục vụ việc ngồi thiền.', 1, 13),
-  (5, NULL, 'Túi và phụ kiện', 'tui-va-phu-kien', 'Túi, chuỗi hạt và phụ kiện đi chùa.', 1, 20),
-  (6, 5, 'Túi đeo đi chùa', 'tui-deo-di-chua', 'Túi vải và túi đeo tiện dụng khi đi chùa.', 1, 21),
-  (7, 5, 'Vòng tay - chuỗi hạt', 'vong-tay-chuoi-hat', 'Vòng tay, chuỗi hạt và các sản phẩm liên quan.', 1, 22),
-  (8, 5, 'Phụ kiện đi chùa', 'phu-kien-di-chua', 'Các phụ kiện phù hợp khi đi chùa.', 1, 23)
-ON DUPLICATE KEY UPDATE
-  `name` = VALUES(`name`), `description` = VALUES(`description`),
-  `status` = VALUES(`status`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `catalog_attributes` (`id`, `code`, `name`, `data_type`, `unit`, `scope`, `is_filterable`, `status`, `sort_order`) VALUES
-  (1, 'size', 'Kích cỡ', 'select', NULL, 'variant', 1, 1, 10),
-  (2, 'color', 'Màu sắc', 'select', NULL, 'variant', 1, 1, 20),
-  (3, 'material', 'Chất liệu', 'select', NULL, 'both', 1, 1, 30),
-  (4, 'target_user', 'Đối tượng sử dụng', 'select', NULL, 'product', 1, 1, 40),
-  (5, 'bead_size_mm', 'Đường kính hạt', 'number', 'mm', 'variant', 1, 1, 50),
-  (6, 'bead_count', 'Số lượng hạt', 'number', 'hạt', 'variant', 1, 1, 60),
-  (7, 'length_cm', 'Chiều dài', 'number', 'cm', 'variant', 1, 1, 70),
-  (8, 'dimensions', 'Kích thước', 'text', NULL, 'product', 1, 1, 80),
-  (9, 'origin', 'Xuất xứ', 'text', NULL, 'product', 1, 1, 90),
-  (10, 'style', 'Kiểu dáng', 'select', NULL, 'product', 1, 1, 100),
-  (11, 'usage', 'Công dụng', 'text', NULL, 'product', 0, 1, 110),
-  (12, 'care_instruction', 'Hướng dẫn bảo quản', 'text', NULL, 'product', 0, 1, 120)
-ON DUPLICATE KEY UPDATE
-  `name` = VALUES(`name`), `data_type` = VALUES(`data_type`), `unit` = VALUES(`unit`),
-  `scope` = VALUES(`scope`), `is_filterable` = VALUES(`is_filterable`),
-  `status` = VALUES(`status`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `catalog_attribute_options` (`id`, `attribute_id`, `value`, `label`, `sort_order`, `status`) VALUES
-  (1, 1, 's', 'S', 10, 1),
-  (2, 1, 'm', 'M', 20, 1),
-  (3, 1, 'l', 'L', 30, 1),
-  (4, 1, 'xl', 'XL', 40, 1),
-  (5, 1, '2xl', '2XL', 50, 1),
-  (6, 1, 'free-size', 'Free size', 60, 1),
-  (11, 2, 'nau', 'Nâu', 10, 1),
-  (12, 2, 'xam', 'Xám', 20, 1),
-  (13, 2, 'trang', 'Trắng', 30, 1),
-  (14, 2, 'den', 'Đen', 40, 1),
-  (15, 2, 'vang-nhat', 'Vàng nhạt', 50, 1),
-  (20, 3, 'cotton', 'Cotton', 10, 1),
-  (21, 3, 'linen', 'Linen', 20, 1),
-  (22, 3, 'go-tram-huong', 'Gỗ trầm hương', 30, 1),
-  (23, 3, 'go-dan-huong', 'Gỗ đàn hương', 40, 1),
-  (24, 3, 'da-tu-nhien', 'Đá tự nhiên', 50, 1),
-  (25, 3, 'canvas', 'Canvas', 60, 1),
-  (26, 3, 'vai-bo', 'Vải bố', 70, 1),
-  (30, 4, 'tang', 'Tăng', 10, 1),
-  (31, 4, 'ni', 'Ni', 20, 1),
-  (32, 4, 'phat-tu', 'Phật tử', 30, 1),
-  (33, 4, 'unisex', 'Dùng chung', 40, 1),
-  (40, 10, 'co-tron', 'Cổ tròn', 10, 1),
-  (41, 10, 'co-tau', 'Cổ tàu', 20, 1),
-  (42, 10, 'tay-dai', 'Tay dài', 30, 1),
-  (43, 10, 'bo-thien', 'Bộ thiền', 40, 1)
-ON DUPLICATE KEY UPDATE
-  `label` = VALUES(`label`), `sort_order` = VALUES(`sort_order`), `status` = VALUES(`status`);
-
--- Thuộc tính bắt buộc/được lọc theo từng danh mục hiển thị.
-INSERT IGNORE INTO `category_attribute_rules`
-  (`category_id`, `attribute_id`, `is_required`, `is_variant_attribute`, `is_filterable`, `sort_order`) VALUES
-  (2, 1, 1, 1, 1, 10), (2, 2, 1, 1, 1, 20), (2, 3, 1, 0, 1, 30),
-  (2, 4, 1, 0, 1, 40), (2, 10, 0, 0, 1, 50), (2, 12, 0, 0, 0, 60),
-  (3, 1, 1, 1, 1, 10), (3, 2, 1, 1, 1, 20), (3, 3, 1, 0, 1, 30),
-  (3, 4, 1, 0, 1, 40), (3, 10, 0, 0, 1, 50), (3, 12, 0, 0, 0, 60),
-  (4, 1, 1, 1, 1, 10), (4, 2, 1, 1, 1, 20), (4, 3, 1, 0, 1, 30),
-  (4, 10, 1, 0, 1, 40), (4, 12, 0, 0, 0, 50),
-  (6, 2, 1, 1, 1, 10), (6, 3, 1, 0, 1, 20), (6, 8, 1, 0, 1, 30),
-  (6, 9, 0, 0, 1, 40), (6, 11, 0, 0, 0, 50),
-  (7, 3, 1, 0, 1, 10), (7, 5, 1, 1, 1, 20), (7, 6, 1, 1, 1, 30),
-  (7, 7, 1, 1, 1, 40), (7, 9, 0, 0, 1, 50), (7, 12, 0, 0, 0, 60),
-  (8, 2, 0, 1, 1, 10), (8, 3, 1, 0, 1, 20), (8, 11, 1, 0, 0, 30),
-  (8, 12, 0, 0, 0, 40);
-
--- ============================================================================
--- 8. DỮ LIỆU MẪU: SẢN PHẨM VÀ BIẾN THỂ
--- image_url bên dưới là đường dẫn mẫu. Cần upload ảnh thật trước khi hiển thị.
--- ============================================================================
-
-INSERT INTO `product`
-  (`id`, `category_id`, `name`, `slug`, `short_description`, `description`, `base_price`, `product_type`, `weight_grams`, `status`, `is_featured`, `sort_order`, `published_at`) VALUES
-  (1, 3, 'Áo lam cổ tròn vải cotton', 'ao-lam-co-tron-vai-cotton', 'Áo lam cổ tròn chất liệu cotton, phù hợp mặc đi chùa.', 'Mẫu dữ liệu minh họa. Khi đưa vào bán cần thay thế bằng mô tả sản phẩm thực tế.', 280000.00, 'apparel', 350, 'active', 1, 10, CURRENT_TIMESTAMP),
-  (2, 2, 'Áo tràng vải linen', 'ao-trang-vai-linen', 'Áo tràng chất liệu linen nhẹ, kiểu dáng trang nhã.', 'Mẫu dữ liệu minh họa. Cần xác nhận thông tin chất liệu và size thực tế trước khi bán.', 420000.00, 'apparel', 450, 'active', 1, 20, CURRENT_TIMESTAMP),
-  (3, 4, 'Bộ quần áo ngồi thiền', 'bo-quan-ao-ngoi-thien', 'Bộ trang phục thoải mái dành cho ngồi thiền.', 'Mẫu dữ liệu minh họa.', 520000.00, 'apparel', 600, 'active', 1, 30, CURRENT_TIMESTAMP),
-  (4, 6, 'Túi vải đeo đi chùa', 'tui-vai-deo-di-chua', 'Túi vải canvas gọn nhẹ để đựng vật dụng cá nhân.', 'Mẫu dữ liệu minh họa.', 180000.00, 'bag', 250, 'active', 1, 40, CURRENT_TIMESTAMP),
-  (5, 7, 'Chuỗi hạt gỗ trầm hương 108 hạt', 'chuoi-hat-go-tram-huong-108-hat', 'Chuỗi hạt với nhiều lựa chọn đường kính hạt.', 'Mẫu dữ liệu minh họa. Không mô tả hoặc cam kết nguồn gốc/chất liệu nếu chưa được xác thực.', 650000.00, 'beads', 80, 'active', 1, 50, CURRENT_TIMESTAMP),
-  (6, 8, 'Khăn choàng đi chùa', 'khan-choang-di-chua', 'Khăn choàng vải bố nhẹ, thiết kế tối giản.', 'Mẫu dữ liệu minh họa.', 120000.00, 'accessory', 120, 'active', 0, 60, CURRENT_TIMESTAMP)
-ON DUPLICATE KEY UPDATE
-  `name` = VALUES(`name`), `short_description` = VALUES(`short_description`),
-  `description` = VALUES(`description`), `base_price` = VALUES(`base_price`),
-  `status` = VALUES(`status`), `is_featured` = VALUES(`is_featured`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `product_categories` (`product_id`, `category_id`, `is_primary`) VALUES
-  (1, 3, 1), (2, 2, 1), (3, 4, 1), (4, 6, 1), (5, 7, 1), (6, 8, 1)
-ON DUPLICATE KEY UPDATE `is_primary` = VALUES(`is_primary`);
-
-INSERT INTO `product_variants`
-  (`id`, `product_id`, `sku`, `variant_name`, `variant_key`, `size`, `color`, `price_modifier`, `stock_quantity`, `reserved_quantity`, `low_stock_threshold`, `status`) VALUES
-  (1, 1, 'ALAM-CT-NAU-S', 'Size S - Nâu', 'size=s|color=nau', 'S', 'Nâu', 0.00, 20, 0, 5, 'active'),
-  (2, 1, 'ALAM-CT-NAU-M', 'Size M - Nâu', 'size=m|color=nau', 'M', 'Nâu', 0.00, 25, 0, 5, 'active'),
-  (3, 1, 'ALAM-CT-NAU-L', 'Size L - Nâu', 'size=l|color=nau', 'L', 'Nâu', 0.00, 18, 0, 5, 'active'),
-  (4, 2, 'ATRANG-LINEN-FREE-NAU', 'Free size - Nâu', 'size=free-size|color=nau', 'Free size', 'Nâu', 0.00, 12, 0, 3, 'active'),
-  (5, 3, 'BOTHIEN-XAM-M', 'Size M - Xám', 'size=m|color=xam', 'M', 'Xám', 0.00, 10, 0, 3, 'active'),
-  (6, 3, 'BOTHIEN-XAM-L', 'Size L - Xám', 'size=l|color=xam', 'L', 'Xám', 0.00, 10, 0, 3, 'active'),
-  (7, 4, 'TUI-CANVAS-NAU', 'Màu nâu', 'color=nau', NULL, 'Nâu', 0.00, 30, 0, 5, 'active'),
-  (8, 4, 'TUI-CANVAS-DEN', 'Màu đen', 'color=den', NULL, 'Đen', 0.00, 25, 0, 5, 'active'),
-  (9, 5, 'CHUOI-TRAM-8MM-108', 'Hạt 8mm - 108 hạt', 'bead-size=8|bead-count=108|length=70', NULL, NULL, 0.00, 15, 0, 3, 'active'),
-  (10, 5, 'CHUOI-TRAM-10MM-108', 'Hạt 10mm - 108 hạt', 'bead-size=10|bead-count=108|length=75', NULL, NULL, 100000.00, 12, 0, 3, 'active'),
-  (11, 5, 'CHUOI-TRAM-12MM-108', 'Hạt 12mm - 108 hạt', 'bead-size=12|bead-count=108|length=80', NULL, NULL, 200000.00, 8, 0, 3, 'active'),
-  (12, 6, 'KHAN-CHOANG-DEFAULT', 'Mặc định', 'default', NULL, NULL, 0.00, 35, 0, 5, 'active')
-ON DUPLICATE KEY UPDATE
-  `variant_name` = VALUES(`variant_name`), `size` = VALUES(`size`), `color` = VALUES(`color`),
-  `price_modifier` = VALUES(`price_modifier`), `stock_quantity` = VALUES(`stock_quantity`),
-  `low_stock_threshold` = VALUES(`low_stock_threshold`), `status` = VALUES(`status`);
-
-INSERT INTO `inventory_stocks` (`warehouse_id`, `variant_id`, `on_hand_quantity`, `reserved_quantity`)
-SELECT 1, `id`, `stock_quantity`, `reserved_quantity`
-FROM `product_variants`
-WHERE `id` BETWEEN 1 AND 12
-ON DUPLICATE KEY UPDATE
-  `on_hand_quantity` = VALUES(`on_hand_quantity`),
-  `reserved_quantity` = VALUES(`reserved_quantity`);
-
-INSERT INTO `product_images` (`id`, `product_id`, `variant_id`, `image_url`, `alt_text`, `is_primary`, `sort_order`) VALUES
-  (1, 1, NULL, 'public/uploads/products/demo/ao-lam-co-tron-nau.jpg', 'Áo lam cổ tròn màu nâu', 1, 10),
-  (2, 2, NULL, 'public/uploads/products/demo/ao-trang-linen-nau.jpg', 'Áo tràng vải linen', 1, 10),
-  (3, 3, NULL, 'public/uploads/products/demo/bo-ngoi-thien-xam.jpg', 'Bộ quần áo ngồi thiền màu xám', 1, 10),
-  (4, 4, NULL, 'public/uploads/products/demo/tui-vai-di-chua.jpg', 'Túi vải đeo đi chùa', 1, 10),
-  (5, 5, NULL, 'public/uploads/products/demo/chuoi-hat-go-tram.jpg', 'Chuỗi hạt gỗ trầm hương 108 hạt', 1, 10),
-  (6, 6, NULL, 'public/uploads/products/demo/khan-choang-di-chua.jpg', 'Khăn choàng đi chùa', 1, 10)
-ON DUPLICATE KEY UPDATE
-  `image_url` = VALUES(`image_url`), `alt_text` = VALUES(`alt_text`),
-  `is_primary` = VALUES(`is_primary`), `sort_order` = VALUES(`sort_order`);
-
--- Giá trị thuộc tính ở cấp product.
-INSERT INTO `product_attribute_values` (`product_id`, `attribute_id`, `option_id`, `value_text`, `value_number`) VALUES
-  (1, 3, 20, NULL, NULL), (1, 4, 32, NULL, NULL), (1, 10, 40, NULL, NULL),
-  (1, 12, NULL, 'Giặt nhẹ, phơi nơi thoáng mát.', NULL),
-  (2, 3, 21, NULL, NULL), (2, 4, 33, NULL, NULL), (2, 10, 41, NULL, NULL),
-  (2, 12, NULL, 'Giặt nhẹ, tránh dùng chất tẩy mạnh.', NULL),
-  (3, 3, 20, NULL, NULL), (3, 10, 43, NULL, NULL),
-  (3, 12, NULL, 'Giặt nhẹ, phơi nơi thoáng mát.', NULL),
-  (4, 3, 25, NULL, NULL), (4, 8, NULL, '28 x 24 x 8 cm', NULL),
-  (4, 11, NULL, 'Đựng ví, điện thoại, sổ tay và vật dụng cá nhân.', NULL),
-  (5, 3, 22, NULL, NULL), (5, 9, NULL, 'Việt Nam', NULL),
-  (5, 12, NULL, 'Bảo quản nơi khô ráo, tránh ngâm nước lâu.', NULL),
-  (6, 3, 26, NULL, NULL), (6, 11, NULL, 'Giữ ấm nhẹ và che nắng.', NULL)
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_text` = VALUES(`value_text`),
-  `value_number` = VALUES(`value_number`);
-
--- Giá trị thuộc tính ở cấp variant.
-INSERT INTO `variant_attribute_values` (`variant_id`, `attribute_id`, `option_id`, `value_text`, `value_number`) VALUES
-  (1, 1, 1, NULL, NULL), (1, 2, 11, NULL, NULL),
-  (2, 1, 2, NULL, NULL), (2, 2, 11, NULL, NULL),
-  (3, 1, 3, NULL, NULL), (3, 2, 11, NULL, NULL),
-  (4, 1, 6, NULL, NULL), (4, 2, 11, NULL, NULL),
-  (5, 1, 2, NULL, NULL), (5, 2, 12, NULL, NULL),
-  (6, 1, 3, NULL, NULL), (6, 2, 12, NULL, NULL),
-  (7, 2, 11, NULL, NULL), (8, 2, 14, NULL, NULL),
-  (9, 5, NULL, NULL, 8.00), (9, 6, NULL, NULL, 108.00), (9, 7, NULL, NULL, 70.00),
-  (10, 5, NULL, NULL, 10.00), (10, 6, NULL, NULL, 108.00), (10, 7, NULL, NULL, 75.00),
-  (11, 5, NULL, NULL, 12.00), (11, 6, NULL, NULL, 108.00), (11, 7, NULL, NULL, 80.00)
-ON DUPLICATE KEY UPDATE
-  `option_id` = VALUES(`option_id`), `value_text` = VALUES(`value_text`),
-  `value_number` = VALUES(`value_number`);
-
-INSERT INTO `post_categories` (`id`, `name`, `slug`, `status`) VALUES
-  (1, 'Hướng dẫn', 'huong-dan', 1),
-  (2, 'Kiến thức sản phẩm', 'kien-thuc-san-pham', 1),
-  (3, 'Tin cửa hàng', 'tin-cua-hang', 1)
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `status` = VALUES(`status`);
-
-INSERT INTO `setting` (`key_name`, `value`) VALUES
-  ('store_name', 'Lam Shop'),
-  ('currency', 'VND'),
-  ('storefront_category_mode', 'show_child_categories'),
-  ('inventory_policy', 'application_transaction_no_database_trigger')
-ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
-
-INSERT IGNORE INTO `schema_migrations` (`version`) VALUES
-  ('lam_shop_db_v1'),
-  ('lam_shop_db_v2_ecommerce_course'),
-  ('lam_shop_db_v3_store_map');
+-- Không seed đơn hàng, giỏ hàng hoặc giao dịch giày cũ.
