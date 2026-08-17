@@ -1513,8 +1513,6 @@ INSERT INTO `product_sources` (`product_id`,`source_site`,`source_product_url`,`
 (1148,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-30.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm','2026-08-11 00:00:00'),
 (1149,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm/','https://phapduyen.com/wp-content/uploads/2017/09/SCP-G811.jpg','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm','2026-08-11 00:00:00');
 
-
-
 INSERT INTO `inventory_logs` (`variant_id`,`quantity_changed`,`reason`) VALUES
 (10001,20,'Tồn kho khởi tạo catalog đồ lam'),
 (10002,20,'Tồn kho khởi tạo catalog đồ lam'),
@@ -2042,12 +2040,30 @@ INSERT INTO `inventory_logs` (`variant_id`,`quantity_changed`,`reason`) VALUES
 (11492,20,'Tồn kho khởi tạo catalog đồ lam'),
 (11493,20,'Tồn kho khởi tạo catalog đồ lam');
 
-INSERT INTO `banner` (`id`,`image_url`,`link_url`,`status`) VALUES
-(1,'assets/images/lam-hero-banner.webp','shop',1),
-(2,'assets/images/lam-hero-courtyard.jpg','shop?category=112',1),
-(3,'assets/images/lam-hero-lanterns.jpg','shop?category=115',1),
-(4,'assets/images/lam-hero-pagoda.jpg','shop?category=116',1);
+-- KHUYẾN MẠI VÀ NỘI DUNG MẪU
+INSERT INTO `coupons` (`id`,`code`,`discount_percent`,`max_discount`,`min_order_amount`,`usage_limit`,`usage_limit_per_user`,`used_count`,`start_date`,`expiry_date`,`category_id`,`product_id`,`status`) VALUES
+(1,'LAMANLAC',15,150000,200000,500,1,0,'2026-08-01 00:00:00','2026-12-31 23:59:59',NULL,NULL,1),
+(2,'PHAPVUCP20',20,300000,500000,300,1,0,'2026-08-01 00:00:00','2026-12-31 23:59:59',NULL,NULL,1);
 
-INSERT INTO `coupons` (`id`,`code`,`discount_percent`,`max_discount`,`min_order_amount`,`usage_limit`,`used_count`,`start_date`,`expiry_date`,`status`) VALUES
-(1,'PACEUP10',10.00,50000.00,100000.00,100,0,NOW(),'2027-12-31 23:59:59',1),
-(2,'GIAM50K',0.00,50000.00,500000.00,50,0,NOW(),'2027-12-31 23:59:59',1);
+INSERT INTO `banner` (`id`,`image_url`,`link_url`,`status`) VALUES
+(1,'assets/images/lam-hero-lanterns.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(2,'assets/images/lam-hero-courtyard.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(3,'assets/images/lam-hero-pagoda.jpg','shop?category=Đồ+lam+đi+chùa',1),
+(4,'assets/images/lam-hero-temple.jpg','shop?category=Đồ+lam+đi+chùa',1);
+
+INSERT INTO `setting` (`id`,`key_name`,`value`) VALUES
+(1,'store_name','PaceUp - Đồ lam & Pháp phục'),
+(2,'store_address','Hồ Chí Minh, Việt Nam'),
+(3,'store_phone','0900 000 001'),
+(4,'store_email','cskh@paceup.local');
+
+INSERT INTO `post_categories` (`id`,`name`) VALUES
+(1,'Cẩm nang đi chùa');
+
+INSERT INTO `posts` (`id`,`category_id`,`title`,`content`,`thumbnail`) VALUES
+(1,1,'Gợi ý chọn trang phục đi chùa trang nhã','Ưu tiên trang phục kín đáo, màu sắc nhã nhặn và chất liệu thoải mái khi đi chùa hoặc ngồi thiền.','assets/images/lam-hero-temple.jpg');
+
+INSERT INTO `schema_migrations` (`version`) VALUES
+('paceup_db_v1_single_import');
+
+-- Không seed đơn hàng, giỏ hàng hoặc giao dịch giày cũ.

@@ -178,6 +178,10 @@ class Product extends BaseModel {
         return $this->getMarketingProducts('p.sold_count DESC, p.id DESC', $limit, '1=1');
     }
 
+    public function getDiscountedProducts($limit = 8) {
+        return $this->getMarketingProducts('p.id DESC', $limit, 'p.old_price IS NOT NULL AND p.old_price > p.base_price');
+    }
+
     public function getProductReviews($productId, $limit = 20) {
         $stmt = $this->db->prepare("SELECT r.*, u.display_name, u.full_name
             FROM reviews r

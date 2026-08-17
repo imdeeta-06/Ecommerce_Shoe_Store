@@ -7,19 +7,10 @@ class HomeController {
     public function index() {
         $productModel = new Product();
         $banners = $this->getBanners();
-        $featuredProducts = $productModel->getFeaturedProducts(6);
-        
-        $featuredIds = array_column($featuredProducts, 'id');
-        $allBestSelling = $productModel->getBestSellingProducts(20);
-        $bestSellingProducts = [];
-        foreach ($allBestSelling as $product) {
-            if (!in_array($product['id'], $featuredIds)) {
-                $bestSellingProducts[] = $product;
-            }
-            if (count($bestSellingProducts) >= 6) {
-                break;
-            }
-        }
+        $featuredProducts = $productModel->getFeaturedProducts(3);
+        $bestSellingProducts = $productModel->getBestSellingProducts(4);
+        $discountedProducts = $productModel->getDiscountedProducts(4);
+
         $metaTitle = 'Liên Hoa - Pháp Phục & Đồ Lam Phật Giáo Cao Cấp';
         $metaDescription = 'Chuyên cung cấp áo lam đi chùa, pháp phục Tăng Ni, tràng hạt trầm hương và vật phẩm Phật giáo cao cấp tại Liên Hoa.';
         $canonicalUrl = \App\Core\App::url('/');
