@@ -27,12 +27,7 @@ class Product extends BaseModel {
     }
 
     public function setProductStatus($id, $status) {
-        $statusVal = $status;
-        if ($status === 1 || $status === '1') {
-            $statusVal = 'active';
-        } elseif ($status === 0 || $status === '0') {
-            $statusVal = 'inactive';
-        }
+        $statusVal = in_array((string)$status, ['1', 'active', 'true'], true) ? 1 : 0;
         return $this->updateProduct($id, ['status' => $statusVal]);
     }
 
@@ -62,7 +57,7 @@ class Product extends BaseModel {
     }
 
     public function getActiveProducts() {
-        $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 'active' ORDER BY id DESC");
+        $stmt = $this->db->prepare("SELECT * FROM product WHERE (status = 1 OR status = '1' OR status = 'active') ORDER BY id DESC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -86,8 +81,10 @@ class Product extends BaseModel {
         }
 
         if (isset($filters['status']) && $filters['status'] !== '') {
-            $sql .= " AND p.status = :status";
-            $params['status'] = $filters['status'];
+            $statusVal = in_array((string)$filters['status'], ['1', 'active'], true) ? 1 : (in_array((string)$filters['status'], ['0', 'inactive'], true) ? 0 : $filters['status']);
+            $sql .= " AND (p.status = :status OR p.status = :status_name)";
+            $params['status'] = $statusVal;
+            $params['status_name'] = $statusVal === 1 ? 'active' : ($statusVal === 0 ? 'inactive' : $statusVal);
         }
 
         if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
@@ -107,9 +104,9 @@ class Product extends BaseModel {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
-                LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE (p.status = 1 OR p.status = '1' OR p.status = 'active') AND (p.category_id IS NULL OR c.status = 1 OR c.status = '1' OR c.status = 'active')
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND (pv_available.status = 1 OR pv_available.status = '1' OR pv_available.status = 'active'))";
         $params = [];
 
         if (!empty($filters['category']) && $filters['category'] !== 'all') {
@@ -159,9 +156,9 @@ class Product extends BaseModel {
     public function getProductWithImages($id) {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category
                 FROM product p
-                LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id = :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE p.id = :id AND (p.status = 1 OR p.status = '1' OR p.status = 'active') AND (p.category_id IS NULL OR c.status = 1 OR c.status = '1' OR c.status = 'active')
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND (pv_available.status = 1 OR pv_available.status = '1' OR pv_available.status = 'active'))";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['id' => $id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -226,9 +223,9 @@ class Product extends BaseModel {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
-                LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id != :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE p.id != :id AND (p.status = 1 OR p.status = '1' OR p.status = 'active') AND (p.category_id IS NULL OR c.status = 1 OR c.status = '1' OR c.status = 'active')
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND (pv_available.status = 1 OR pv_available.status = '1' OR pv_available.status = 'active'))
                 AND p.category_id = :category_id
                 ORDER BY p.is_featured DESC, p.id DESC
                 LIMIT " . (int)$limit;
@@ -268,17 +265,17 @@ class Product extends BaseModel {
     public function getCategoriesWithCounts() {
         $sql = "SELECT c.id, c.name, COUNT(p.id) AS product_count
                 FROM categories c
-                LEFT JOIN product p ON p.category_id = c.id AND p.status = 'active'
-                WHERE c.status = 1
-                GROUP BY c.id
-                ORDER BY c.sort_order ASC, c.name ASC";
+                LEFT JOIN product p ON p.category_id = c.id AND (p.status = 1 OR p.status = '1' OR p.status = 'active')
+                WHERE (c.status = 1 OR c.status = '1' OR c.status = 'active')
+                GROUP BY c.id, c.name
+                ORDER BY c.id ASC, c.name ASC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getActiveProductsCount() {
-        $sql = "SELECT COUNT(*) FROM product p WHERE p.status = 'active'";
+        $sql = "SELECT COUNT(*) FROM product p WHERE (p.status = 1 OR p.status = '1' OR p.status = 'active')";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return (int)$stmt->fetchColumn();
@@ -492,8 +489,8 @@ class Product extends BaseModel {
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON c.id = p.category_id
-                WHERE p.status = 'active' AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
+                WHERE (p.status = 1 OR p.status = '1' OR p.status = 'active') AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1 OR c.status = '1' OR c.status = 'active')
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND (pv_available.status = 1 OR pv_available.status = '1' OR pv_available.status = 'active'))
                 ORDER BY {$orderBy}
                 LIMIT :limit");
         $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);

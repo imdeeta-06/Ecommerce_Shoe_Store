@@ -81,7 +81,8 @@ class Order extends BaseModel {
                 }
 
                 $variant = $this->getVariantForUpdate($variantId);
-                if (!$variant || ($variant['product_status'] ?? '') !== 'active' || (int)$variant['stock_quantity'] < $quantity) {
+                $pStatus = (string)($variant['product_status'] ?? '');
+                if (!$variant || !in_array($pStatus, ['1', 'active', 'true'], true) || (int)$variant['stock_quantity'] < $quantity) {
                     $name = $variant['product_name'] ?? ('Variant #' . $variantId);
                     $stock = (int)($variant['stock_quantity'] ?? 0);
                     throw new \Exception("$name không đủ tồn kho. Hiện còn $stock, cần $quantity.");

@@ -43,7 +43,7 @@ class CartController {
             $stmt->execute(['variant_id' => $variantId]);
             $variant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-            if (!$variant || $variant['status'] !== 'active') {
+            if (!$variant || !in_array((string)$variant['status'], ['1', 'active', 'true'], true)) {
                 echo json_encode(['success' => false, 'message' => 'Phân loại sản phẩm không tồn tại hoặc đã ẩn.']);
                 return;
             }

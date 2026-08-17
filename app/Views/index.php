@@ -14,48 +14,100 @@ function homeAssetUrl($image): string {
 
 <main>
     <!-- Hero Section -->
-    <section class="hero-section">
+    <section class="hero-section hero-fullwidth">
+        <!-- Floating chips anchored to bottom corners of the hero -->
+        <div class="hero-floating-chip chip-bottom-left">
+            <span class="chip-icon">🌸</span>
+            <div class="chip-text">
+                <strong>May đo trang nghiêm</strong>
+                <small>Chuẩn mực pháp phục</small>
+            </div>
+        </div>
+        <div class="hero-floating-chip chip-bottom-right">
+            <span class="chip-icon">🍃</span>
+            <div class="chip-text">
+                <strong>Vải đũi &amp; lanh tự nhiên</strong>
+                <small>Thoáng mát, nhẹ êm</small>
+            </div>
+        </div>
         <div class="hero-container">
             <div class="hero-content">
-                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH</span>
-                <h1 class="hero-title">Pháp Phục<br>Phật Giáo<br>Cao Cấp</h1>
-                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, tượng thờ và vật phẩm tâm linh Phật giáo chất lượng cao. Phục vụ quý Phật tử với tâm từ bi và sự tận tâm.</p>
+                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH · PHÁP PHỤC PHẬT GIÁO</span>
+                <h1 class="hero-title">Pháp Phục Phật Giáo<br>Cao Cấp & Thanh Tịnh</h1>
+                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, pháp phục Tăng – Ni và vật phẩm tâm linh trang nghiêm. Chất liệu vải đũi & lanh tự nhiên thoáng mát, may đo tỉ mỉ từng đường kim, giúp quý Phật tử luôn an lạc khi tu học và hành lễ.</p>
                 <div class="hero-buttons">
-                    <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá ngay</a>
+                    <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá bộ sưu tập →</a>
                     <a href="<?= BASE_URL ?>about" class="btn-secondary">Tìm hiểu thêm</a>
                 </div>
+                <div class="hero-stats">
+                    <div class="hero-stat-item">
+                        <span class="stat-number">10.000+</span>
+                        <span class="stat-label">Phật tử tin chọn</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Vải tự nhiên thoáng mát</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="stat-number">4.9 ★</span>
+                        <span class="stat-label">Hơn 5.000 đánh giá</span>
+                    </div>
+                </div>
             </div>
-            <div class="hero-image-wrapper">
-                <img src="<?= BASE_URL ?>assets/images/lam-hero-banner.webp" alt="Pháp phục Phật giáo Liên Hoa" class="hero-img">
-            </div>
+
         </div>
     </section>
 
     <!-- Features Bar -->
     <section class="features-bar">
         <div class="feature-item">
-            <span class="feature-icon">🚚</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Miễn phí vận chuyển</h4>
                 <p>Đơn từ 500.000đ</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">⭐</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Hàng chính hãng 100%</h4>
                 <p>Cam kết chất lượng</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">🔄</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <polyline points="23 20 23 14 17 14"></polyline>
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Đổi trả 7 ngày</h4>
                 <p>Không câu nệ</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">📞</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Hỗ trợ 7:00 - 21:00</h4>
                 <p>Tận tâm phục vụ</p>
