@@ -365,6 +365,13 @@ unset($_SESSION['login_old']);
                 <?= htmlspecialchars($success) ?>
             </div>
         <?php endif; ?>
+        
+        <?php $info = \App\Helpers\SessionHelper::getFlash('info'); ?>
+        <?php if ($info): ?>
+            <div class="alert-box" style="background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1;">
+                <?= htmlspecialchars($info) ?>
+            </div>
+        <?php endif; ?>
 
         <!-- Form -->
         <form action="<?= BASE_URL ?>login" method="POST">
@@ -399,15 +406,24 @@ unset($_SESSION['login_old']);
 
             <div class="divider">hoặc</div>
 
-            <button type="button" class="btn-google" onclick="alert('Tính năng đăng nhập bằng Google đang được bảo trì. Vui lòng đăng nhập bằng Email!')">
-                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.8 2.72v2.24h2.9c1.7-1.57 2.7-3.87 2.7-6.59z" fill="#4285F4"/>
-                    <path d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.9-2.24c-.8.54-1.84.87-3.06.87-2.35 0-4.33-1.58-5.04-3.71H.95v2.3C2.43 15.89 5.5 18 9 18z" fill="#34A853"/>
-                    <path d="M3.96 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V5H.95A8.99 8.99 0 000 9c0 1.45.35 2.82.95 4.05l3.01-2.33z" fill="#FBBC05"/>
-                    <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.4C13.46.96 11.43 0 9 0 5.5 0 2.43 2.11.95 5.05l3.01 2.33c.71-2.13 2.69-3.71 5.04-3.71z" fill="#EA4335"/>
-                </svg>
-                <span>Đăng nhập bằng Google</span>
-            </button>
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <div id="g_id_onload"
+                 data-client_id="<?= getenv('GOOGLE_CLIENT_ID') ?: (defined('GOOGLE_CLIENT_ID') ? GOOGLE_CLIENT_ID : '') ?>"
+                 data-login_uri="<?= rtrim(BASE_URL, '/') ?>/auth/google"
+                 data-auto_prompt="false">
+            </div>
+            
+            <div style="display: flex; justify-content: center; width: 100%;">
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="pill"
+                     data-logo_alignment="left"
+                     data-width="400">
+                </div>
+            </div>
         </form>
     </div>
 </div>
