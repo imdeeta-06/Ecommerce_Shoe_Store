@@ -3,12 +3,14 @@
 namespace App\Controller\Admin;
 
 use App\Models\UserModel;
+use App\Helpers\SessionHelper;
+use App\Middleware\AuthMiddleware;
 
 class UserController {
     private $userModel;
 
     public function __construct() {
-        $this->requireAdmin();
+        AuthMiddleware::requireAdmin();
         $this->userModel = new UserModel();
     }
 
@@ -67,28 +69,16 @@ class UserController {
                     'phone' => $old['phone'],
                     'password' => password_hash($password, PASSWORD_DEFAULT)
                 ]);
+                    SessionHelper::setFlash(
+                            'success',
+                            'Admin account created successfully.'
+                        );
 
-                $_SESSION['admin_success'] = 'Admin account created successfully.';
-                $this->redirect('admin?page=users');
-            }
+                        SessionHelper::redirect('/admin?page=users');
+                    }
         }
 
         require __DIR__ . '/../../Views/admin/users/create.php';
     }
-
-    private function requireAdmin() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header('Location: ' . BASE_URL . 'login');
-            exit;
-        }
-    }
-
-    private function redirect($path) {
-        header('Location: ' . BASE_URL . ltrim($path, '/'));
-        exit;
-    }
+    
 }

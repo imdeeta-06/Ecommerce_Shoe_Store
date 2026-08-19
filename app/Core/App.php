@@ -31,9 +31,33 @@ namespace App\Core {
         }
 
         public static function bootstrap() {
+            self::loadEnv();
             self::defineBaseUrl();
             self::startSession();
             self::registerAutoloader();
+        }
+
+        public static function loadEnv() {
+            $envFile = self::rootPath() . '/.env';
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    if (str_starts_with(trim($line), '#')) continue;
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $name = trim($parts[0]);
+                        $value = trim($parts[1]);
+                        // Remove quotes if present
+                        $value = trim($value, '"\'');
+                        
+                        if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
+                            putenv(sprintf('%s=%s', $name, $value));
+                            $_ENV[$name] = $value;
+                            $_SERVER[$name] = $value;
+                        }
+                    }
+                }
+            }
         }
 
         public static function router() {
@@ -181,9 +205,18 @@ namespace App\Core {
             $router->add('/register', 'AuthController', 'register');
             $router->add('/logout', 'AuthController', 'logout');
             $router->add('/change-password', 'AuthController', 'changePassword');
+            
+            // Verification Routes
+            $router->add('/verify-email', 'AuthController', 'verifyEmail');
+            $router->add('/resend-verification-otp', 'AuthController', 'resendVerificationOtp');
+            
+            // Forgot Password Routes
             $router->add('/forgot-password', 'AuthController', 'forgotPassword');
-            $router->add('/verify-otp', 'AuthController', 'verifyOtp');
+            $router->add('/verify-reset-otp', 'AuthController', 'verifyResetOtp');
             $router->add('/reset-password', 'AuthController', 'resetPassword');
+
+            // Google Login
+            $router->add('/auth/google', 'AuthController', 'googleLoginCallback');
             $router->add('/account', 'User/ProfileController', 'index');
             $router->add('/account/update', 'User/ProfileController', 'update');
             $router->add('/account/avatar', 'User/ProfileController', 'uploadAvatar');
