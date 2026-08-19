@@ -81,7 +81,7 @@ class Order extends BaseModel {
                 }
 
                 $variant = $this->getVariantForUpdate($variantId);
-                if (!$variant || ($variant['product_status'] ?? '') !== 'active' || (int)$variant['stock_quantity'] < $quantity) {
+                if (!$variant || (int)($variant['product_status'] ?? 0) !== 1 || (int)$variant['stock_quantity'] < $quantity) {
                     $name = $variant['product_name'] ?? ('Variant #' . $variantId);
                     $stock = (int)($variant['stock_quantity'] ?? 0);
                     throw new \Exception("$name không đủ tồn kho. Hiện còn $stock, cần $quantity.");
@@ -137,23 +137,17 @@ class Order extends BaseModel {
             $insertOrderData = [
                 'order_code' => $orderData['order_code'],
                 'user_id' => $orderData['user_id'] ?? null,
+                'total_amount' => $subtotal,
                 'coupon_id' => $couponId,
-                'coupon_code_snapshot' => $couponCodeSnapshot,
-                'subtotal' => $subtotal,
-                'discount_amount' => $discount,
-                'shipping_fee' => $shippingFee,
-                'tax_amount' => 0.00,
                 'final_amount' => max(0, $subtotal + $shippingFee - $discount),
-                'currency' => 'VND',
+                'shipping_fee' => $shippingFee,
                 'shipping_name' => $shippingName,
                 'shipping_phone' => $shippingPhone,
-                'shipping_email' => trim((string)($orderData['shipping_email'] ?? '')) ?: null,
-                'shipping_province' => 'Default',
-                'shipping_district' => 'Default',
                 'shipping_address' => $shippingAddress,
                 'shipping_status' => 'not_shipped',
-                'customer_note' => trim((string)($orderData['customer_note'] ?? '')) ?: null,
                 'status' => 'pending',
+                'shipping_email' => trim((string)($orderData['shipping_email'] ?? '')) ?: null,
+                'customer_note' => trim((string)($orderData['customer_note'] ?? '')) ?: null,
                 'terms_accepted' => 1,
                 'terms_accepted_at' => date('Y-m-d H:i:s'),
                 'contract_version' => preg_match('/^[a-zA-Z0-9._-]{1,30}$/', (string)($orderData['contract_version'] ?? 'v1.0')) ? (string)($orderData['contract_version'] ?? 'v1.0') : 'v1.0',
@@ -169,19 +163,16 @@ class Order extends BaseModel {
             foreach ($normalizedItems as $item) {
                 $unitPrice = (float)$item['price_at_time'];
                 $qty = (int)$item['quantity'];
-                $lineTotal = $unitPrice * $qty;
 
                 $this->createOrderItem([
                     'order_id' => $orderId,
                     'product_id' => (int)$item['product_id'],
                     'variant_id' => $item['variant_id'],
+                    'quantity' => $qty,
+                    'price_at_time' => $unitPrice,
                     'product_name_snapshot' => $item['product_name_snapshot'],
                     'variant_size_snapshot' => $item['variant_size_snapshot'],
-                    'variant_color_snapshot' => $item['variant_color_snapshot'],
-                    'unit_price' => $unitPrice,
-                    'quantity' => $qty,
-                    'line_total' => $lineTotal,
-                    'created_at' => date('Y-m-d H:i:s')
+                    'variant_color_snapshot' => $item['variant_color_snapshot']
                 ]);
             }
 
@@ -202,11 +193,8 @@ class Order extends BaseModel {
                 $this->createPayment([
                     'order_id' => $orderId,
                     'payment_method' => $dbMethod,
-                    'amount' => max(0, $subtotal + $shippingFee - $discount),
                     'payment_state' => 'pending',
-                    'refund_status' => 'not_requested',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
+                    'refund_status' => 'not_requested'
                 ]);
             }
 
@@ -292,27 +280,42 @@ class Order extends BaseModel {
      * Public order lookup is intentionally limited to the order code and the
      * exact phone number used at checkout. Never expose an order by code alone.
      */
-    public function findPublicTracking(string $orderCode, string $phone): ?array {
-        $orderCode = strtoupper(ltrim(trim($orderCode), '#'));
-        $phoneDigits = preg_replace('/\D+/', '', $phone);
-        if ($orderCode === '' || $phoneDigits === '') {
-            return null;
+    public function findPublicTrackingByContact(string $contact): array {
+        $contact = trim($contact);
+        if ($contact === '') {
+            return [];
         }
 
-        $stmt = $this->db->prepare("SELECT id, order_code, status, shipping_name,
-                shipping_carrier, tracking_code, shipping_status, shipping_fee,
-                created_at, shipped_at, delivered_at, completed_at
-            FROM orders
-            WHERE UPPER(order_code) = :order_code
-              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(shipping_phone, ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), '+', '') = :phone
-            LIMIT 1");
-        $stmt->execute([
-            'order_code' => $orderCode,
-            'phone' => $phoneDigits
-        ]);
-        $order = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $order ?: null;
+        if (strpos($contact, '@') !== false) {
+            $stmt = $this->db->prepare("
+                SELECT o.id, o.order_code, o.status, o.shipping_name,
+                       o.shipping_carrier, o.tracking_code, o.shipping_status, o.shipping_fee,
+                       o.final_amount, o.created_at, o.shipped_at, o.delivered_at, o.completed_at
+                FROM orders o
+                LEFT JOIN user u ON o.user_id = u.id
+                WHERE o.shipping_email = :contact OR u.email = :contact
+                ORDER BY o.id DESC
+            ");
+            $stmt->execute(['contact' => $contact]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $phoneDigits = preg_replace('/\D+/', '', $contact);
+            if ($phoneDigits === '') {
+                return [];
+            }
+            $stmt = $this->db->prepare("
+                SELECT o.id, o.order_code, o.status, o.shipping_name,
+                       o.shipping_carrier, o.tracking_code, o.shipping_status, o.shipping_fee,
+                       o.final_amount, o.created_at, o.shipped_at, o.delivered_at, o.completed_at
+                FROM orders o
+                LEFT JOIN user u ON o.user_id = u.id
+                WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(o.shipping_phone, ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), '+', '') = :phone
+                   OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), '+', '') = :phone
+                ORDER BY o.id DESC
+            ");
+            $stmt->execute(['phone' => $phoneDigits]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 
     public function getAdminOrders($filters = [], $page = 1, $perPage = 10) {
