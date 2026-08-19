@@ -25,18 +25,6 @@ if (!function_exists('productAssetPath')) {
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css?v=<?= time() ?>">
 </head>
 <body>
-    <div class="top-bar">
-        <div class="top-bar-container">
-            <div class="top-bar-left">
-                <span>🌸 Kính chào quý Phật tử — Giao hàng miễn phí đơn từ 500.000đ</span>
-            </div>
-            <div class="top-bar-right">
-                <a href="<?= BASE_URL ?>admin">Khu vực người bán</a>
-                <span class="top-bar-divider">|</span>
-                <a href="<?= BASE_URL ?>admin">Quản trị</a>
-            </div>
-        </div>
-    </div>
 
     <header class="header">
         <div class="logo">
@@ -52,7 +40,7 @@ if (!function_exists('productAssetPath')) {
             <a href="<?= BASE_URL ?>">Trang Chủ</a>
             <a href="<?= BASE_URL ?>shop">Sản Phẩm</a>
             <a href="<?= BASE_URL ?>about">Giới Thiệu</a>
-            <a href="<?= BASE_URL ?>faqs">Blog</a>
+            <a href="<?= BASE_URL ?>faqs">Hỏi Đáp</a>
             <a href="<?= BASE_URL ?>support">Liên Hệ</a>
         </nav>
         <div class="nav-actions">
@@ -70,9 +58,8 @@ if (!function_exists('productAssetPath')) {
             </a>
             <?php if (isset($_SESSION['user_id'])): ?>
                 <div class="user-dropdown">
-                    <a href="#" class="icon-btn btn-user-pill" title="Tài khoản" style="padding: 0.35rem 0.85rem; height: auto; border-radius: 100px; display: inline-flex; align-items: center; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); font-weight: 500; font-size: 0.85rem;">
-                        <img src="<?= !empty($_SESSION['user_avatar']) ? BASE_URL . $_SESSION['user_avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['user_name'] ?? 'User').'&background=8d5b4c&color=fff&size=40' ?>" alt="Avatar" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; margin-right: 6px;">
-                        Tài khoản
+                    <a href="#" class="icon-btn" title="Tài khoản" style="padding: 0; overflow: hidden; border-radius: 50%; border: 1px solid #ddd; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                        <img src="<?= !empty($_SESSION['user_avatar']) ? BASE_URL . $_SESSION['user_avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['user_name'] ?? 'User').'&background=2A9D8F&color=fff&size=40' ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
                     </a>
                     <div class="dropdown-menu">
                         <span class="dropdown-name"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Tài khoản') ?></span>
@@ -84,9 +71,8 @@ if (!function_exists('productAssetPath')) {
                     </div>
                 </div>
             <?php else: ?>
-                <a href="<?= BASE_URL ?>login" class="btn-user-pill">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                    Tài khoản
+                <a href="<?= BASE_URL ?>login" class="btn-login-nav">
+                    Đăng nhập
                 </a>
             <?php endif; ?>
         </div>

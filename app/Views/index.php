@@ -14,48 +14,100 @@ function homeAssetUrl($image): string {
 
 <main>
     <!-- Hero Section -->
-    <section class="hero-section">
+    <section class="hero-section hero-fullwidth">
+        <!-- Floating chips anchored to bottom corners of the hero -->
+        <div class="hero-floating-chip chip-bottom-left">
+            <span class="chip-icon">🌸</span>
+            <div class="chip-text">
+                <strong>May đo trang nghiêm</strong>
+                <small>Chuẩn mực pháp phục</small>
+            </div>
+        </div>
+        <div class="hero-floating-chip chip-bottom-right">
+            <span class="chip-icon">🍃</span>
+            <div class="chip-text">
+                <strong>Vải đũi &amp; lanh tự nhiên</strong>
+                <small>Thoáng mát, nhẹ êm</small>
+            </div>
+        </div>
         <div class="hero-container">
             <div class="hero-content">
-                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH</span>
-                <h1 class="hero-title">Pháp Phục<br>Phật Giáo<br>Cao Cấp</h1>
-                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, tượng thờ và vật phẩm tâm linh Phật giáo chất lượng cao. Phục vụ quý Phật tử với tâm từ bi và sự tận tâm.</p>
+                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH · PHÁP PHỤC PHẬT GIÁO</span>
+                <h1 class="hero-title">Pháp Phục Phật Giáo<br>Cao Cấp & Thanh Tịnh</h1>
+                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, pháp phục Tăng – Ni và vật phẩm tâm linh trang nghiêm. Chất liệu vải đũi & lanh tự nhiên thoáng mát, may đo tỉ mỉ từng đường kim, giúp quý Phật tử luôn an lạc khi tu học và hành lễ.</p>
                 <div class="hero-buttons">
-                    <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá ngay</a>
+                    <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá bộ sưu tập →</a>
                     <a href="<?= BASE_URL ?>about" class="btn-secondary">Tìm hiểu thêm</a>
                 </div>
+                <div class="hero-stats">
+                    <div class="hero-stat-item">
+                        <span class="stat-number">10.000+</span>
+                        <span class="stat-label">Phật tử tin chọn</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Vải tự nhiên thoáng mát</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="stat-number">4.9 ★</span>
+                        <span class="stat-label">Hơn 5.000 đánh giá</span>
+                    </div>
+                </div>
             </div>
-            <div class="hero-image-wrapper">
-                <img src="<?= BASE_URL ?>assets/images/lam-hero-banner.webp" alt="Pháp phục Phật giáo Liên Hoa" class="hero-img">
-            </div>
+
         </div>
     </section>
 
     <!-- Features Bar -->
     <section class="features-bar">
         <div class="feature-item">
-            <span class="feature-icon">🚚</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Miễn phí vận chuyển</h4>
                 <p>Đơn từ 500.000đ</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">⭐</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Hàng chính hãng 100%</h4>
                 <p>Cam kết chất lượng</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">🔄</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <polyline points="23 20 23 14 17 14"></polyline>
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Đổi trả 7 ngày</h4>
                 <p>Không câu nệ</p>
             </div>
         </div>
         <div class="feature-item">
-            <span class="feature-icon">📞</span>
+            <span class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                </svg>
+            </span>
             <div class="feature-text">
                 <h4>Hỗ trợ 7:00 - 21:00</h4>
                 <p>Tận tâm phục vụ</p>
@@ -65,75 +117,68 @@ function homeAssetUrl($image): string {
 
     <!-- Category Section -->
     <section class="category-section">
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <span class="section-subtitle-center">KHÁM PHÁ</span>
-            <h2 class="section-title-center" style="margin-bottom: 2rem;">Danh Mục Sản Phẩm</h2>
-        </div>
-        <div class="category-grid" style="grid-template-columns: repeat(6, 1fr); gap: 1.5rem;">
-            <a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1028.jpg" alt="Pháp Phục - Đồ Lam" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+        <h2 class="section-title">Danh Mục Sản Phẩm</h2>
+        <div class="category-grid">
+            <a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Pháp Phục - Đồ Lam">
+                <div class="category-overlay">
+                    <h3>Pháp Phục - Đồ Lam</h3>
+                    <p>48 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Pháp Phục - Đồ Lam</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">48 sản phẩm</p>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1103.jpg" alt="Tràng Hạt" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Tràng Hạt">
+                <div class="category-overlay">
+                    <h3>Tràng Hạt</h3>
+                    <p>32 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Tràng Hạt</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">36 sản phẩm</p>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1128.jpg" alt="Tượng Thờ" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Tượng Thờ">
+                <div class="category-overlay">
+                    <h3>Tượng Thờ</h3>
+                    <p>24 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Tượng Thờ</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">44 sản phẩm</p>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Quần+áo+Tăng+-+Ni" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1003.jpg" alt="Kinh Sách" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <a href="<?= BASE_URL ?>shop" class="category-card">
+                <img src="<?= BASE_URL ?>assets/images/lam-hero-pagoda.jpg" alt="Kinh Sách">
+                <div class="category-overlay">
+                    <h3>Kinh Sách</h3>
+                    <p>15 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Kinh Sách</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">15 sản phẩm</p>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Quần+áo+ngồi+thiền" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1053.jpg" alt="Hương & Nến" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <a href="<?= BASE_URL ?>shop" class="category-card">
+                <img src="<?= BASE_URL ?>assets/images/lam-hero-lanterns.jpg" alt="Hương & Nến">
+                <div class="category-overlay">
+                    <h3>Hương & Nến</h3>
+                    <p>12 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Hương & Nến</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">41 sản phẩm</p>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="category-circle-item" style="display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none;">
-                <div class="category-circle-img-wrapper" style="width: 140px; height: 140px; border-radius: 50%; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(74, 59, 50, 0.05); transition: all 0.3s;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1078.webp" alt="Vật Phẩm Thờ" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Vật Phẩm Khác">
+                <div class="category-overlay">
+                    <h3>Vật Phẩm Thờ</h3>
+                    <p>19 sản phẩm</p>
                 </div>
-                <h3 style="font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-color); margin-bottom: 0.2rem; font-weight: 600;">Vật Phẩm Thờ</h3>
-                <p style="font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-muted); text-transform: none; margin: 0;">55 sản phẩm</p>
             </a>
         </div>
     </section>
 
-
     <!-- Sản phẩm Mới -->
     <section class="products-section">
         <div class="section-header-flex">
-            <div>
-                <span style="font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 1px; color: var(--primary-color); font-weight: 600; text-transform: uppercase;">VỪA VỀ</span>
-                <h2 class="section-title-elegant" style="margin-top: 0.25rem;">Sản Phẩm Mới</h2>
-            </div>
+            <h2 class="section-title-elegant">Sản Phẩm Mới</h2>
             <a href="<?= BASE_URL ?>shop" class="btn-text-link">Xem tất cả →</a>
         </div>
-        <div class="product-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="product-grid">
             <?php foreach ($featuredProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
                     <span class="badge-tag tag-new">MỚI</span>
-                    <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img" style="object-fit: cover;">
+                    <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
-                    <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? 'Pháp Phục') ?></span>
+                    <span class="product-category-new"><?= htmlspecialchars($product['category']) ?></span>
                     <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
                     <div class="product-stars">★★★★★ <span class="stars-count">(28)</span></div>
                     <div class="product-price-new"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
@@ -145,7 +190,7 @@ function homeAssetUrl($image): string {
     </section>
 
     <!-- Special Collection Full-Width Banner -->
-    <section class="promo-banner-section" style="background-image: linear-gradient(rgba(62, 39, 35, 0.55), rgba(62, 39, 35, 0.55)), url('<?= BASE_URL ?>assets/images/lam-hero-courtyard.jpg'); margin: 4rem 0;">
+    <section class="promo-banner-section" style="background-image: linear-gradient(rgba(62, 39, 35, 0.65), rgba(62, 39, 35, 0.65)), url('<?= BASE_URL ?>assets/images/lam-hero-courtyard.jpg');">
         <div class="promo-banner-content">
             <span class="promo-subtitle">BỘ SƯU TẬP ĐẶC BIỆT</span>
             <h2>Tràng Hạt & Pháp Cụ<br>Chính Hãng Cao Cấp</h2>
@@ -155,20 +200,17 @@ function homeAssetUrl($image): string {
     </section>
 
     <!-- Sản phẩm Bán Chạy -->
-    <section class="products-section bg-beige-light" style="padding: 5rem 2rem; background-color: var(--primary-light);">
+    <section class="products-section bg-beige-light">
         <div class="section-header-flex">
-            <div>
-                <span style="font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 1px; color: var(--primary-color); font-weight: 600; text-transform: uppercase;">YÊU THÍCH NHẤT</span>
-                <h2 class="section-title-elegant" style="margin-top: 0.25rem;">Sản Phẩm Bán Chạy</h2>
-            </div>
+            <h2 class="section-title-elegant">Sản Phẩm Bán Chạy</h2>
             <a href="<?= BASE_URL ?>shop" class="btn-text-link">Xem tất cả →</a>
         </div>
-        <div class="product-grid" style="grid-template-columns: repeat(4, 1fr); gap: 2rem 1.5rem;">
+        <div class="product-grid">
             <?php foreach ($bestSellingProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
                     <span class="badge-tag tag-hot">BÁN CHẠY</span>
-                    <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img" style="object-fit: cover;">
+                    <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
                     <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? '') ?></span>
@@ -182,44 +224,11 @@ function homeAssetUrl($image): string {
         </div>
     </section>
 
-    <!-- Đang Khuyến Mãi -->
-    <section class="products-section" style="padding: 5rem 2rem;">
-        <div class="section-header-flex">
-            <div>
-                <span style="font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 1px; color: var(--primary-color); font-weight: 600; text-transform: uppercase;">ƯU ĐÃI HẤP DẪN</span>
-                <h2 class="section-title-elegant" style="margin-top: 0.25rem;">Đang Khuyến Mãi</h2>
-            </div>
-            <a href="<?= BASE_URL ?>shop" class="btn-text-link">Xem tất cả →</a>
-        </div>
-        <div class="product-grid" style="grid-template-columns: repeat(4, 1fr); gap: 2rem 1.5rem;">
-            <?php foreach ($discountedProducts as $product): ?>
-            <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
-                <div class="product-img-wrapper" style="border-radius:16px;">
-                    <span class="badge-tag tag-hot" style="background: #e57373;">GIẢM GIÁ</span>
-                    <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img" style="object-fit: cover;">
-                </div>
-                <div class="product-info-new">
-                    <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? '') ?></span>
-                    <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
-                    <div class="product-stars">★★★★★ <span class="stars-count">(42)</span></div>
-                    <div style="display: flex; justify-content: center; gap: 0.5rem; align-items: center;">
-                        <span class="product-price-new"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</span>
-                        <?php if (!empty($product['old_price'])): ?>
-                        <span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.9rem; font-family: var(--font-ui);"><?= number_format((float)$product['old_price'], 0, ',', '.') ?> ₫</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-            <?php if (empty($discountedProducts)): ?><p style="grid-column:1/-1;text-align:center;color:#666;">Chưa có sản phẩm khuyến mãi.</p><?php endif; ?>
-        </div>
-    </section>
-
     <!-- Testimonials Section -->
-    <section class="testimonials-section" style="padding: 6rem 2rem; max-width: 1200px; margin: 0 auto;">
+    <section class="testimonials-section">
         <span class="section-subtitle-center">PHẬT TỬ NÓI GÌ</span>
-        <h2 class="section-title-center" style="text-align: center; font-family: var(--font-heading); font-size: 2.8rem; color: var(--primary-dark); margin-bottom: 3rem;">Cảm Nhận Khách Hàng</h2>
-        <div class="testimonials-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+        <h2 class="section-title-center">Cảm Nhận Khách Hàng</h2>
+        <div class="testimonials-grid">
             <div class="testimonial-card">
                 <div class="testimonial-user">
                     <div class="user-avatar-text">NH</div>
@@ -260,69 +269,43 @@ function homeAssetUrl($image): string {
     </section>
 
     <!-- Blog Section -->
-    <section class="blog-section bg-beige-light" style="padding: 6rem 2rem; background-color: var(--primary-light);">
+    <section class="blog-section bg-beige-light">
         <span class="section-subtitle-center">KIẾN THỨC PHẬT PHÁP</span>
-        <h2 class="section-title-center" style="margin-bottom:3rem; text-align: center; font-family: var(--font-heading); font-size: 2.8rem; color: var(--primary-dark);">Tin Tức & Blog</h2>
-        <div class="blog-grid" style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
-            <article class="blog-card" style="background:#fff; border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
-                <div class="blog-img-wrapper" style="height: 200px; overflow: hidden; position: relative;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1028.jpg" alt="Hướng dẫn chọn áo lam" style="width:100%; height:100%; object-fit:cover;">
-                    <span class="blog-tag" style="position:absolute; top:1rem; left:1rem; background:rgba(62,39,35,0.8); color:#fff; padding:0.25rem 0.75rem; border-radius:4px; font-size:0.75rem;">Hướng dẫn</span>
+        <h2 class="section-title-center" style="margin-bottom:3rem;">Tin Tức & Blog</h2>
+        <div class="blog-grid">
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Hướng dẫn chọn áo lam">
+                    <span class="blog-tag">Hướng dẫn</span>
                 </div>
-                <div class="blog-info" style="padding:1.5rem;">
-                    <span class="blog-date" style="color:var(--text-muted); font-size:0.75rem;">12/07/2026 · 3 phút đọc</span>
-                    <h3 style="font-family:var(--font-heading); font-size:1.35rem; margin-top:0.5rem; margin-bottom:0.5rem; line-height:1.3; font-weight:600;"><a href="#" style="color:var(--primary-dark); text-decoration:none;">Hướng dẫn chọn áo lam đúng kích thước và phong cách</a></h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin:0;">Áo lam là trang phục truyền thống của Phật tử tại gia Việt Nam. Bài viết này sẽ hướng dẫn bạn cách chọn áo lam phù hợp nhất...</p>
-                </div>
-            </article>
-            <article class="blog-card" style="background:#fff; border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
-                <div class="blog-img-wrapper" style="height: 200px; overflow: hidden; position: relative;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1103.jpg" alt="Ý nghĩa tràng hạt" style="width:100%; height:100%; object-fit:cover;">
-                    <span class="blog-tag" style="position:absolute; top:1rem; left:1rem; background:rgba(62,39,35,0.8); color:#fff; padding:0.25rem 0.75rem; border-radius:4px; font-size:0.75rem;">Kiến thức</span>
-                </div>
-                <div class="blog-info" style="padding:1.5rem;">
-                    <span class="blog-date" style="color:var(--text-muted); font-size:0.75rem;">25/07/2026 · 5 phút đọc</span>
-                    <h3 style="font-family:var(--font-heading); font-size:1.35rem; margin-top:0.5rem; margin-bottom:0.5rem; line-height:1.3; font-weight:600;"><a href="#" style="color:var(--primary-dark); text-decoration:none;">Ý nghĩa và công dụng của tràng hạt trong Phật giáo</a></h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin:0;">Tràng hạt không chỉ là vật phẩm tâm linh mà còn là công cụ quan trọng trong thiền định và tụng kinh. Tìm hiểu ý nghĩa sâu sắc...</p>
+                <div class="blog-info">
+                    <span class="blog-date">12/07/2026 · 3 phút đọc</span>
+                    <h3><a href="#">Hướng dẫn chọn áo lam đúng kích thước và phong cách</a></h3>
+                    <p>Áo lam là trang phục truyền thống của Phật tử tại gia Việt Nam. Bài viết này sẽ hướng dẫn bạn cách chọn áo lam phù hợp nhất với vóc dáng v...</p>
                 </div>
             </article>
-            <article class="blog-card" style="background:#fff; border:1px solid var(--border-color); border-radius:16px; overflow:hidden;">
-                <div class="blog-img-wrapper" style="height: 200px; overflow: hidden; position: relative;">
-                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1128.jpg" alt="Chăm sóc tượng Phật" style="width:100%; height:100%; object-fit:cover;">
-                    <span class="blog-tag" style="position:absolute; top:1rem; left:1rem; background:rgba(62,39,35,0.8); color:#fff; padding:0.25rem 0.75rem; border-radius:4px; font-size:0.75rem;">Bảo quản</span>
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Ý nghĩa tràng hạt">
+                    <span class="blog-tag">Kiến thức</span>
                 </div>
-                <div class="blog-info" style="padding:1.5rem;">
-                    <span class="blog-date" style="color:var(--text-muted); font-size:0.75rem;">02/08/2026 · 4 phút đọc</span>
-                    <h3 style="font-family:var(--font-heading); font-size:1.35rem; margin-top:0.5rem; margin-bottom:0.5rem; line-height:1.3; font-weight:600;"><a href="#" style="color:var(--primary-dark); text-decoration:none;">Cách chăm sóc và bảo quản tượng Phật đúng cách</a></h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin:0;">Tượng Phật cần được thờ phụng và chăm sóc đúng cách để giữ được vẻ đẹp và sự linh ứng. Những lưu ý quan trọng bạn cần...</p>
+                <div class="blog-info">
+                    <span class="blog-date">25/07/2026 · 5 phút đọc</span>
+                    <h3><a href="#">Ý nghĩa và công dụng của tràng hạt trong Phật giáo</a></h3>
+                    <p>Tràng hạt không chỉ là vật phẩm tâm linh mà còn là công cụ quan trọng trong thiền định và tụng kinh. Tìm hiểu ý nghĩa sâu sắc của tràng hạt...</p>
                 </div>
             </article>
-        </div>
-    </section>
-
-    <!-- Stats Bar -->
-    <section class="stats-bar" style="background: var(--gray); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 3rem 2rem;">
-        <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); text-align: center; gap: 2rem;">
-            <div>
-                <h4 style="font-family: var(--font-heading); font-size: 2.2rem; color: var(--primary-dark); font-weight: 700; margin-bottom: 0.25rem;">50K+</h4>
-                <p style="font-family: var(--font-ui); font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin:0;">Phật tử tin dùng</p>
-            </div>
-            <div>
-                <h4 style="font-family: var(--font-heading); font-size: 2.2rem; color: var(--primary-dark); font-weight: 700; margin-bottom: 0.25rem;">15K+</h4>
-                <p style="font-family: var(--font-ui); font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin:0;">Sản phẩm đã bán</p>
-            </div>
-            <div>
-                <h4 style="font-family: var(--font-heading); font-size: 2.2rem; color: var(--primary-dark); font-weight: 700; margin-bottom: 0.25rem;">4.9★</h4>
-                <p style="font-family: var(--font-ui); font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin:0;">Đánh giá trung bình</p>
-            </div>
-            <div>
-                <h4 style="font-family: var(--font-heading); font-size: 2.2rem; color: var(--primary-dark); font-weight: 700; margin-bottom: 0.25rem;">500+</h4>
-                <p style="font-family: var(--font-ui); font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin:0;">Người bán uy tín</p>
-            </div>
-            <div>
-                <h4 style="font-family: var(--font-heading); font-size: 2.2rem; color: var(--primary-dark); font-weight: 700; margin-bottom: 0.25rem;">63</h4>
-                <p style="font-family: var(--font-ui); font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin:0;">Tỉnh thành giao hàng</p>
-            </div>
+            <article class="blog-card">
+                <div class="blog-img-wrapper">
+                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Chăm sóc tượng Phật">
+                    <span class="blog-tag">Bảo quản</span>
+                </div>
+                <div class="blog-info">
+                    <span class="blog-date">02/08/2026 · 4 phút đọc</span>
+                    <h3><a href="#">Cách chăm sóc và bảo quản tượng Phật đúng cách</a></h3>
+                    <p>Tượng Phật cần được thờ phụng và chăm sóc đúng cách để giữ được vẻ đẹp và sự linh ứng. Những lưu ý quan trọng bạn cần biết khi thờ tượng t...</p>
+                </div>
+            </article>
         </div>
     </section>
 </main>
