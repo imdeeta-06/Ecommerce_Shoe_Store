@@ -1,6 +1,17 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
+$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
+$gender = [
+    'mens' => 'men',
+    'womens' => 'women',
+][$gender] ?? $gender;
+if (!in_array($gender, ['all', 'men', 'women'], true)) {
+    $gender = 'all';
+}
+$genderLabel = 'Tất cả sản phẩm';
+if ($gender === 'men') $genderLabel = 'Pháp phục Nam';
+if ($gender === 'women') $genderLabel = 'Pháp phục Nữ';
 
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
@@ -62,15 +73,6 @@ function productDisplayType($product): string {
                     <?php endforeach; ?>
                 </ul>
 
-                
-
-
-
-
-
-
-
-                
 
                 <details class="filter-group" <?= $priceRange !== 'all' ? 'open' : '' ?>>
                     <summary>Giá</summary>
