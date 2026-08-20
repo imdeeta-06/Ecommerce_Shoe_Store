@@ -51,7 +51,7 @@ class Database {
                 PRIMARY KEY (`version`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             $stmt = $this->connection->prepare('SELECT 1 FROM schema_migrations WHERE version = :version LIMIT 1');
-            $stmt->execute(['version' => 'ecommerce_business_v9']);
+            $stmt->execute(['version' => 'ecommerce_business_v8']);
             if ($stmt->fetchColumn()) {
                 self::$schemaReady = true;
                 return;
@@ -77,7 +77,7 @@ class Database {
             $this->dropBrokenTriggers();
             $this->seedDefaultProductVariants();
             $this->rebuildSalesCounters();
-            $this->connection->prepare('INSERT INTO schema_migrations (version) VALUES (:version)')->execute(['version' => 'ecommerce_business_v9']);
+            $this->connection->prepare('INSERT INTO schema_migrations (version) VALUES (:version)')->execute(['version' => 'ecommerce_business_v8']);
             self::$schemaReady = true;
         } catch (PDOException $e) {
             // A restricted DB account should not make the storefront crash.
@@ -87,11 +87,6 @@ class Database {
     }
 
     private function migrateVariantColumns(): void {
-        if ($this->tableExists('product_variants')) {
-            $this->addColumnIfMissing('product_variants', 'status', "TINYINT(1) NOT NULL DEFAULT 1 AFTER `price_modifier`");
-            $this->connection->exec("UPDATE `product_variants` SET `status` = 1 WHERE `status` IS NULL");
-        }
-
         if ($this->tableExists('cart')) {
             if (!$this->columnExists('cart', 'variant_id')) {
                 $this->connection->exec("ALTER TABLE `cart` ADD `variant_id` INT(11) NULL DEFAULT NULL AFTER `session_id`");

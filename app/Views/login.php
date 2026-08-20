@@ -403,7 +403,15 @@ unset($_SESSION['login_old']);
                 <?= htmlspecialchars($success) ?>
             </div>
         <?php endif; ?>
+        
+        <?php $info = \App\Helpers\SessionHelper::getFlash('info'); ?>
+        <?php if ($info): ?>
+            <div class="alert-box" style="background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1;">
+                <?= htmlspecialchars($info) ?>
+            </div>
+        <?php endif; ?>
 
+        <!-- Form -->
         <form action="<?= BASE_URL ?>login" method="POST">
             <div class="form-field">
                 <label class="form-label" for="email">Địa chỉ Email</label>
@@ -429,9 +437,26 @@ unset($_SESSION['login_old']);
 
             <button type="submit" class="btn-submit">Đăng nhập</button>
 
-            <p class="register-link">
-                Chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="form-link" style="font-weight:600;">Đăng ký ngay</a>
-            </p>
+            <div class="divider">hoặc</div>
+
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <div id="g_id_onload"
+                 data-client_id="<?= getenv('GOOGLE_CLIENT_ID') ?: (defined('GOOGLE_CLIENT_ID') ? GOOGLE_CLIENT_ID : '') ?>"
+                 data-login_uri="<?= rtrim(BASE_URL, '/') ?>/auth/google"
+                 data-auto_prompt="false">
+            </div>
+            
+            <div style="display: flex; justify-content: center; width: 100%;">
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="pill"
+                     data-logo_alignment="left"
+                     data-width="400">
+                </div>
+            </div>
         </form>
 
         <div class="login-trust">

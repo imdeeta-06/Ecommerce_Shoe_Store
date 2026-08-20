@@ -25,5 +25,8 @@ composer.phar
 *.log
 error_log
 
+# file dữ liệu port 
 database.php
 db.php
+# 6. Môi trường và cấu hình bảo mật
+.env

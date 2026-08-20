@@ -11,6 +11,33 @@ class MailService {
             && trim((string)$config['host']) !== ''
             && filter_var($config['from_email'], FILTER_VALIDATE_EMAIL) !== false;
     }
+    public static function sendVerificationEmail(string $to, string $otp): void {
+        $subject = 'Mã xác nhận email của bạn';
+        $html = "
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2>Xác nhận địa chỉ email</h2>
+                <p>Bạn đã đăng ký tài khoản. Vui lòng sử dụng mã OTP dưới đây để xác nhận địa chỉ email của bạn:</p>
+                <h1 style='color: #4CAF50; font-size: 32px; letter-spacing: 5px;'>{$otp}</h1>
+                <p>Mã này sẽ hết hạn trong vòng 10 phút.</p>
+                <p style='color: red;'>Lưu ý: Không chia sẻ mã OTP này với bất kỳ ai.</p>
+            </div>
+        ";
+        self::sendHtml($to, $subject, $html);
+    }
+
+    public static function sendForgotPasswordEmail(string $to, string $otp): void {
+        $subject = 'Mã OTP đặt lại mật khẩu';
+        $html = "
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2>Đặt lại mật khẩu</h2>
+                <p>Bạn đã yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã OTP dưới đây để tiến hành đổi mật khẩu:</p>
+                <h1 style='color: #2196F3; font-size: 32px; letter-spacing: 5px;'>{$otp}</h1>
+                <p>Mã này sẽ hết hạn trong vòng 10 phút.</p>
+                <p style='color: red;'>Lưu ý: Không chia sẻ mã OTP này với bất kỳ ai. Nếu bạn không yêu cầu, vui lòng bỏ qua email này.</p>
+            </div>
+        ";
+        self::sendHtml($to, $subject, $html);
+    }
 
     public static function sendHtml(string $to, string $subject, string $html): void {
         if (!self::isConfigured()) {

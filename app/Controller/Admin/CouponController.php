@@ -21,7 +21,7 @@ class CouponController {
     public function create() {
         $productModel = new Product();
         $categories = $productModel->getAllCategories();
-        $products = $productModel->getAllProducts(['status' => 'active']);
+        $products = $productModel->getAllProducts(['status' => 1]);
         require __DIR__ . '/../../Views/admin/coupons/create.php';
     }
     
@@ -84,7 +84,7 @@ class CouponController {
 
         $productModel = new Product();
         $categories = $productModel->getAllCategories();
-        $products = $productModel->getAllProducts(['status' => 'active']);
+        $products = $productModel->getAllProducts(['status' => 1]);
         
         require __DIR__ . '/../../Views/admin/coupons/edit.php';
     }

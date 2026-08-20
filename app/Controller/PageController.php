@@ -33,20 +33,19 @@ class PageController {
 
     public function tracking() {
         $metaTitle = 'Tra cứu đơn hàng - Liên Hoa';
-        $metaDescription = 'Tra cứu trạng thái đơn hàng Liên Hoa bằng mã đơn hàng và số điện thoại nhận hàng.';
-        $trackingResult = null;
+        $metaDescription = 'Tra cứu trạng thái đơn hàng Liên Hoa bằng số điện thoại hoặc Gmail nhận hàng.';
+        $trackingResults = [];
         $trackingError = null;
-        $trackingSearched = isset($_GET['order_code']) || isset($_GET['phone']);
-        $orderCode = trim((string)($_GET['order_code'] ?? ''));
-        $phone = trim((string)($_GET['phone'] ?? ''));
+        $trackingSearched = isset($_GET['contact']);
+        $contact = trim((string)($_GET['contact'] ?? ''));
 
         if ($trackingSearched) {
-            if ($orderCode === '' || $phone === '') {
-                $trackingError = 'Vui lòng nhập đầy đủ mã đơn hàng và số điện thoại nhận hàng.';
+            if ($contact === '') {
+                $trackingError = 'Vui lòng nhập số điện thoại hoặc Gmail nhận hàng.';
             } else {
-                $trackingResult = (new Order())->findPublicTracking($orderCode, $phone);
-                if (!$trackingResult) {
-                    $trackingError = 'Không tìm thấy đơn hàng phù hợp. Vui lòng kiểm tra lại mã đơn hàng và số điện thoại.';
+                $trackingResults = (new Order())->findPublicTrackingByContact($contact);
+                if (empty($trackingResults)) {
+                    $trackingError = 'Không tìm thấy đơn hàng nào phù hợp với số điện thoại hoặc Gmail đã nhập.';
                 }
             }
         }

@@ -15,5 +15,6 @@ try {
 
 echo "No ad-hoc migration executed. Ứng dụng tự nâng schema nghiệp vụ một lần khi khởi động qua Database.php.\n";
 
-$stmt = $db->query("SELECT COUNT(*) AS count FROM product");
-echo "Tổng số sản phẩm: " . $stmt->fetchColumn() . "\n";
+$stmt = $db->query("DESCRIBE cart");
+$columns = $stmt->fetchAll();
+print_r($columns);
