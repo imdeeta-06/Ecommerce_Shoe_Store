@@ -911,7 +911,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <table class="pd-specs-table">
                 <tr>
                     <td class="spec-label">Thương Hiệu / Nguồn gốc</td>
-                    <td class="spec-val">Pháp Phục PaceUp</td>
+                    <td class="spec-val">Pháp Phục Liên Hoa</td>
                 </tr>
                 <tr>
                     <td class="spec-label">Danh Mục</td>
@@ -955,7 +955,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
 
                 <div style="flex: 1;">
                     <p style="font-size: 0.95rem; color: #475569; margin: 0;">
-                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại PaceUp.
+                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại Liên Hoa.
                     </p>
                 </div>
             </div>
@@ -971,7 +971,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                                 <div class="pd-reviewer-info">
                                     <img class="pd-reviewer-avatar" src="<?= !empty($rev['avatar']) ? BASE_URL . htmlspecialchars($rev['avatar']) : 'https://ui-avatars.com/api/?name='.urlencode($rev['user_name'] ?? 'User').'&background=0F172A&color=fff' ?>" alt="Avatar">
                                     <div>
-                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử PaceUp') ?></div>
+                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử Liên Hoa') ?></div>
                                     </div>
                                 </div>
                                 <div class="pd-review-stars">

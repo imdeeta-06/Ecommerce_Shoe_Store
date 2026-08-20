@@ -5,7 +5,7 @@ include __DIR__ . '/../partials/header.php';
 <main class="client-page">
     <h1 class="client-title" style="text-align: center; margin-bottom: 2rem;">Bảo mật thông tin</h1>
     <div class="client-main-content" style="max-width: 800px; margin: 0 auto; line-height: 1.8; color: #333; font-size: 1rem;">
-        <p style="margin-bottom: 2rem;">PaceUp luôn tôn trọng sự riêng tư và bảo vệ thông tin cá nhân của bạn. Chính sách bảo mật này mô tả cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu khi bạn sử dụng website.</p>
+        <p style="margin-bottom: 2rem;">Liên Hoa luôn tôn trọng sự riêng tư và bảo vệ thông tin cá nhân của bạn. Chính sách bảo mật này mô tả cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu khi bạn sử dụng website.</p>
         
         <h2 class="client-section-title">1. Thu thập thông tin</h2>
         <p style="margin-bottom: 1.5rem;">Chúng tôi thu thập thông tin cá nhân như Tên, Số điện thoại, Địa chỉ giao hàng và Email chỉ khi bạn tự nguyện cung cấp trong quá trình mua sắm hoặc đăng ký tài khoản.</p>
