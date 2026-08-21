@@ -452,9 +452,9 @@ unset($_SESSION['login_old']);
                      data-size="large"
                      data-theme="outline"
                      data-text="sign_in_with"
-                     data-shape="pill"
+                     data-shape="rectangular"
                      data-logo_alignment="left"
-                     data-width="400">
+                     data-width="360">
                 </div>
             </div>
         </form>
