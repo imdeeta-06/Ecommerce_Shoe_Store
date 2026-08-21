@@ -459,6 +459,10 @@ unset($_SESSION['login_old']);
             </div>
         </form>
 
+        <p class="register-link">
+            Bạn chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="form-link">Đăng ký ngay</a>
+        </p>
+
         <div class="login-trust">
             <div class="trust-item">
                 <div class="trust-icon">
