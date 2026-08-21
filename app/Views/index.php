@@ -217,14 +217,25 @@ function homeAssetUrl($image): string {
             <?php foreach ($featuredProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
-                    <span class="badge-tag tag-new">MỚI</span>
+                    <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                        <span class="badge-tag tag-sale" style="background:#e11d48; color:white; font-weight:bold;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                    <?php else: ?>
+                        <span class="badge-tag tag-new">MỚI</span>
+                    <?php endif; ?>
                     <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
                     <span class="product-category-new"><?= htmlspecialchars($product['category']) ?></span>
                     <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
                     <div class="product-stars">★★★★★ <span class="stars-count">(28)</span></div>
-                    <div class="product-price-new"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price-new">
+                          <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                              <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> ₫</span>
+                              <del style="color: #94a3b8; font-size: 0.9em; margin-left: 8px;"><?= number_format($cPrice, 0, ',', '.') ?> ₫</del>
+                          <?php else: ?>
+                              <?= number_format($price, 0, ',', '.') ?> ₫
+                          <?php endif; ?>
+                    </div>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -255,14 +266,25 @@ function homeAssetUrl($image): string {
             <?php foreach ($bestSellingProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
-                    <span class="badge-tag tag-hot">BÁN CHẠY</span>
+                    <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                        <span class="badge-tag tag-sale" style="background:#e11d48; color:white; font-weight:bold;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                    <?php else: ?>
+                        <span class="badge-tag tag-hot">BÁN CHẠY</span>
+                    <?php endif; ?>
                     <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
                     <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? '') ?></span>
                     <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
                     <div class="product-stars">★★★★★ <span class="stars-count">(36)</span></div>
-                    <div class="product-price-new"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price-new">
+                          <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                              <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> ₫</span>
+                              <del style="color: #94a3b8; font-size: 0.9em; margin-left: 8px;"><?= number_format($cPrice, 0, ',', '.') ?> ₫</del>
+                          <?php else: ?>
+                              <?= number_format($price, 0, ',', '.') ?> ₫
+                          <?php endif; ?>
+                      </div>
                 </div>
             </div>
             <?php endforeach; ?>
