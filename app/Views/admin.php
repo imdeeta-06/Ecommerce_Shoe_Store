@@ -1042,11 +1042,11 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
             <div class="admin-panel" style="max-width: 600px;">
                 <div class="admin-field">
                     <label>Tên website</label>
-                    <input type="text" value="PaceUp">
+                    <input type="text" value="Liên Hoa - Đồ Lam Phật Giáo">
                 </div>
                 <div class="admin-field">
                     <label>Email liên hệ</label>
-                    <input type="email" value="cskh@paceup.vn">
+                    <input type="email" value="lienhoashop.pg@gmail.com">
                 </div>
                 <div class="admin-field">
                     <label>Phí vận chuyển mặc định (VNĐ)</label>
@@ -1057,23 +1057,61 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
 
         <?php elseif ($page === 'categories'): ?>
             <div class="admin-title" style="margin-bottom: 2rem;">
-                <div>
-                    <h1>Quản lý danh mục</h1>
-                    <p>Mục này đã được chuyển sang controller mới.</p>
-                </div>
-                <a href="<?= BASE_URL ?>admin/categories" class="admin-btn primary">Đến trang quản lý danh mục mới</a>
+                <h2>Quản lý danh mục</h2>
+            </div>
+            
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên danh mục</th>
+                            <th>Đường dẫn (Slug)</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>111</td>
+                            <td><strong>Quần áo Tăng - Ni</strong></td>
+                            <td>quan-ao-tang-ni</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn light">Sửa</a>
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn danger">Xóa</a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>112</td>
+                            <td><strong>Đồ lam đi chùa</strong></td>
+                            <td>do-lam-di-chua</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn light">Sửa</a>
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn danger">Xóa</a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>114</td>
+                            <td><strong>Túi đeo đi chùa</strong></td>
+                            <td>tui-deo-di-chua</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn light">Sửa</a>
+                                    <a href="javascript:void(0)" class="admin-btn-sm admin-btn danger">Xóa</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
         <?php elseif ($page === 'inventory'): ?>
-            <div class="admin-title" style="margin-bottom: 2rem;">
-                <div>
-                    <h1>Quản lý kho hàng</h1>
-                    <p>Kiểm soát số lượng sản phẩm nhập xuất.</p>
-                </div>
-                <button class="admin-btn primary" onclick="openModal('inventoryModal')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px;"><path d="M12 5v14M5 12h14"></path></svg>
-                    Nhập kho
-                </button>
+            <div class="admin-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2>Quản lý kho hàng</h2>
+                <button onclick="openModal('inventoryModal')" class="admin-btn primary">+ Nhập kho</button>
             </div>
 
             <div class="admin-table-wrapper">
@@ -1081,22 +1119,22 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <thead>
                         <tr>
                             <th>Sản phẩm</th>
-                            <th>Mã SP (SKU)</th>
+                            <th>Mã SKU</th>
                             <th>Tồn kho</th>
-                            <th>Trạng thái kho</th>
-                            <th>Lần nhập cuối</th>
-                            <th>Thao tác</th>
+                            <th>Trạng thái</th>
+                            <th>Cập nhật cuối</th>
+                            <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike Air Zoom Pegasus 42</strong>
+                                <strong style="color: #111;">Áo Lam Nữ Cổ Tàu Lanh</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">NK-PEG42-BLK</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-LAM-1025</span></td>
                             <td><strong style="font-size: 1.1rem;">124</strong></td>
                             <td><span class="admin-badge success">Đủ hàng</span></td>
                             <td style="color: #666; font-size: 0.9rem;">20/06/2026</td>
@@ -1107,11 +1145,11 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         <tr>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/NIKE+SB+DUNK+LOW+PRO.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike SB Dunk Low Pro</strong>
+                                <strong style="color: #111;">Túi Đeo Đi Chùa Thêu Hoa Sen</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">NK-DUNK-LOW</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-TUI-1075</span></td>
                             <td><strong style="font-size: 1.1rem; color: #f59e0b;">5</strong></td>
                             <td><span class="admin-badge warning">Sắp hết</span></td>
                             <td style="color: #666; font-size: 0.9rem;">15/05/2026</td>
@@ -1121,10 +1159,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         </tr>
                         <tr>
                             <td class="admin-product-cell">
-                                <div class="admin-thumb" style="width: 44px; height: 44px; background: #eee;"></div>
-                                <strong style="color: #111;">Adidas Ultraboost Light</strong>
+                                <div class="admin-thumb" style="width: 44px; height: 44px;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" style="width: 100%; height: 100%; object-fit: contain;">
+                                </div>
+                                <strong style="color: #111;">Tràng Hạt Trầm Hương 108 Hạt</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">AD-UB-LGT</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-TRANG-1100</span></td>
                             <td><strong style="font-size: 1.1rem; color: #ef4444;">0</strong></td>
                             <td><span class="admin-badge error">Hết hàng</span></td>
                             <td style="color: #666; font-size: 0.9rem;">10/04/2026</td>
@@ -1147,9 +1187,9 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         <div style="margin-bottom: 1.5rem;">
                             <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Chọn sản phẩm *</label>
                             <select name="variant_id" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
-                                <option value="1">Nike Air Zoom Pegasus 42</option>
-                                <option value="2">Nike SB Dunk Low Pro</option>
-                                <option value="3">Adidas Ultraboost Light</option>
+                                <option value="1025">Áo Lam Nữ Cổ Tàu Lanh</option>
+                                <option value="1075">Túi Đeo Đi Chùa Thêu Hoa Sen</option>
+                                <option value="1100">Tràng Hạt Trầm Hương 108 Hạt</option>
                             </select>
                         </div>
                         
@@ -1403,12 +1443,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <td>1</td>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1000.jpg" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike Air Zoom Pegasus 42</strong>
+                                <strong style="color: #111;">Áo Tràng Hải Thanh</strong>
                             </td>
-                            <td>Giày Chạy Bộ Nam</td>
-                            <td style="font-weight: 600;">3.800.000 ₫</td>
+                            <td>Quần áo Tăng - Ni</td>
+                            <td style="font-weight: 600;">540.000 ₫</td>
                             <td>
                                 <div class="admin-actions">
                                     <a href="javascript:void(0)" onclick="openModal('productModal')" class="admin-btn-sm admin-btn light">Sửa</a>
@@ -1420,12 +1460,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <td>2</td>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/NIKE+SB+DUNK+LOW+PRO.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike SB Dunk Low Pro</strong>
+                                <strong style="color: #111;">Túi Đeo Đi Chùa Hoa Sen</strong>
                             </td>
-                            <td>Giày Skate Nam</td>
-                            <td style="font-weight: 600;">4.200.000 ₫</td>
+                            <td>Túi đeo đi chùa</td>
+                            <td style="font-weight: 600;">220.000 ₫</td>
                             <td>
                                 <div class="admin-actions">
                                     <a href="javascript:void(0)" onclick="openModal('productModal')" class="admin-btn-sm admin-btn light">Sửa</a>
@@ -1451,7 +1491,7 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             </div>
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Giá bán (VNĐ) *</label>
-                                <input type="number" required placeholder="Ví dụ: 3800000" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                <input type="number" required placeholder="Ví dụ: 540000" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
                             </div>
                         </div>
 
@@ -1459,10 +1499,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Phân loại *</label>
                                 <select style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
-                                    <option value="men_running">Giày chạy bộ nam</option>
-                                    <option value="women_running">Giày chạy bộ nữ</option>
-                                    <option value="men_lifestyle">Giày thời trang nam</option>
-                                    <option value="women_lifestyle">Giày thời trang nữ</option>
+                                    <option value="111">Quần áo Tăng - Ni</option>
+                                    <option value="112">Đồ lam đi chùa</option>
+                                    <option value="114">Túi đeo đi chùa</option>
+                                    <option value="113">Quần áo ngồi thiền</option>
+                                    <option value="115">Vòng tay - chuỗi hạt</option>
+                                    <option value="116">Phụ kiện đi chùa</option>
                                 </select>
                             </div>
                             <div>

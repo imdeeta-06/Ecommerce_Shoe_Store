@@ -179,6 +179,9 @@ class Product extends BaseModel {
     }
 
     public function getDiscountedProducts($limit = 8) {
+        if (!$this->tableHasColumn('product', 'old_price')) {
+            return [];
+        }
         return $this->getMarketingProducts('p.id DESC', $limit, 'p.old_price IS NOT NULL AND p.old_price > p.base_price');
     }
 

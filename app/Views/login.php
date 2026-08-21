@@ -452,12 +452,16 @@ unset($_SESSION['login_old']);
                      data-size="large"
                      data-theme="outline"
                      data-text="sign_in_with"
-                     data-shape="pill"
+                     data-shape="rectangular"
                      data-logo_alignment="left"
-                     data-width="400">
+                     data-width="360">
                 </div>
             </div>
         </form>
+
+        <p class="register-link">
+            Bạn chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="form-link">Đăng ký ngay</a>
+        </p>
 
         <div class="login-trust">
             <div class="trust-item">

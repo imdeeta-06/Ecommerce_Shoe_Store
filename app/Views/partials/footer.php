@@ -30,10 +30,12 @@
             <div>
                 <h3>MUA SẮM</h3>
                 <ul>
-                    <li><a href="<?= BASE_URL ?>shop?category=Quần+áo+Tăng+-+Ni">Pháp phục - Đồ Lam</a></li>
-                    <li><a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt">Tràng hạt</a></li>
-                    <li><a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa">Tượng thờ</a></li>
-                    <li><a href="<?= BASE_URL ?>shop">Kinh sách</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa">Đồ lam đi chùa</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Quần+áo+Tăng+-+Ni">Pháp phục Tăng - Ni</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa">Túi xách đi chùa</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Quần+áo+ngồi+thiền">Quần áo ngồi thiền</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt">Tràng hạt &amp; Chuỗi niệm</a></li>
+                    <li><a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa">Phụ kiện &amp; Pháp cụ</a></li>
                 </ul>
             </div>
             <div>
@@ -43,6 +45,7 @@
                     <li><a href="<?= BASE_URL ?>careers">Blog & Kiến thức</a></li>
                     <li><a href="<?= BASE_URL ?>support">Liên hệ</a></li>
                     <li><a href="<?= BASE_URL ?>faqs">Câu hỏi thường gặp</a></li>
+                    <li><a href="<?= BASE_URL ?>feedback">Gửi phản hồi</a></li>
                 </ul>
             </div>
             <div>

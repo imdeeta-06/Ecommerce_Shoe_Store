@@ -22,4 +22,24 @@ class ReviewController {
         SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
         SessionHelper::redirect('/account');
     }
+
+    public function storeDirect() {
+        AuthMiddleware::requireLogin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid method']);
+            exit;
+        }
+
+        $result = (new Review())->createDirectReview(
+            (int)$_SESSION['user_id'],
+            (int)($_POST['product_id'] ?? 0),
+            (int)($_POST['rating'] ?? 5),
+            trim((string)($_POST['comment'] ?? ''))
+        );
+
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        exit;
+    }
 }

@@ -5,7 +5,6 @@ adminStart('Mã giảm giá', 'coupons', $flash ?? null);
 
 <div class="admin-title" style="margin-bottom: 2rem;">
     <div>
-        <h1>Mã giảm giá</h1>
         <p>Quản lý các chương trình khuyến mãi.</p>
     </div>
     <a href="<?= BASE_URL ?>admin/coupons/create" class="admin-btn primary">

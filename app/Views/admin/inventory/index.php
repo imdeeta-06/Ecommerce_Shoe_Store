@@ -10,7 +10,7 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 
 <div class="admin-title" style="margin-bottom: 2rem;">
     <div>
-        <h1>Quản lý Kho hàng</h1>
+        
         <p>Thêm phân loại sản phẩm và theo dõi lịch sử xuất/nhập kho.</p>
     </div>
 </div>
