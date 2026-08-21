@@ -45,6 +45,7 @@
                     <li><a href="<?= BASE_URL ?>careers">Blog & Kiến thức</a></li>
                     <li><a href="<?= BASE_URL ?>support">Liên hệ</a></li>
                     <li><a href="<?= BASE_URL ?>faqs">Câu hỏi thường gặp</a></li>
+                    <li><a href="<?= BASE_URL ?>feedback">Gửi phản hồi</a></li>
                 </ul>
             </div>
             <div>

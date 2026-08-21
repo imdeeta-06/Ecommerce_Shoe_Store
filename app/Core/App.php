@@ -234,6 +234,7 @@ namespace App\Core {
             $router->add('/terms', 'PageController', 'terms');
             $router->add('/tracking', 'PageController', 'tracking');
             $router->add('/cart-reminder/unsubscribe', 'PageController', 'unsubscribeCartReminder');
+            $router->add('/feedback', 'PageController', 'feedback');
 
             $router->add('/admin', 'AdminController', 'index');
             $router->add('/admin/users/create', 'Admin\UserController', 'create');
