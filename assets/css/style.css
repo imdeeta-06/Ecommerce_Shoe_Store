@@ -617,6 +617,18 @@ ul {
     min-height: 500px;
 }
 
+@media (max-width: 900px) {
+    .auth-page {
+        flex-direction: column;
+    }
+    .auth-image {
+        display: none;
+    }
+    .auth-form-wrapper {
+        padding: 2.5rem 1.25rem;
+    }
+}
+
 /* Admin Dashboard */
 .admin-container {
     display: flex;
