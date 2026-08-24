@@ -200,6 +200,7 @@ namespace App\Core {
             $router->add('/support', 'SupportController', 'index');
             $router->add('/support/store', 'SupportController', 'store');
             $router->add('/review/store', 'ReviewController', 'store');
+            $router->add('/product/review', 'ReviewController', 'storeDirect');
             $router->add('/after-sale/request', 'AfterSaleController', 'store');
             $router->add('/login', 'AuthController', 'login');
             $router->add('/register', 'AuthController', 'register');
@@ -234,6 +235,7 @@ namespace App\Core {
             $router->add('/terms', 'PageController', 'terms');
             $router->add('/tracking', 'PageController', 'tracking');
             $router->add('/cart-reminder/unsubscribe', 'PageController', 'unsubscribeCartReminder');
+            $router->add('/feedback', 'PageController', 'feedback');
 
             $router->add('/admin', 'AdminController', 'index');
             $router->add('/admin/users/create', 'Admin\UserController', 'create');

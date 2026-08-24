@@ -19,6 +19,19 @@ class ProductController {
 
         $related = $productModel->getRelatedProducts($product['id'], $product['category_id'], 4);
         $reviews = $productModel->getProductReviews($product['id']);
+        
+        $totalReviews = count($reviews);
+        $sumRating = 0;
+        foreach ($reviews as $rev) {
+            $sumRating += (int)($rev['rating'] ?? 5);
+        }
+        $avgRating = $totalReviews > 0 ? round($sumRating / $totalReviews, 1) : 0;
+        
+        $ratingStats = [
+            'total_reviews' => $totalReviews,
+            'avg_rating' => $avgRating
+        ];
+
         $metaTitle = $product['name'] . ' - Liên Hoa';
         $metaDescription = trim((string)($product['description'] ?? '')) ?: ($product['name'] . ' cao cấp tại Liên Hoa. Chọn kích thước, màu sắc và đặt hàng online.');
         $canonicalUrl = \App\Core\App::url('/product?id=' . $id);

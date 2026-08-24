@@ -24,20 +24,20 @@ function homeAssetUrl($image): string {
             </div>
         </div>
         <div class="hero-floating-chip chip-bottom-right">
-            <span class="chip-icon">🍃</span>
+            <span class="chip-icon">👜</span>
             <div class="chip-text">
-                <strong>Vải đũi &amp; lanh tự nhiên</strong>
-                <small>Thoáng mát, nhẹ êm</small>
+                <strong>Túi xách &amp; Phụ kiện</strong>
+                <small>Thêu sen trang nhã</small>
             </div>
         </div>
         <div class="hero-container">
             <div class="hero-content">
-                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH · PHÁP PHỤC PHẬT GIÁO</span>
-                <h1 class="hero-title">Pháp Phục Phật Giáo<br>Cao Cấp & Thanh Tịnh</h1>
-                <p class="hero-desc">Chuyên cung cấp áo lam, tràng hạt, pháp phục Tăng – Ni và vật phẩm tâm linh trang nghiêm. Chất liệu vải đũi & lanh tự nhiên thoáng mát, may đo tỉ mỉ từng đường kim, giúp quý Phật tử luôn an lạc khi tu học và hành lễ.</p>
+                <span class="hero-subtitle">🌸 NƠI HỘI TỤ TÂM LÀNH · ĐỒ LAM - PHÁP PHỤC - TÚI XÁCH</span>
+                <h1 class="hero-title">Đồ Lam Đi Chùa &amp; Pháp Phục<br>Cao Cấp &amp; Thanh Tịnh</h1>
+                <p class="hero-desc">Chuyên cung cấp đồ lam đi chùa, pháp phục Tăng – Ni, túi xách đi chùa, tràng hạt và vật phẩm tâm linh cao cấp. Chất liệu vải đũi &amp; lanh tự nhiên thoáng mát, may đo chuẩn mực từng đường kim, giúp quý Phật tử luôn an lạc khi tu học và hành lễ.</p>
                 <div class="hero-buttons">
                     <a href="<?= BASE_URL ?>shop" class="btn-primary">Khám phá bộ sưu tập →</a>
-                    <a href="<?= BASE_URL ?>about" class="btn-secondary">Tìm hiểu thêm</a>
+                    <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="btn-secondary">Túi xách đi chùa</a>
                 </div>
                 <div class="hero-stats">
                     <div class="hero-stat-item">
@@ -52,11 +52,10 @@ function homeAssetUrl($image): string {
                     <div class="stat-divider"></div>
                     <div class="hero-stat-item">
                         <span class="stat-number">4.9 ★</span>
-                        <span class="stat-label">Hơn 5.000 đánh giá</span>
+                        <span class="stat-label">Hơn 5.000 đánh giá hoan hỷ</span>
                     </div>
                 </div>
             </div>
-
         </div>
     </section>
 
@@ -84,8 +83,8 @@ function homeAssetUrl($image): string {
                 </svg>
             </span>
             <div class="feature-text">
-                <h4>Hàng chính hãng 100%</h4>
-                <p>Cam kết chất lượng</p>
+                <h4>Chất liệu tự nhiên 100%</h4>
+                <p>Vải lanh &amp; đũi thoáng mát</p>
             </div>
         </div>
         <div class="feature-item">
@@ -97,8 +96,8 @@ function homeAssetUrl($image): string {
                 </svg>
             </span>
             <div class="feature-text">
-                <h4>Đổi trả 7 ngày</h4>
-                <p>Không câu nệ</p>
+                <h4>Đổi trả trong 7 ngày</h4>
+                <p>Hỗ trợ đổi size tận tâm</p>
             </div>
         </div>
         <div class="feature-item">
@@ -109,58 +108,102 @@ function homeAssetUrl($image): string {
                 </svg>
             </span>
             <div class="feature-text">
-                <h4>Hỗ trợ 7:00 - 21:00</h4>
-                <p>Tận tâm phục vụ</p>
+                <h4>Tư vấn hoan hỷ</h4>
+                <p>7:00 - 21:00 hằng ngày</p>
             </div>
         </div>
     </section>
 
     <!-- Category Section -->
     <section class="category-section">
-        <h2 class="section-title">Danh Mục Sản Phẩm</h2>
+        <h2 class="section-title">Danh Mục Nổi Bật</h2>
         <div class="category-grid">
             <a href="<?= BASE_URL ?>shop?category=Đồ+lam+đi+chùa" class="category-card">
-                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Pháp Phục - Đồ Lam">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" alt="Đồ Lam Đi Chùa">
                 <div class="category-overlay">
-                    <h3>Pháp Phục - Đồ Lam</h3>
-                    <p>48 sản phẩm</p>
+                    <h3>Đồ Lam Đi Chùa</h3>
+                    <p>Trang nghiêm · Kín đáo</p>
                 </div>
             </a>
-            <a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt" class="category-card">
-                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Tràng Hạt">
+            <a href="<?= BASE_URL ?>shop?category=Quần+áo+Tăng+-+Ni" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1000.jpg" alt="Pháp Phục Tăng - Ni">
                 <div class="category-overlay">
-                    <h3>Tràng Hạt</h3>
-                    <p>32 sản phẩm</p>
-                </div>
-            </a>
-            <a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa" class="category-card">
-                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Tượng Thờ">
-                <div class="category-overlay">
-                    <h3>Tượng Thờ</h3>
-                    <p>24 sản phẩm</p>
-                </div>
-            </a>
-            <a href="<?= BASE_URL ?>shop" class="category-card">
-                <img src="<?= BASE_URL ?>assets/images/lam-hero-pagoda.jpg" alt="Kinh Sách">
-                <div class="category-overlay">
-                    <h3>Kinh Sách</h3>
-                    <p>15 sản phẩm</p>
-                </div>
-            </a>
-            <a href="<?= BASE_URL ?>shop" class="category-card">
-                <img src="<?= BASE_URL ?>assets/images/lam-hero-lanterns.jpg" alt="Hương & Nến">
-                <div class="category-overlay">
-                    <h3>Hương & Nến</h3>
-                    <p>12 sản phẩm</p>
+                    <h3>Pháp Phục Tăng - Ni</h3>
+                    <p>Áo tràng · Hải thanh</p>
                 </div>
             </a>
             <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="category-card">
-                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Vật Phẩm Khác">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" alt="Túi Xách & Túi Đeo Đi Chùa">
                 <div class="category-overlay">
-                    <h3>Vật Phẩm Thờ</h3>
-                    <p>19 sản phẩm</p>
+                    <h3>Túi Xách Đi Chùa</h3>
+                    <p>Thêu hoa sen · Tiện dụng</p>
                 </div>
             </a>
+            <a href="<?= BASE_URL ?>shop?category=Quần+áo+ngồi+thiền" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1050.jpg" alt="Quần Áo Ngồi Thiền">
+                <div class="category-overlay">
+                    <h3>Quần Áo Ngồi Thiền</h3>
+                    <p>Vải đũi mộc · Thoáng khí</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" alt="Vòng Tay & Chuỗi Hạt">
+                <div class="category-overlay">
+                    <h3>Tràng Hạt &amp; Chuỗi Niệm</h3>
+                    <p>Trầm hương · Gỗ bách xanh</p>
+                </div>
+            </a>
+            <a href="<?= BASE_URL ?>shop?category=Phụ+kiện+đi+chùa" class="category-card">
+                <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1125.jpg" alt="Phụ Kiện Đi Chùa">
+                <div class="category-overlay">
+                    <h3>Phụ Kiện &amp; Pháp Cụ</h3>
+                    <p>Tượng thờ · Khánh treo</p>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- Section Giới Thiệu -->
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="intro-header">
+                <span class="section-subtitle-center">VỀ PHÁP PHỤC LIÊN HOA</span>
+                <h2 class="section-title-center" style="margin-bottom:1rem;">Gieo Duyên Lành Trong Từng Tà Áo</h2>
+                <p class="intro-lead">
+                    Liên Hoa ra đời với tâm nguyện phụng sự đạo tràng và quý Phật tử khắp mọi miền. Chúng tôi chuyên tâm sáng tạo những mẫu đồ lam đi chùa, pháp phục truyền thống và túi xách đi chùa thanh lịch, giữ trọn nét kín đáo, trang nghiêm nhưng luôn nhẹ nhàng, thoáng mát trong từng cử chỉ bái lạy, kinh hành.
+                </p>
+            </div>
+            
+            <div class="intro-grid">
+                <div class="intro-card">
+                    <div class="intro-icon-wrapper">
+                        <span class="intro-icon">🪷</span>
+                    </div>
+                    <h3>Pháp Phục Chuẩn Mực</h3>
+                    <p>Thiết kế đúng chuẩn mực thiền môn, phom dáng thanh thoát, kín đáo và tôn nghiêm, giúp quý Phật tử luôn tự tin khi đến chốn Phật đường.</p>
+                </div>
+                <div class="intro-card">
+                    <div class="intro-icon-wrapper">
+                        <span class="intro-icon">👜</span>
+                    </div>
+                    <h3>Túi Xách &amp; Túi Đeo Đi Chùa</h3>
+                    <p>Đa dạng mẫu túi vải bố, túi lanh thêu hoa sen trang nhã, quai đeo êm ái, ngăn chứa rộng rãi đựng vừa kinh sách và pháp phục gọn gàng.</p>
+                </div>
+                <div class="intro-card">
+                    <div class="intro-icon-wrapper">
+                        <span class="intro-icon">🍃</span>
+                    </div>
+                    <h3>Chất Liệu Đũi &amp; Lanh Tự Nhiên</h3>
+                    <p>Chọn lọc từ sợi dệt tự nhiên lành tính, siêu thấm hút mồ hôi, bề mặt mát mịn, tạo cảm giác an yên khi tọa thiền hay lễ bái nhiều giờ.</p>
+                </div>
+                <div class="intro-card">
+                    <div class="intro-icon-wrapper">
+                        <span class="intro-icon">🙏</span>
+                    </div>
+                    <h3>Tận Tâm Phụng Sự</h3>
+                    <p>Tư vấn chọn size tận tình theo từng vóc dáng, đóng gói trang trọng, hỗ trợ đổi size linh hoạt và trao gửi trọn vẹn sự hoan hỷ.</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -174,14 +217,25 @@ function homeAssetUrl($image): string {
             <?php foreach ($featuredProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
-                    <span class="badge-tag tag-new">MỚI</span>
+                    <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                        <span class="badge-tag tag-sale" style="background:#e11d48; color:white; font-weight:bold;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                    <?php else: ?>
+                        <span class="badge-tag tag-new">MỚI</span>
+                    <?php endif; ?>
                     <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
                     <span class="product-category-new"><?= htmlspecialchars($product['category']) ?></span>
                     <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
                     <div class="product-stars">★★★★★ <span class="stars-count">(28)</span></div>
-                    <div class="product-price-new"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price-new">
+                          <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                              <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> ₫</span>
+                              <del style="color: #94a3b8; font-size: 0.9em; margin-left: 8px;"><?= number_format($cPrice, 0, ',', '.') ?> ₫</del>
+                          <?php else: ?>
+                              <?= number_format($price, 0, ',', '.') ?> ₫
+                          <?php endif; ?>
+                    </div>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -190,12 +244,15 @@ function homeAssetUrl($image): string {
     </section>
 
     <!-- Special Collection Full-Width Banner -->
-    <section class="promo-banner-section" style="background-image: linear-gradient(rgba(62, 39, 35, 0.65), rgba(62, 39, 35, 0.65)), url('<?= BASE_URL ?>assets/images/lam-hero-courtyard.jpg');">
+    <section class="promo-banner-section" style="background-image: linear-gradient(rgba(45, 27, 20, 0.72), rgba(45, 27, 20, 0.72)), url('<?= BASE_URL ?>assets/images/lam-hero-courtyard.jpg');">
         <div class="promo-banner-content">
             <span class="promo-subtitle">BỘ SƯU TẬP ĐẶC BIỆT</span>
-            <h2>Tràng Hạt & Pháp Cụ<br>Chính Hãng Cao Cấp</h2>
-            <p>Được chọn lọc kỹ lưỡng từ những nghệ nhân uy tín, mang đến nguồn năng lượng tích cực và thanh tịnh cho người sử dụng.</p>
-            <button class="btn-gold" onclick="window.location.href='<?= BASE_URL ?>shop?category=Vòng+tay+-+chuỗi+hạt'">Khám phá bộ sưu tập</button>
+            <h2>Đồ Lam, Pháp Phục &amp; Túi Xách<br>Trang Nghiêm Thanh Tịnh</h2>
+            <p>Tuyển chọn những mẫu pháp phục lanh lụa cao cấp, kết hợp cùng túi xách đi chùa thêu sen tao nhã và tràng hạt tự nhiên, mang lại sự an lạc trọn vẹn cho quý Phật tử.</p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                <a href="<?= BASE_URL ?>shop" class="btn-gold" style="text-decoration:none; display:inline-block;">Khám phá bộ sưu tập</a>
+                <a href="<?= BASE_URL ?>shop?category=Túi+đeo+đi+chùa" class="btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.45); color: #fff;">Xem mẫu túi xách</a>
+            </div>
         </div>
     </section>
 
@@ -209,14 +266,25 @@ function homeAssetUrl($image): string {
             <?php foreach ($bestSellingProducts as $product): ?>
             <div class="product-card" onclick="goToProduct(<?= (int)$product['id'] ?>)">
                 <div class="product-img-wrapper" style="border-radius:16px;">
-                    <span class="badge-tag tag-hot">BÁN CHẠY</span>
+                    <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                        <span class="badge-tag tag-sale" style="background:#e11d48; color:white; font-weight:bold;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                    <?php else: ?>
+                        <span class="badge-tag tag-hot">BÁN CHẠY</span>
+                    <?php endif; ?>
                     <img src="<?= htmlspecialchars(homeAssetUrl($product['image'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </div>
                 <div class="product-info-new">
                     <span class="product-category-new"><?= htmlspecialchars($product['category'] ?? '') ?></span>
                     <h3 class="product-title-new"><?= htmlspecialchars($product['name']) ?></h3>
                     <div class="product-stars">★★★★★ <span class="stars-count">(36)</span></div>
-                    <div class="product-price-new"><?= number_format((float)$product['price'], 0, ',', '.') ?> ₫</div>
+                    <div class="product-price-new">
+                          <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                              <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> ₫</span>
+                              <del style="color: #94a3b8; font-size: 0.9em; margin-left: 8px;"><?= number_format($cPrice, 0, ',', '.') ?> ₫</del>
+                          <?php else: ?>
+                              <?= number_format($price, 0, ',', '.') ?> ₫
+                          <?php endif; ?>
+                      </div>
                 </div>
             </div>
             <?php endforeach; ?>

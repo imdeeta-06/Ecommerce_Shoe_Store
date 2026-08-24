@@ -13,12 +13,12 @@ include __DIR__ . '/../partials/header.php';
         
         <div style="margin-bottom: 2rem;">
             <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">2. Tôi có thể đổi trả sản phẩm không?</h3>
-            <p style="color: #555;">PaceUp hỗ trợ đổi size/mẫu trong vòng 7 ngày kể từ ngày nhận hàng với điều kiện sản phẩm còn nguyên tem mác, hộp và chưa qua sử dụng.</p>
+            <p style="color: #555;">Liên Hoa hỗ trợ đổi size/mẫu trong vòng 7 ngày kể từ ngày nhận hàng với điều kiện sản phẩm còn nguyên tem mác, hộp và chưa qua sử dụng.</p>
         </div>
         
         <div style="margin-bottom: 2rem;">
             <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">3. Sản phẩm có phải chính hãng 100%?</h3>
-            <p style="color: #555;">Tất cả sản phẩm tại PaceUp cam kết chính hãng 100%, có nguồn gốc xuất xứ rõ ràng và chính sách bảo hành đi kèm.</p>
+            <p style="color: #555;">Tất cả sản phẩm tại Liên Hoa cam kết chính hãng 100%, có nguồn gốc xuất xứ rõ ràng và chính sách bảo hành đi kèm.</p>
         </div>
 
         <div style="margin-bottom: 3rem;">

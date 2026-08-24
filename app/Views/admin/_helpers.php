@@ -102,32 +102,37 @@ if (!function_exists('adminStart')) {
             --font-ui: 'Outfit', sans-serif;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--font-ui); background: var(--admin-bg); color: var(--admin-text); display: flex; min-height: 100vh; overflow-x: hidden; }
+        html, body { max-width: 100%; overflow-x: hidden; }
+        body { font-family: var(--font-ui); background: var(--admin-bg); color: var(--admin-text); display: flex; min-height: 100vh; }
 
         .admin-sidebar { width: 260px; background: var(--admin-sidebar); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.3s ease; }
-        .admin-brand { padding: 1.5rem 2rem; font-size: 1.75rem; font-weight: 800; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.1); text-decoration: none; color: #fff; display: block; }
+        .admin-sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .admin-brand { padding: 1.5rem 2rem; font-size: 1.75rem; font-weight: 800; letter-spacing: 2px; text-decoration: none; color: #fff; display: block; }
+        .admin-sidebar-close { display: none; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; padding: 0.5rem 1rem; line-height: 1; }
+        .admin-sidebar-backdrop { display: none; }
+        
         .admin-nav { flex: 1; padding: 1.5rem 0; overflow-y: auto; }
         .admin-nav ul { list-style: none; }
         .admin-nav a { display: flex; align-items: center; padding: 0.85rem 2rem; color: #9ca3af; text-decoration: none; font-weight: 500; font-size: 0.95rem; border-left: 3px solid transparent; transition: all 0.2s; }
         .admin-nav a:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .admin-nav a.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; font-weight: 600; }
 
-        .admin-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .admin-topbar { min-height: 70px; background: #fff; border-bottom: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 0 2rem; flex-shrink: 0; }
-        .admin-search { display: flex; flex: 1; max-width: 460px; }
-        .admin-search input { flex: 1; min-width: 0; padding: 0.6rem 0.85rem; border: 1px solid var(--admin-border); border-right: 0; border-radius: 6px 0 0 6px; font: inherit; }
-        .admin-search button { padding: 0 1rem; border: 0; border-radius: 0 6px 6px 0; background: var(--admin-sidebar); color: #fff; cursor: pointer; }
+        .admin-main { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; }
+        .admin-topbar { height: 70px; background: #fff; border-bottom: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; flex-shrink: 0; }
+        .admin-topbar-left { display: flex; align-items: center; gap: 1rem; }
+        .admin-sidebar-toggle { display: none; flex-direction: column; justify-content: space-between; width: 24px; height: 18px; background: transparent; border: none; cursor: pointer; padding: 0; }
+        .admin-sidebar-toggle span { width: 100%; height: 2.5px; background: var(--admin-sidebar); border-radius: 2px; }
         .admin-topbar-title { font-weight: 600; font-size: 1.1rem; color: var(--admin-text-light); }
         .admin-user { display: flex; align-items: center; gap: 1rem; }
         .admin-user span { font-weight: 600; font-size: 0.9rem; }
         .admin-user img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--admin-border); }
-        .admin-logout { color: #dc2626; font-size: 0.85rem; font-weight: 600; text-decoration: none; margin-left: 1rem; }
+        .admin-logout { color: #dc2626; font-size: 0.85rem; font-weight: 600; text-decoration: none; margin-left: 0.5rem; }
 
-        .admin-content { padding: 2rem; flex: 1; overflow-y: auto; }
-        .admin-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; }
+        .admin-content { padding: 2rem; flex: 1; overflow-y: auto; max-width: 100%; }
+        .admin-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
         .admin-title h1 { font-size: 1.75rem; font-weight: 700; color: #111; letter-spacing: -0.02em; }
 
-        .admin-panel { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .admin-panel { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); max-width: 100%; }
         .admin-panel-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--admin-border); }
 
         .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
@@ -138,15 +143,15 @@ if (!function_exists('adminStart')) {
         }
         .admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { border-color: #111; outline: none; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
 
-        .admin-table-wrapper { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .admin-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .admin-table-wrapper { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); width: 100%; max-width: 100%; -webkit-overflow-scrolling: touch; }
+        .admin-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
         .admin-table th, .admin-table td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--admin-border); font-size: 0.9rem; }
         .admin-table th { background: #f9fafb; font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
         .admin-table tbody tr:hover { background: #f3f4f6; }
         .admin-table td { vertical-align: middle; }
 
-        .admin-actions { display: flex; gap: 0.5rem; align-items: center; }
-        .admin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: var(--font-ui); }
+        .admin-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .admin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: var(--font-ui); white-space: nowrap; }
         .admin-btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: 4px; }
         .admin-btn.primary { background: var(--admin-sidebar); color: #fff; }
         .admin-btn.primary:hover { background: var(--admin-primary); color: var(--admin-sidebar); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(74, 59, 50, 0.15); }
@@ -155,7 +160,7 @@ if (!function_exists('adminStart')) {
         .admin-btn.danger { background: #ef4444; color: #fff; }
         .admin-btn.danger:hover { background: #dc2626; }
 
-        .admin-badge { display: inline-flex; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .admin-badge { display: inline-flex; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
         .admin-badge.success { background: #dcfce7; color: #166534; }
         .admin-badge.error { background: #fee2e2; color: #991b1b; }
         .admin-badge.warning { background: #fef9c3; color: #854d0e; }
@@ -198,11 +203,109 @@ if (!function_exists('adminStart')) {
         .stat-change { font-size: 0.875rem; font-weight: 500; }
         .stat-change.up { color: #16a34a; }
         .stat-change.down { color: #dc2626; }
+
+        /* Responsive Admin Styles */
+        @media (max-width: 992px) {
+            body { flex-direction: column; }
+            .admin-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                max-width: 85vw;
+                height: 100vh;
+                height: 100dvh;
+                z-index: 3000;
+                transform: translateX(-100%);
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
+            }
+            .admin-sidebar.active {
+                transform: translateX(0);
+            }
+            .admin-sidebar-close {
+                display: block;
+            }
+            .admin-sidebar-backdrop {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 2999;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+            .admin-sidebar-backdrop.active {
+                opacity: 1;
+                visibility: visible;
+            }
+            .admin-sidebar-toggle {
+                display: flex;
+            }
+            .admin-topbar {
+                padding: 0 1.25rem;
+                height: 64px;
+            }
+            .admin-content {
+                padding: 1.5rem 1.25rem;
+            }
+            .admin-title h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .admin-topbar {
+                padding: 0 1rem;
+            }
+            .admin-topbar-title {
+                display: none;
+            }
+            .admin-user span {
+                display: none;
+            }
+            .admin-content {
+                padding: 1.25rem 0.85rem;
+            }
+            .admin-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+                margin-bottom: 1.25rem;
+            }
+            .admin-title h1 {
+                font-size: 1.35rem;
+            }
+            .admin-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .stat-card {
+                padding: 1rem;
+            }
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            .admin-panel {
+                padding: 1rem;
+            }
+            .admin-table th, .admin-table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.82rem;
+            }
+            .admin-btn {
+                padding: 0.5rem 0.85rem;
+                font-size: 0.82rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <aside class="admin-sidebar">
-        <a href="<?= BASE_URL ?>admin" class="admin-brand">🌸 Liên Hoa</a>
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="admin-sidebar-header">
+            <a href="<?= BASE_URL ?>admin" class="admin-brand">🌸 Liên Hoa</a>
+            <button type="button" class="admin-sidebar-close" id="adminSidebarClose" aria-label="Đóng menu">&times;</button>
+        </div>
         <nav class="admin-nav">
             <ul>
                 <li><a href="<?= BASE_URL ?>admin" class="<?= $active === 'dashboard' ? 'active' : '' ?>">Bảng điều khiển</a></li>
@@ -220,14 +323,18 @@ if (!function_exists('adminStart')) {
             </ul>
         </nav>
     </aside>
+    <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop"></div>
 
     <main class="admin-main">
         <header class="admin-topbar">
-            <div class="admin-topbar-title">Hệ thống Quản trị</div>
-            <form class="admin-search" method="get" action="<?= BASE_URL ?>admin/products">
-                <input type="search" name="keyword" value="<?= adminE($_GET['keyword'] ?? '') ?>" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm">
-                <button type="submit" aria-label="Tìm kiếm">⌕</button>
-            </form>
+            <div class="admin-topbar-left">
+                <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" aria-label="Mở menu quản trị">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="admin-topbar-title">Hệ thống Quản trị</div>
+            </div>
             <div class="admin-user">
                 <img src="<?= $adminAvatar ?>" alt="Admin">
                 <span>Xin chào, <?= htmlspecialchars($adminName) ?></span>
@@ -254,6 +361,25 @@ if (!function_exists('adminEnd')) {
         ?>
         </div> <!-- /.admin-content -->
     </main> <!-- /.admin-main -->
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('adminSidebarToggle');
+        const closeBtn = document.getElementById('adminSidebarClose');
+        const sidebar = document.getElementById('adminSidebar');
+        const backdrop = document.getElementById('adminSidebarBackdrop');
+
+        function toggleSidebar(open) {
+            if (sidebar) sidebar.classList.toggle('active', open);
+            if (backdrop) backdrop.classList.toggle('active', open);
+            document.body.style.overflow = open ? 'hidden' : '';
+        }
+
+        if (toggleBtn) toggleBtn.addEventListener('click', function() { toggleSidebar(true); });
+        if (closeBtn) closeBtn.addEventListener('click', function() { toggleSidebar(false); });
+        if (backdrop) backdrop.addEventListener('click', function() { toggleSidebar(false); });
+    });
+    </script>
 </body>
 </html>
         <?php

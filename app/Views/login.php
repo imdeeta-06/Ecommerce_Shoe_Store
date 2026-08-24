@@ -361,17 +361,101 @@ unset($_SESSION['login_old']);
         @media (max-width: 900px) {
             .login-page {
                 justify-content: center;
-                padding: 1.5rem;
+                align-items: center;
+                padding: 2rem 1.5rem;
+                min-height: 100vh;
+                min-height: 100dvh;
             }
             .login-card {
                 margin-left: 0;
-                max-width: 100%;
+                max-width: 460px;
                 padding: 2.25rem 1.75rem;
-                background: rgba(28, 18, 14, 0.65);
+                background: rgba(28, 18, 14, 0.75);
             }
             .image-quote {
                 display: none;
             }
+        }
+
+        @media (max-width: 600px) {
+            .login-page {
+                padding: 1.25rem 1rem;
+            }
+            .login-card {
+                padding: 2rem 1.25rem;
+                border-radius: 20px;
+                max-width: 100%;
+            }
+            .login-heading {
+                font-size: 1.85rem;
+            }
+            .login-subheading {
+                font-size: 0.85rem;
+                margin-bottom: 1.25rem;
+            }
+            .login-trust {
+                gap: 0.75rem;
+            }
+            .trust-item {
+                flex: 1;
+            }
+            .trust-text {
+                font-size: 0.68rem;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .login-page {
+                padding: 1rem 0.75rem;
+            }
+            .login-card {
+                padding: 1.5rem 1rem;
+                border-radius: 16px;
+            }
+            .login-heading {
+                font-size: 1.65rem;
+            }
+            .login-brand-name {
+                font-size: 1.25rem;
+            }
+            .form-options {
+                font-size: 0.78rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .login-trust {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.4rem;
+                padding-top: 1rem;
+                margin-top: 1.5rem;
+            }
+            .trust-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.25rem;
+            }
+            .trust-text {
+                font-size: 0.62rem;
+                line-height: 1.2;
+            }
+            .trust-icon {
+                margin: 0 auto;
+                width: 26px;
+                height: 26px;
+            }
+            .trust-icon svg {
+                width: 13px;
+                height: 13px;
+            }
+        }
+
+        .g-signin-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -446,18 +530,22 @@ unset($_SESSION['login_old']);
                  data-auto_prompt="false">
             </div>
             
-            <div style="display: flex; justify-content: center; width: 100%;">
+            <div class="g-signin-wrapper">
                 <div class="g_id_signin"
                      data-type="standard"
                      data-size="large"
                      data-theme="outline"
                      data-text="sign_in_with"
-                     data-shape="pill"
+                     data-shape="rectangular"
                      data-logo_alignment="left"
-                     data-width="400">
+                     data-width="320">
                 </div>
             </div>
         </form>
+
+        <p class="register-link">
+            Bạn chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="form-link">Đăng ký ngay</a>
+        </p>
 
         <div class="login-trust">
             <div class="trust-item">

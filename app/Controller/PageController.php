@@ -58,4 +58,10 @@ class PageController {
         $metaTitle = 'Hủy email nhắc giỏ hàng - Liên Hoa';
         require __DIR__ . '/../Views/pages/cart-reminder-unsubscribe.php';
     }
+
+    public function feedback() {
+        $metaTitle = 'Gửi phản hồi - Liên Hoa';
+        $metaDescription = 'Gửi phản hồi và ý kiến đóng góp của bạn cho Liên Hoa.';
+        require __DIR__ . '/../Views/pages/feedback.php';
+    }
 }

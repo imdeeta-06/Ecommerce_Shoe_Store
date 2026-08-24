@@ -38,4 +38,24 @@ class Review extends BaseModel {
 
         return ['success' => true, 'message' => 'Cảm ơn bạn đã đánh giá sản phẩm.'];
     }
+
+    public function createDirectReview(int $userId, int $productId, int $rating, string $comment): array {
+        $rating = max(1, min(5, $rating));
+
+        $exists = $this->db->prepare('SELECT id FROM reviews WHERE user_id = :user_id AND product_id = :product_id LIMIT 1');
+        $exists->execute(['user_id' => $userId, 'product_id' => $productId]);
+        if ($exists->fetchColumn()) {
+            return ['success' => false, 'message' => 'Bạn đã đánh giá sản phẩm này rồi.'];
+        }
+
+        $stmt = $this->db->prepare('INSERT INTO reviews (user_id, product_id, order_id, order_item_id, rating, comment, status) VALUES (:user_id, :product_id, NULL, NULL, :rating, :comment, 1)');
+        $stmt->execute([
+            'user_id' => $userId,
+            'product_id' => $productId,
+            'rating' => $rating,
+            'comment' => trim($comment)
+        ]);
+
+        return ['success' => true, 'message' => 'Cảm ơn bạn đã đánh giá sản phẩm.'];
+    }
 }

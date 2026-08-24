@@ -71,7 +71,10 @@ function productDisplayType($product): string {
                 <?php foreach ($products as $index => $product): ?>
                     <?php $imagePath = productAssetPath($product['image'] ?? ''); ?>
                     <div class="shop-product-card" data-index="<?= $index ?>">
-                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper">
+                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper" style="position:relative;">
+                            <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                <span class="badge-tag tag-sale" style="position:absolute; top:10px; left:10px; background:#e11d48; color:white; font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; z-index:2;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                            <?php endif; ?>
                             <?php if ($imagePath !== ''): ?>
                                 <img src="<?= BASE_URL . htmlspecialchars($imagePath) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
                             <?php endif; ?>
@@ -85,7 +88,14 @@ function productDisplayType($product): string {
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
                             <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
-                            <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
+                            <div class="product-price" style="margin-top:0.4rem;">
+                                <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                    <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                    <del style="color: #94a3b8; font-size: 0.85em; margin-left: 6px;"><?= number_format($cPrice, 0, ',', '.') ?> VNĐ</del>
+                                <?php else: ?>
+                                    <span style="font-weight: 600; color: #0f172a;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                <?php endif; ?>
+                            </div>
                         </a>
                     </div>
                 <?php endforeach; ?>

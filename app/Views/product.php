@@ -907,7 +907,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <table class="pd-specs-table">
                 <tr>
                     <td class="spec-label">Thương Hiệu / Nguồn gốc</td>
-                    <td class="spec-val">Pháp Phục PaceUp</td>
+                    <td class="spec-val">Pháp Phục Liên Hoa</td>
                 </tr>
                 <tr>
                     <td class="spec-label">Danh Mục</td>
@@ -943,7 +943,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
 
                 <div style="flex: 1;">
                     <p style="font-size: 0.95rem; color: #475569; margin: 0;">
-                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại PaceUp.
+                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại Liên Hoa.
                     </p>
                 </div>
             </div>
@@ -959,7 +959,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                                 <div class="pd-reviewer-info">
                                     <img class="pd-reviewer-avatar" src="<?= !empty($rev['avatar']) ? BASE_URL . htmlspecialchars($rev['avatar']) : 'https://ui-avatars.com/api/?name='.urlencode($rev['user_name'] ?? 'User').'&background=0F172A&color=fff' ?>" alt="Avatar">
                                     <div>
-                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử PaceUp') ?></div>
+                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử Liên Hoa') ?></div>
                                     </div>
                                 </div>
                                 <div class="pd-review-stars">
@@ -1009,13 +1009,23 @@ $basePrice = (float)($product['base_price'] ?? 0);
                 <?php foreach ($related as $r): ?>
                     <?php $rImg = productDetailAssetPath($r['image'] ?? ''); ?>
                     <a href="<?= BASE_URL ?>product?id=<?= $r['id'] ?>" class="related-card">
-                        <div class="related-img">
+                        <div class="related-img" style="position:relative;">
+                            <?php $rCPrice = (float)($r['compare_at_price'] ?? 0); $rPrice = (float)$r['price']; if ($rCPrice > $rPrice): ?>
+                                <span class="badge-tag tag-sale" style="position:absolute; top:10px; left:10px; background:#e11d48; color:white; font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; z-index:2;">-<?= round((($rCPrice - $rPrice) / $rCPrice) * 100) ?>%</span>
+                            <?php endif; ?>
                             <img src="<?= BASE_URL . htmlspecialchars($rImg) ?>" alt="<?= htmlspecialchars($r['name']) ?>">
                         </div>
                         <div class="related-info">
                             <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
-                            <span class="r-cat"><?= htmlspecialchars($r['category'] ?? '') ?></span>
-                            <span class="r-price"><?= number_format($r['price'], 0, ',', '.') ?> ₫</span>
+                            <span class="r-cat"><?= htmlspecialchars(productDetailType($r)) ?></span>
+                            <div style="margin-top:0.3rem;">
+                                <?php if ($rCPrice > $rPrice): ?>
+                                    <span style="color: #e11d48; font-weight: 700;"><?= number_format($rPrice, 0, ',', '.') ?> ₫</span>
+                                    <del style="color: #94a3b8; font-size: 0.85em; margin-left: 6px;"><?= number_format($rCPrice, 0, ',', '.') ?> ₫</del>
+                                <?php else: ?>
+                                    <span class="r-price"><?= number_format($rPrice, 0, ',', '.') ?> ₫</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </a>
                 <?php endforeach; ?>
