@@ -1,18 +1,6 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
-$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
-$gender = [
-    'mens' => 'men',
-    'womens' => 'women',
-][$gender] ?? $gender;
-if (!in_array($gender, ['all', 'men', 'women'], true)) {
-    $gender = 'all';
-}
-$genderLabel = 'Tất cả sản phẩm';
-if ($gender === 'men') $genderLabel = 'Pháp phục Nam';
-if ($gender === 'women') $genderLabel = 'Pháp phục Nữ';
-
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
 $priceRange = $_GET['price'] ?? 'all';
@@ -32,22 +20,16 @@ function productAssetPath($image): string {
 }
 
 function productDisplayType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? ''));
-    }
-
-    return $type;
+    return trim((string)($product['category'] ?? ''));
 }
 ?>
 
 <main>
     <section class="shop-page">
         <div class="shop-topbar">
-            <h1><?= htmlspecialchars($genderLabel) ?> (<?= count($products) ?>)</h1>
+            <h1>Tất cả sản phẩm (<?= count($products) ?>)</h1>
             <div class="shop-sort">
                 <form method="get" action="<?= BASE_URL ?>shop" id="sortForm">
-                    <input type="hidden" name="gender" value="<?= htmlspecialchars($gender) ?>">
                     <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
                     <input type="hidden" name="price" value="<?= htmlspecialchars($priceRange) ?>">
                     <?php if ($keyword !== ''): ?>
@@ -69,7 +51,7 @@ function productDisplayType($product): string {
                 <ul class="filter-cat-list">
                     <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả (<?= $totalActiveProducts ?>)</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
                     <?php endforeach; ?>
                 </ul>
 

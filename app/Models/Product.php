@@ -85,12 +85,6 @@ class Product extends BaseModel {
             $params['status'] = $filters['status'];
         }
 
-        if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
-            $sql .= " AND p.gender = :gender";
-            $params['gender'] = $filters['gender'];
-        }
-
         $sql .= " ORDER BY p.id DESC";
 
         $stmt = $this->db->prepare($sql);
@@ -99,6 +93,7 @@ class Product extends BaseModel {
     }
 
     public function getProductsByFilter($filters = []) {
+        $this->ensureDefaultVariants();
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
@@ -152,6 +147,7 @@ class Product extends BaseModel {
     }
 
     public function getProductWithImages($id) {
+        $this->ensureDefaultVariant($id);
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
@@ -306,6 +302,27 @@ class Product extends BaseModel {
     }
 
     // --- PRODUCT_VARIANTS ---
+    public function ensureDefaultVariant($productId): void {
+        $productId = (int)$productId;
+        if ($productId <= 0) {
+            return;
+        }
+
+        $stmt = $this->db->prepare('SELECT 1 FROM product_variants WHERE product_id = :product_id LIMIT 1');
+        $stmt->execute(['product_id' => $productId]);
+        if (!$stmt->fetchColumn()) {
+            $insert = $this->db->prepare("INSERT INTO product_variants (product_id, size, color, stock_quantity, price_modifier) VALUES (:product_id, 'Mặc định', 'Mặc định', 0, 0)");
+            $insert->execute(['product_id' => $productId]);
+        }
+    }
+
+    private function ensureDefaultVariants(): void {
+        $products = $this->db->query('SELECT p.id FROM product p LEFT JOIN product_variants pv ON pv.product_id = p.id GROUP BY p.id HAVING COUNT(pv.id) = 0')->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($products as $productId) {
+            $this->ensureDefaultVariant($productId);
+        }
+    }
+
     public function createProductVariant($data) {
         return $this->insert('product_variants', $data);
     }

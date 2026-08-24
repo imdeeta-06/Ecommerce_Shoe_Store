@@ -53,9 +53,10 @@ if (!function_exists('adminGenderLabel')) {
 if (!function_exists('adminColorLabel')) {
     function adminColorLabel($color) {
         $labels = [
-            'Black' => 'Đen',
-            'Red' => 'Đỏ',
-            'White' => 'Trắng'
+            'White' => 'Trắng',
+            'Brown' => 'Nâu',
+            'Gray' => 'Xám',
+            'Blue' => 'Lam'
         ];
 
         return $labels[$color] ?? $color;
@@ -112,7 +113,10 @@ if (!function_exists('adminStart')) {
         .admin-nav a.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; font-weight: 600; }
 
         .admin-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .admin-topbar { height: 70px; background: #fff; border-bottom: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; flex-shrink: 0; }
+        .admin-topbar { min-height: 70px; background: #fff; border-bottom: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 0 2rem; flex-shrink: 0; }
+        .admin-search { display: flex; flex: 1; max-width: 460px; }
+        .admin-search input { flex: 1; min-width: 0; padding: 0.6rem 0.85rem; border: 1px solid var(--admin-border); border-right: 0; border-radius: 6px 0 0 6px; font: inherit; }
+        .admin-search button { padding: 0 1rem; border: 0; border-radius: 0 6px 6px 0; background: var(--admin-sidebar); color: #fff; cursor: pointer; }
         .admin-topbar-title { font-weight: 600; font-size: 1.1rem; color: var(--admin-text-light); }
         .admin-user { display: flex; align-items: center; gap: 1rem; }
         .admin-user span { font-weight: 600; font-size: 0.9rem; }
@@ -156,6 +160,27 @@ if (!function_exists('adminStart')) {
         .admin-badge.error { background: #fee2e2; color: #991b1b; }
         .admin-badge.warning { background: #fef9c3; color: #854d0e; }
         .admin-badge.neutral { background: #f3f4f6; color: #374151; }
+        @media (max-width: 900px) {
+            .admin-sidebar { width: 210px; }
+            .admin-content { padding: 1.25rem; }
+            .admin-topbar { padding: 0 1.25rem; }
+        }
+        @media (max-width: 680px) {
+            .admin-sidebar { width: 64px; }
+            .admin-brand { padding: 1rem 0; text-align: center; font-size: 0; }
+            .admin-brand:first-letter { font-size: 1.4rem; }
+            .admin-nav a { padding: 0.8rem 0; justify-content: center; font-size: 0; }
+            .admin-nav a:first-letter { font-size: 1rem; }
+            .admin-topbar { flex-wrap: wrap; padding: 0.75rem 1rem; }
+            .admin-topbar-title { display: none; }
+            .admin-search { order: 1; flex-basis: 100%; max-width: none; }
+            .admin-user { margin-left: auto; gap: 0.4rem; }
+            .admin-user span { display: none; }
+            .admin-content { padding: 1rem; }
+            .admin-title h1 { font-size: 1.4rem; }
+            .admin-form-layout, .admin-grid { grid-template-columns: 1fr !important; }
+            .admin-panel { padding: 1rem; }
+        }
 
         .admin-flash { margin-bottom: 1.5rem; padding: 1rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.95rem; display: flex; align-items: center; gap: 0.75rem; }
         .admin-flash.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -199,6 +224,10 @@ if (!function_exists('adminStart')) {
     <main class="admin-main">
         <header class="admin-topbar">
             <div class="admin-topbar-title">Hệ thống Quản trị</div>
+            <form class="admin-search" method="get" action="<?= BASE_URL ?>admin/products">
+                <input type="search" name="keyword" value="<?= adminE($_GET['keyword'] ?? '') ?>" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm">
+                <button type="submit" aria-label="Tìm kiếm">⌕</button>
+            </form>
             <div class="admin-user">
                 <img src="<?= $adminAvatar ?>" alt="Admin">
                 <span>Xin chào, <?= htmlspecialchars($adminName) ?></span>

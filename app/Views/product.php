@@ -10,22 +10,6 @@ function productDetailAssetPath($image): string {
     return 'assets/images/' . $image;
 }
 
-function productDetailType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? 'Đồ Lam Đi Chùa'));
-    }
-    return $type;
-}
-
-function productDetailGenderLabel($gender): string {
-    $gender = strtolower(trim((string)$gender));
-    if ($gender === 'men' || $gender === 'nam') return 'Nam';
-    if ($gender === 'women' || $gender === 'nữ') return 'Nữ';
-    if ($gender === 'unisex') return 'Nam / Nữ';
-    return 'Pháp phục';
-}
-
 function productDetailColorHex($colorName): string {
     $c = mb_strtolower(trim((string)$colorName), 'UTF-8');
     $colorMap = [
@@ -43,6 +27,21 @@ function productDetailColorHex($colorName): string {
     return $colorMap[$c] ?? '#94a3b8';
 }
 
+function productDetailSizeLabel($size): string {
+    $size = trim((string)$size);
+    return in_array(strtolower($size), ['mặc định', 'freesize', 'free size'], true) ? 'Free Size' : $size;
+}
+
+function productDetailColorLabel($color): string {
+    $labels = [
+        'black' => 'Đen', 'red' => 'Đỏ', 'white' => 'Trắng',
+        'brown' => 'Nâu', 'gray' => 'Xám', 'blue' => 'Lam',
+        'mặc định' => 'Tiêu chuẩn', 'tiêu chuẩn' => 'Tiêu chuẩn'
+    ];
+    $key = strtolower(trim((string)$color));
+    return $labels[$key] ?? trim((string)$color);
+}
+
 // Process images list
 $imagesList = $product['images'] ?? [];
 if (empty($imagesList) && !empty($product['image'])) {
@@ -58,12 +57,12 @@ $hasVariantsInDb = !empty($variantsList);
 
 if ($hasVariantsInDb) {
     foreach ($variantsList as $v) {
-        $color = trim($v['color'] ?? '');
-        $size = trim($v['size'] ?? '');
+        $color = productDetailColorLabel($v['color'] ?? '');
+        $size = productDetailSizeLabel($v['size'] ?? '');
         $stock = (int)($v['stock_quantity'] ?? 0);
         $totalStock += $stock;
 
-        if ($color !== '' && !in_array($color, $availableColors)) {
+        if ($color !== '' && !in_array(strtolower($color), ['đen', 'đỏ', 'black', 'red'], true) && !in_array($color, $availableColors)) {
             $availableColors[] = $color;
         }
 
@@ -78,8 +77,7 @@ if ($hasVariantsInDb) {
         }
     }
 } else {
-    // Default size fallback if database table product_variants has no records for this product
-    $defaultSizes = ['S', 'M', 'L', 'XL', 'Freesize'];
+    $defaultSizes = ['Free Size'];
     foreach ($defaultSizes as $ds) {
         $availableSizes[] = [
             'id' => 0,
@@ -89,7 +87,7 @@ if ($hasVariantsInDb) {
             'price_modifier' => 0
         ];
     }
-    $availableColors = ['Lam', 'Nâu', 'Xám'];
+    $availableColors = ['Tiêu chuẩn'];
     $totalStock = 99;
 }
 
@@ -760,7 +758,6 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     <?php if ($soldCount > 0): ?>
                         <span class="pd-badge pd-badge-sold">Đã bán <?= $soldCount ?></span>
                     <?php endif; ?>
-                    <span class="pd-badge pd-badge-gender"><?= productDetailGenderLabel($product['gender'] ?? '') ?></span>
                 </div>
                 <?php $primaryImgUrl = !empty($imagesList[0]['image_url']) ? productDetailAssetPath($imagesList[0]['image_url']) : ''; ?>
                 <img id="mainProductImage" src="<?= BASE_URL . htmlspecialchars($primaryImgUrl) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
@@ -780,7 +777,6 @@ $basePrice = (float)($product['base_price'] ?? 0);
 
         <!-- Product Info -->
         <div class="pd-info-box">
-            <div class="pd-type-tag"><?= htmlspecialchars(productDetailType($product)) ?></div>
             <h1 class="pd-title-text"><?= htmlspecialchars($product['name']) ?></h1>
             
             <div class="pd-sub-meta">
@@ -822,7 +818,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     <?php foreach ($availableColors as $idx => $colorName): ?>
                         <div class="pd-color-item <?= $idx === 0 ? 'active' : '' ?>" onclick="selectColor('<?= htmlspecialchars($colorName) ?>', this)">
                             <span class="color-dot" style="background-color: <?= productDetailColorHex($colorName) ?>;"></span>
-                            <span><?= htmlspecialchars($colorName) ?></span>
+                            <span><?= htmlspecialchars(productDetailColorLabel($colorName)) ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -916,14 +912,6 @@ $basePrice = (float)($product['base_price'] ?? 0);
                 <tr>
                     <td class="spec-label">Danh Mục</td>
                     <td class="spec-val"><?= htmlspecialchars($product['category'] ?? 'Đồ Lam Đi Chùa') ?></td>
-                </tr>
-                <tr>
-                    <td class="spec-label">Loại Sản Phẩm</td>
-                    <td class="spec-val"><?= htmlspecialchars($product['type'] ?? 'Pháp phục') ?></td>
-                </tr>
-                <tr>
-                    <td class="spec-label">Dành Cho</td>
-                    <td class="spec-val"><?= productDetailGenderLabel($product['gender'] ?? '') ?></td>
                 </tr>
                 <tr>
                     <td class="spec-label">Đã Bán</td>
@@ -1026,7 +1014,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                         </div>
                         <div class="related-info">
                             <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
-                            <span class="r-cat"><?= htmlspecialchars(productDetailType($r)) ?></span>
+                            <span class="r-cat"><?= htmlspecialchars($r['category'] ?? '') ?></span>
                             <span class="r-price"><?= number_format($r['price'], 0, ',', '.') ?> ₫</span>
                         </div>
                     </a>

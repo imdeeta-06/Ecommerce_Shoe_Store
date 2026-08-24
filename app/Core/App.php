@@ -253,6 +253,8 @@ namespace App\Core {
             $router->add('/admin/inventory', 'Admin\InventoryController', 'index');
             $router->add('/admin/inventory/update', 'Admin\InventoryController', 'update');
             $router->add('/admin/inventory/variants/create', 'Admin\InventoryController', 'createVariant');
+            $router->add('/admin/inventory/variants/update', 'Admin\InventoryController', 'updateVariant');
+            $router->add('/admin/inventory/variants/delete', 'Admin\InventoryController', 'deleteVariant');
             $router->add('/admin/coupons', 'Admin\CouponController', 'index');
             $router->add('/admin/coupons/create', 'Admin\CouponController', 'create');
             $router->add('/admin/coupons/store', 'Admin\CouponController', 'store');

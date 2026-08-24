@@ -39,14 +39,6 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
                 <option value="0" <?= (string)($_GET['status'] ?? '') === '0' ? 'selected' : '' ?>>Đã ẩn</option>
             </select>
         </div>
-        <div class="admin-field" style="margin-bottom: 0;">
-            <label>Giới tính</label>
-            <select name="gender">
-                <option value="">Tất cả</option>
-                <option value="men" <?= ($_GET['gender'] ?? '') === 'men' ? 'selected' : '' ?>>Nam</option>
-                <option value="women" <?= ($_GET['gender'] ?? '') === 'women' ? 'selected' : '' ?>>Nữ</option>
-            </select>
-        </div>
         <div class="admin-actions">
             <button class="admin-btn primary" type="submit">Lọc</button>
             <a class="admin-btn light" href="<?= BASE_URL ?>admin/products">Xóa lọc</a>
@@ -69,11 +61,8 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
             <?php foreach ($products as $product): ?>
                 <?php
                 $isActive = (int)$product['status'] === 1;
-                $gender = $product['gender'] ?? '';
                 $metaParts = array_filter([
                     '#' . (int)$product['id'],
-                    adminGenderLabel($gender),
-                    trim((string)($product['type'] ?? ''))
                 ]);
                 ?>
                 <tr>

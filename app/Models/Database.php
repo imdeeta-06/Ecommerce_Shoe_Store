@@ -466,10 +466,10 @@ class Database {
             return;
         }
 
-        $products = $this->connection->query("SELECT p.id, p.gender, p.type
+        $products = $this->connection->query("SELECT p.id
             FROM product p
             LEFT JOIN product_variants pv ON pv.product_id = p.id
-            GROUP BY p.id, p.gender, p.type
+            GROUP BY p.id
             HAVING COUNT(pv.id) = 0")->fetchAll();
 
         if (!$products) {
@@ -477,37 +477,12 @@ class Database {
         }
 
         $insertVariant = $this->connection->prepare('INSERT INTO product_variants (product_id, size, color, stock_quantity, price_modifier) VALUES (:product_id, :size, :color, 0, 0)');
-        $insertStockLog = $this->tableExists('inventory_logs')
-            ? $this->connection->prepare("INSERT INTO inventory_logs (variant_id, quantity_changed, reason) VALUES (:variant_id, :quantity_changed, 'Tồn đầu kỳ khi đồng bộ phân loại sản phẩm')")
-            : null;
-
         foreach ($products as $product) {
-            $type = strtolower((string)($product['type'] ?? ''));
-            $isDefaultOnly = strpos($type, 'plush') !== false || strpos($type, 'phụ kiện') !== false;
-            $sizes = $isDefaultOnly
-                ? ['Mặc định']
-                : ((($product['gender'] ?? '') === 'women')
-                    ? ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41']
-                    : ['EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44']);
-            $colors = $isDefaultOnly ? ['Mặc định'] : ['Black', 'White'];
-
-            foreach ($sizes as $size) {
-                foreach ($colors as $color) {
-                    $insertVariant->execute([
-                        'product_id' => (int)$product['id'],
-                        'size' => $size,
-                        'color' => $color
-                    ]);
-                    $variantId = (int)$this->connection->lastInsertId();
-
-                    if ($insertStockLog && !$isDefaultOnly) {
-                        $insertStockLog->execute([
-                            'variant_id' => $variantId,
-                            'quantity_changed' => 10
-                        ]);
-                    }
-                }
-            }
+            $insertVariant->execute([
+                'product_id' => (int)$product['id'],
+                'size' => 'Free Size',
+                'color' => 'Mặc định'
+            ]);
         }
     }
 
