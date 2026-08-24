@@ -457,7 +457,7 @@ ul {
 
 .product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 3rem 2rem;
 }
 
@@ -1479,7 +1479,7 @@ ul {
 
 .shop-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 3rem 2rem;
 }
 
@@ -3910,11 +3910,13 @@ ul {
 
 @media (max-width: 480px) {
     .shop-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem 0.35rem;
     }
 
     .product-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem 0.35rem;
     }
 
     .wishlist-grid {
@@ -3944,6 +3946,80 @@ ul {
 
     .nav-actions {
         gap: 0.6rem;
+    }
+
+    /* Compact product cards for 4-col mobile layout */
+    .shop-product-card .product-img-wrapper {
+        margin-bottom: 0.25rem;
+        border-radius: 6px;
+    }
+
+    .shop-product-card .product-img-wrapper img {
+        max-height: 120px;
+    }
+
+    .shop-product-card .product-info .product-name {
+        font-size: 0.6rem;
+        height: 2.2em;
+        margin-bottom: 0.1rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .shop-product-card .product-info .product-type {
+        font-size: 0.55rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .shop-product-card .product-info .product-price {
+        font-size: 0.62rem;
+    }
+
+    .shop-product-card .product-info {
+        padding: 0.15rem 0 0;
+    }
+
+    .shop-product-card .product-actions {
+        display: none;
+    }
+
+    .shop-product-card .badge-tag {
+        font-size: 0.5rem;
+        padding: 2px 5px;
+    }
+
+    .product-card .product-img-wrapper {
+        border-radius: 8px !important;
+    }
+
+    .product-info-new {
+        gap: 0.15rem;
+    }
+
+    .product-category-new {
+        font-size: 0.5rem;
+        letter-spacing: 0.5px;
+    }
+
+    .product-title-new {
+        font-size: 0.6rem;
+        height: 2.2em;
+    }
+
+    .product-stars {
+        font-size: 0.55rem;
+    }
+
+    .stars-count {
+        font-size: 0.5rem;
+    }
+
+    .product-price-new {
+        font-size: 0.62rem;
+    }
+
+    .badge-tag {
+        font-size: 0.5rem;
+        padding: 2px 5px;
     }
 }
 
