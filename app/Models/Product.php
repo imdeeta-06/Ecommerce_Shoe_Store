@@ -62,6 +62,16 @@ class Product extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getActiveProductsForInventory(): array {
+        $stmt = $this->db->prepare("SELECT p.id, p.name, c.name AS category_name
+                                    FROM product p
+                                    LEFT JOIN categories c ON c.id = p.category_id
+                                    WHERE p.status = 1
+                                    ORDER BY p.name ASC, p.id DESC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getAllProducts($filters = []) {
         $sql = "SELECT p.*, c.name AS category_name,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
@@ -493,12 +503,14 @@ class Product extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getInventoryOverview() {
+    public function getInventoryOverview($limit = 200) {
         $stmt = $this->db->prepare("SELECT pv.*, p.name AS product_name, p.base_price, c.name AS category_name
                                     FROM product_variants pv
                                     LEFT JOIN product p ON pv.product_id = p.id
                                     LEFT JOIN categories c ON p.category_id = c.id
-                                    ORDER BY pv.stock_quantity ASC, p.name ASC");
+                                    ORDER BY pv.stock_quantity ASC, p.name ASC
+                                    LIMIT :limit");
+        $stmt->bindValue(':limit', max(1, (int)$limit), PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
