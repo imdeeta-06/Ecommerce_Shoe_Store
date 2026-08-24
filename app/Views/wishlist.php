@@ -1,17 +1,17 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
-<main style="min-height: 70vh; padding: 2rem; max-width: 1200px; margin: 0 auto; font-family: var(--font-body);">
-    <h1 style="font-family: var(--font-ui); font-size: 2rem; margin-bottom: 2rem;">Danh sách yêu thích</h1>
+<main class="client-page wishlist-page">
+    <h1 class="client-title wishlist-title">Danh sách yêu thích</h1>
     
     <?php if (!isset($_SESSION['user_id'])): ?>
-        <div style="text-align: center; padding: 5rem 0;">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; color: #ccc;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <h2 style="font-family: var(--font-ui); margin-bottom: 1rem;">Bạn cần đăng nhập</h2>
-            <p style="color: #666; margin-bottom: 2rem;">Vui lòng đăng nhập để xem và quản lý danh sách yêu thích của bạn.</p>
-            <a href="<?= BASE_URL ?>login" style="display: inline-block; padding: 1rem 2rem; background: #111; color: #fff; text-decoration: none; border-radius: 100px; font-weight: 500;">Đăng nhập ngay</a>
+        <div class="wishlist-empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <h2>Bạn cần đăng nhập</h2>
+            <p>Vui lòng đăng nhập để xem và quản lý danh sách yêu thích của bạn.</p>
+            <a href="<?= BASE_URL ?>login" class="client-btn wishlist-btn-action">Đăng nhập ngay</a>
         </div>
     <?php else: ?>
-        <div id="wishlist-container" style="display: <?= empty($wishlistItems) ? 'none' : 'grid' ?>; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 2rem;">
+        <div id="wishlist-container" class="wishlist-grid <?= empty($wishlistItems) ? 'is-hidden' : '' ?>">
             <?php foreach ($wishlistItems as $item): ?>
                 <?php 
                     $imgUrl = $item['image_url'];
@@ -30,29 +30,29 @@
                         }
                     }
                 ?>
-                <div class="wishlist-item" id="wishlist-item-<?= $item['product_id'] ?>" style="border: 1px solid #eee; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
-                    <div style="background: #f5f5f5; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative;">
-                        <img src="<?= htmlspecialchars($imgUrl) ?>" alt="<?= htmlspecialchars($item['name']) ?>" style="width: 100%; height: 100%; object-fit: contain; padding: 1rem;">
-                        <button onclick="removeFromWishlist(<?= $item['product_id'] ?>)" style="position: absolute; top: 10px; right: 10px; background: #fff; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                            ✕
+                <div class="wishlist-card" id="wishlist-item-<?= $item['product_id'] ?>">
+                    <div class="wishlist-media">
+                        <img src="<?= htmlspecialchars($imgUrl) ?>" alt="<?= htmlspecialchars($item['name']) ?>" loading="lazy">
+                        <button onclick="removeFromWishlist(<?= $item['product_id'] ?>)" class="wishlist-remove-btn" title="Xóa khỏi yêu thích" aria-label="Xóa">
+                            &times;
                         </button>
                     </div>
-                    <div style="padding: 1rem; display: flex; flex-direction: column; flex: 1;">
-                        <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;"><a href="<?= BASE_URL ?>product?id=<?= $item['product_id'] ?>" style="color: inherit; text-decoration: none;"><?= htmlspecialchars($item['name']) ?></a></h3>
-                        <div style="font-weight: 600; margin-bottom: 1rem; margin-top: auto;"><?= number_format($item['price'], 0, ',', '.') ?> ₫</div>
-                        <button onclick="addToCartFromWishlist(<?= $item['product_id'] ?>)" style="width: 100%; padding: 0.8rem; background: #111; color: #fff; border: none; border-radius: 100px; font-weight: 500; cursor: pointer;">
-                            Thêm vào giỏ
+                    <div class="wishlist-info">
+                        <h3 class="wishlist-name"><a href="<?= BASE_URL ?>product?id=<?= $item['product_id'] ?>"><?= htmlspecialchars($item['name']) ?></a></h3>
+                        <div class="wishlist-price"><?= number_format($item['price'], 0, ',', '.') ?> ₫</div>
+                        <button onclick="addToCartFromWishlist(<?= $item['product_id'] ?>)" class="btn-buy wishlist-btn-buy">
+                            Xem &amp; Mua
                         </button>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
         
-        <div id="wishlist-empty" style="display: <?= empty($wishlistItems) ? 'block' : 'none' ?>; text-align: center; padding: 5rem 0;">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; color: #ccc;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <h2 style="font-family: var(--font-ui); margin-bottom: 1rem;">Danh sách yêu thích trống</h2>
-            <p style="color: #666; margin-bottom: 2rem;">Bạn chưa lưu sản phẩm nào vào danh sách yêu thích.</p>
-            <a href="<?= BASE_URL ?>shop" style="display: inline-block; padding: 1rem 2rem; background: #111; color: #fff; text-decoration: none; border-radius: 100px; font-weight: 500;">Tiếp tục mua sắm</a>
+        <div id="wishlist-empty" class="wishlist-empty-state <?= empty($wishlistItems) ? '' : 'is-hidden' ?>">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <h2>Danh sách yêu thích trống</h2>
+            <p>Bạn chưa lưu sản phẩm nào vào danh sách yêu thích.</p>
+            <a href="<?= BASE_URL ?>shop" class="client-btn wishlist-btn-action">Tiếp tục mua sắm</a>
         </div>
     <?php endif; ?>
 </main>
