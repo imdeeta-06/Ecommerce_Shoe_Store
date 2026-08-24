@@ -832,7 +832,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <div class="pd-size-grid">
                 <?php foreach ($availableSizes as $idx => $sz): ?>
                     <?php $isDisabled = ($sz['stock'] <= 0 && $hasVariantsInDb); ?>
-                    <button class="pd-size-item <?= ($idx === 0 && !$isDisabled) ? 'active' : '' ?> <?= $isDisabled ? 'disabled' : '' ?>" 
+                    <button type="button" class="pd-size-item <?= ($idx === 0 && !$isDisabled) ? 'active' : '' ?> <?= $isDisabled ? 'disabled' : '' ?>"
                             data-variant-id="<?= $sz['id'] ?>"
                             data-size="<?= htmlspecialchars($sz['size']) ?>"
                             data-price-modifier="<?= $sz['price_modifier'] ?>"
@@ -847,12 +847,12 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <!-- Quantity & Actions -->
             <div class="pd-actions-row">
                 <div class="pd-qty-picker">
-                    <button class="pd-qty-btn" onclick="changeQty(-1)">-</button>
+                    <button type="button" class="pd-qty-btn" onclick="changeQty(-1)">-</button>
                     <input type="number" id="pdQty" class="pd-qty-input" value="1" min="1" readonly>
-                    <button class="pd-qty-btn" onclick="changeQty(1)">+</button>
+                    <button type="button" class="pd-qty-btn" onclick="changeQty(1)">+</button>
                 </div>
 
-                <button class="btn-add-cart-main" onclick="submitAddToCart(<?= $product['id'] ?>)">
+                <button type="button" class="btn-add-cart-main" onclick="submitAddToCart(<?= $product['id'] ?>)">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
                     Thêm Vào Giỏ Hàng
                 </button>
@@ -864,7 +864,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     $isFav = $wishlistModel->checkExists($_SESSION['user_id'], $product['id']);
                 }
                 ?>
-                <button class="btn-fav-round <?= $isFav ? 'active' : '' ?>" title="Thêm vào yêu thích" onclick="toggleFavourite(this, <?= $product['id'] ?>)">
+                <button type="button" class="btn-fav-round <?= $isFav ? 'active' : '' ?>" title="Thêm vào yêu thích" onclick="toggleFavourite(this, <?= $product['id'] ?>)">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 </button>
             </div>
@@ -890,9 +890,9 @@ $basePrice = (float)($product['base_price'] ?? 0);
     <!-- Product Tabs: Description, Specs, Reviews -->
     <div class="pd-tabs-container">
         <div class="pd-tabs-header">
-            <button class="pd-tab-btn active" onclick="openTab('tabDesc', this)">Mô Tả Sản Phẩm</button>
-            <button class="pd-tab-btn" onclick="openTab('tabSpecs', this)">Thông Số Chi Tiết</button>
-            <button class="pd-tab-btn" onclick="openTab('tabReviews', this)">Đánh Giá (<?= $totalReviews ?>)</button>
+            <button type="button" class="pd-tab-btn active" onclick="openTab('tabDesc', this)">Mô Tả Sản Phẩm</button>
+            <button type="button" class="pd-tab-btn" onclick="openTab('tabSpecs', this)">Thông Số Chi Tiết</button>
+            <button type="button" class="pd-tab-btn" onclick="openTab('tabReviews', this)">Đánh Giá (<?= $totalReviews ?>)</button>
         </div>
 
         <!-- Description Tab -->
@@ -1017,7 +1017,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                         </div>
                         <div class="related-info">
                             <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
-                            <span class="r-cat"><?= htmlspecialchars(productDetailType($r)) ?></span>
+                            <span class="r-cat"><?= htmlspecialchars($r['category'] ?? '') ?></span>
                             <div style="margin-top:0.3rem;">
                                 <?php if ($rCPrice > $rPrice): ?>
                                     <span style="color: #e11d48; font-weight: 700;"><?= number_format($rPrice, 0, ',', '.') ?> ₫</span>

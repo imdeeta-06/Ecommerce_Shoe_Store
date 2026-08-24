@@ -271,7 +271,7 @@ function getSubtotal() {
 
 function updateTotals() {
     const subtotal = getSubtotal();
-    const shippingFee = subtotal >= 1000000 ? 0 : 30000;
+    const shippingFee = subtotal >= 500000 ? 0 : 30000;
     const total = subtotal + shippingFee - appliedDiscount;
     document.getElementById('checkoutSubtotal').textContent = formatPrice(subtotal);
     document.getElementById('checkoutShippingFee').textContent = shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí';
