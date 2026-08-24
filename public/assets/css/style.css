@@ -7,7 +7,9 @@
   --bg-color: #f8f8f8;
   --border-color: #e0e0e0;
   --text-color: #111111;
-  --font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Outfit', 'Segoe UI', Arial, sans-serif;
+  --font-ui: var(--font-body);
 }
 
 * {
@@ -17,10 +19,17 @@
 }
 
 body {
-  font-family: var(--font-family);
+  font-family: var(--font-body);
   background-color: var(--secondary-color);
   color: var(--text-color);
   line-height: 1.6;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 a {

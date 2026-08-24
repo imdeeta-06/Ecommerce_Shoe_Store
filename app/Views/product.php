@@ -105,7 +105,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
     max-width: 1240px;
     margin: 2rem auto 4rem;
     padding: 0 1.5rem;
-    font-family: var(--font-body, 'Open Sans', sans-serif);
+    font-family: var(--font-body);
 }
 
 .pd-breadcrumb {
@@ -243,7 +243,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
     color: #0f172a;
     line-height: 1.25;
     margin-bottom: 0.6rem;
-    font-family: var(--font-ui, 'Poppins', sans-serif);
+    font-family: var(--font-heading);
 }
 .pd-sub-meta {
     display: flex;
@@ -679,7 +679,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
     font-weight: 700;
     margin-bottom: 2rem;
     color: #0f172a;
-    font-family: var(--font-ui, 'Poppins', sans-serif);
+    font-family: var(--font-heading);
 }
 .related-grid {
     display: grid;
