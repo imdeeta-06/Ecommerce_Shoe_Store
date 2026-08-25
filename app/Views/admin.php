@@ -37,6 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: ?page=categories&success=1");
             exit;
         }
+    } elseif ($action === 'toggle_category_status') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $pdo->prepare("SELECT status FROM categories WHERE id = ?");
+            $stmt->execute([$id]);
+            $currentStatus = $stmt->fetchColumn();
+            if ($currentStatus !== false) {
+                $newStatus = (int)$currentStatus === 1 ? 0 : 1;
+                $stmt = $pdo->prepare("UPDATE categories SET status = ? WHERE id = ?");
+                $stmt->execute([$newStatus, $id]);
+            }
+        }
+        header("Location: ?page=categories&success=1");
+        exit;
     } elseif ($action === 'add_coupon') {
         $code = trim($_POST['code'] ?? '');
         $usage_limit = $_POST['usage_limit'] ?? 100;
@@ -136,6 +150,9 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 if ($page === 'users') {
     $stmt = $pdo->query("SELECT * FROM user ORDER BY id DESC");
     $admin_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} elseif ($page === 'categories') {
+    $stmt = $pdo->query("SELECT * FROM categories ORDER BY id DESC");
+    $admin_categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } elseif ($page === 'orders') {
     $stmt = $pdo->query("
         SELECT o.*, u.full_name as user_name 
@@ -1027,12 +1044,79 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
             </div>
 
         <?php elseif ($page === 'categories'): ?>
-            <div class="admin-title" style="margin-bottom: 2rem;">
-                <div>
-                    <h1>Quản lý danh mục</h1>
-                    <p>Mục này đã được chuyển sang controller mới.</p>
+            <div class="admin-panel" style="margin-bottom: 2rem;">
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+                    <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Thêm danh mục mới</div>
+                    <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Thêm danh mục mới vào cửa hàng đồ lam Phật giáo.</p>
                 </div>
-                <a href="<?= BASE_URL ?>admin/categories" class="admin-btn primary">Đến trang quản lý danh mục mới</a>
+
+                <form class="admin-grid" method="post" action="?page=categories" style="align-items: end; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <input type="hidden" name="action" value="add_category">
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Tên danh mục *</label>
+                        <input type="text" name="name" required placeholder="Ví dụ: Đồ lam đi chùa">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Slug</label>
+                        <input type="text" name="slug" placeholder="Tự tạo từ tên nếu để trống...">
+                    </div>
+                    <div class="admin-field" style="margin-bottom: 0;">
+                        <label>Trạng thái</label>
+                        <select name="status">
+                            <option value="1">Đang hiển thị</option>
+                            <option value="0">Đã ẩn</option>
+                        </select>
+                    </div>
+                    <div class="admin-actions">
+                        <button class="admin-btn primary" type="submit" style="width: 100%;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
+                            Thêm danh mục
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên danh mục</th>
+                            <th>Slug</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($admin_categories as $cat): ?>
+                            <?php $isActive = (int)$cat['status'] === 1; ?>
+                            <tr>
+                                <td style="color: #6b7280; font-family: monospace;">#<?= (int)$cat['id'] ?></td>
+                                <td style="font-weight: 600; color: #111;"><?= htmlspecialchars($cat['name']) ?></td>
+                                <td style="color: #6b7280; font-size: 0.9rem;"><?= htmlspecialchars($cat['slug']) ?></td>
+                                <td>
+                                    <span class="admin-badge <?= $isActive ? 'success' : 'neutral' ?>">
+                                        <?= $isActive ? 'Hiển thị' : 'Đã ẩn' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <form class="admin-actions" method="post" action="?page=categories" onsubmit="return confirm('<?= $isActive ? 'Ẩn danh mục này?' : 'Hiển thị lại danh mục này?' ?>')" style="margin: 0; display: inline;">
+                                        <input type="hidden" name="action" value="toggle_category_status">
+                                        <input type="hidden" name="id" value="<?= (int)$cat['id'] ?>">
+                                        <button class="admin-btn-sm admin-btn <?= $isActive ? 'warning' : 'primary' ?>" type="submit">
+                                            <?= $isActive ? 'Ẩn' : 'Hiện' ?>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($admin_categories)): ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem 1rem; color: #6b7280;">Chưa có danh mục nào.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
 
         <?php elseif ($page === 'inventory'): ?>

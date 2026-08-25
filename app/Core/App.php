@@ -176,6 +176,7 @@ namespace App\Core {
             $router->add('/support', 'SupportController', 'index');
             $router->add('/support/store', 'SupportController', 'store');
             $router->add('/review/store', 'ReviewController', 'store');
+            $router->add('/product/review', 'ReviewController', 'storeDirect');
             $router->add('/after-sale/request', 'AfterSaleController', 'store');
             $router->add('/login', 'AuthController', 'login');
             $router->add('/register', 'AuthController', 'register');
