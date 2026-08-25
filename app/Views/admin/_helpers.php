@@ -138,6 +138,10 @@ if (!function_exists('adminStart')) {
         .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
         .admin-field { margin-bottom: 1.25rem; }
         .admin-field label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
+        .admin-search-bar { display: flex; align-items: end; gap: 0.75rem; max-width: 620px; margin-bottom: 1.25rem; }
+        .admin-search-bar label { flex: 0 0 auto; font-size: 0.875rem; font-weight: 600; color: #374151; }
+        .admin-search-bar input { flex: 1; min-width: 0; padding: 0.7rem 0.9rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #111; font-family: var(--font-ui); font-size: 0.95rem; }
+        .admin-search-bar input:focus { border-color: #111; outline: none; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
         .admin-field input, .admin-field select, .admin-field textarea, .admin-table input, .admin-table select {
             width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #111; font-family: var(--font-ui); font-size: 0.95rem; transition: all 0.2s;
         }

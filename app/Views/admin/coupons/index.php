@@ -13,6 +13,11 @@ adminStart('Mã giảm giá', 'coupons', $flash ?? null);
     </a>
 </div>
 
+<div class="admin-search-bar">
+    <label for="couponSearch">Tìm mã giảm giá</label>
+    <input type="search" id="couponSearch" placeholder="Nhập mã code hoặc phạm vi áp dụng..." autocomplete="off">
+</div>
+
 <div class="admin-table-wrapper">
     <table class="admin-table">
         <thead>
@@ -53,7 +58,7 @@ adminStart('Mã giảm giá', 'coupons', $flash ?? null);
                 $scopeText = !empty($coupon['product_id']) ? 'Sản phẩm #' . (int)$coupon['product_id'] : (!empty($coupon['category_id']) ? 'Danh mục #' . (int)$coupon['category_id'] : 'Toàn bộ đơn');
                 $scopeText .= ' · ' . max(1, (int)($coupon['usage_limit_per_user'] ?? 1)) . ' lần/người';
             ?>
-            <tr>
+            <tr class="coupon-row" data-search="<?= adminE(mb_strtolower($coupon['code'] . ' ' . $scopeText, 'UTF-8')) ?>">
                 <td><strong style="font-family: monospace; font-size: 1.1rem; color: #111; letter-spacing: 1px;"><?= htmlspecialchars($coupon['code']) ?></strong></td>
                 <td><strong style="color: #ef4444;"><?= $discountText ?></strong></td>
                 <td style="color: #555;"><?= htmlspecialchars($conditionText) ?></td>
@@ -78,11 +83,27 @@ adminStart('Mã giảm giá', 'coupons', $flash ?? null);
                 </td>
             </tr>
             <?php endforeach; ?>
+            <tr id="couponNoResults" hidden><td colspan="8" style="text-align: center; padding: 3rem 1rem; color: #888;">Không tìm thấy mã giảm giá phù hợp.</td></tr>
             <?php if (empty($coupons)): ?>
             <tr><td colspan="8" style="text-align: center; padding: 3rem 1rem; color: #888;">Chưa có mã giảm giá nào.</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
 </div>
+
+<script>
+document.getElementById('couponSearch')?.addEventListener('input', function () {
+    const query = this.value.trim().toLowerCase();
+    const rows = document.querySelectorAll('.coupon-row');
+    let visible = 0;
+    rows.forEach(row => {
+        const match = !query || row.dataset.search.includes(query);
+        row.hidden = !match;
+        if (match) visible++;
+    });
+    const empty = document.getElementById('couponNoResults');
+    if (empty) empty.hidden = visible !== 0 || rows.length === 0;
+});
+</script>
 
 <?php adminEnd(); ?>

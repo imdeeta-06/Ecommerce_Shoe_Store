@@ -15,7 +15,6 @@ class InventoryController {
     public function index() {
         $variants = $this->productModel->getInventoryOverview(200);
         $logs = $this->productModel->getInventoryLogs(80);
-        $products = $this->productModel->getActiveProductsForInventory();
         $flash = $this->pullFlash();
         require __DIR__ . '/../../Views/admin/inventory/index.php';
     }

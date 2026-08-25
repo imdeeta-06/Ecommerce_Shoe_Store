@@ -34,6 +34,11 @@ adminStart('Quản lý danh mục', 'categories', $flash ?? null);
     </form>
 </div>
 
+<div class="admin-search-bar">
+    <label for="categorySearch">Tìm danh mục</label>
+    <input type="search" id="categorySearch" placeholder="Nhập tên hoặc slug danh mục..." autocomplete="off">
+</div>
+
 <div class="admin-table-wrapper">
     <table class="admin-table">
         <thead>
@@ -48,7 +53,7 @@ adminStart('Quản lý danh mục', 'categories', $flash ?? null);
         <tbody>
             <?php foreach ($categories as $category): ?>
                 <?php $isActive = (int)$category['status'] === 1; ?>
-                <tr>
+                <tr class="category-row" data-search="<?= adminE(mb_strtolower($category['name'] . ' ' . $category['slug'], 'UTF-8')) ?>">
                     <td style="color: #6b7280; font-family: monospace;">#<?= (int)$category['id'] ?></td>
                     <td style="font-weight: 600; color: #111;"><?= adminE($category['name']) ?></td>
                     <td style="color: #6b7280; font-size: 0.9rem;"><?= adminE($category['slug']) ?></td>
@@ -67,6 +72,7 @@ adminStart('Quản lý danh mục', 'categories', $flash ?? null);
                     </td>
                 </tr>
             <?php endforeach; ?>
+            <tr id="categoryNoResults" hidden><td colspan="5" style="text-align: center; padding: 3rem 1rem; color: #6b7280;">Không tìm thấy danh mục phù hợp.</td></tr>
             <?php if (empty($categories)): ?>
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 3rem 1rem; color: #6b7280;">
@@ -77,5 +83,20 @@ adminStart('Quản lý danh mục', 'categories', $flash ?? null);
         </tbody>
     </table>
 </div>
+
+<script>
+document.getElementById('categorySearch')?.addEventListener('input', function () {
+    const query = this.value.trim().toLowerCase();
+    const rows = document.querySelectorAll('.category-row');
+    let visible = 0;
+    rows.forEach(row => {
+        const match = !query || row.dataset.search.includes(query);
+        row.hidden = !match;
+        if (match) visible++;
+    });
+    const empty = document.getElementById('categoryNoResults');
+    if (empty) empty.hidden = visible !== 0 || rows.length === 0;
+});
+</script>
 
 <?php adminEnd(); ?>
