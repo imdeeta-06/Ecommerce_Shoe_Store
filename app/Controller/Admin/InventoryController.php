@@ -143,7 +143,7 @@ class InventoryController {
         if (in_array(strtolower($value), ['mặc định', 'freesize', 'free size'], true)) {
             return 'Free Size';
         }
-        $allowed = ['Free Size', 'S', 'M', 'L', 'XL'];
+        $allowed = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
         return in_array($value, $allowed, true) ? $value : 'Free Size';
     }
 

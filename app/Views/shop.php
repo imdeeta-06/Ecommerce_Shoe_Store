@@ -22,6 +22,17 @@ function productAssetPath($image): string {
 function productDisplayType($product): string {
     return trim((string)($product['category'] ?? ''));
 }
+
+function productSizeOptions($product): array {
+    $category = mb_strtolower(productDisplayType($product), 'UTF-8');
+    if (str_contains($category, 'quần') || str_contains($category, 'áo') || str_contains($category, 'đồ lam') || str_contains($category, 'pháp phục')) {
+        return ['S', 'M', 'L'];
+    }
+    if (str_contains($category, 'vòng tay') || str_contains($category, 'dây chuyền')) {
+        return ['8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+    }
+    return ['Free Size'];
+}
 ?>
 
 <main>
@@ -137,12 +148,8 @@ function productDisplayType($product): string {
             <p class="modal-price" id="modalPrice"></p>
             <p class="modal-desc">Sản phẩm đồ lam và vật dụng đi chùa. Vui lòng xem tên, màu sắc và phân loại trước khi đặt hàng.</p>
             <div class="modal-size-select">
-                <label>Chọn size</label>
-                <div class="size-options">
-                    <?php foreach (['38','39','40','41','42','43','44'] as $size): ?>
-                        <button class="size-btn" onclick="selectSize(this)"><?= $size ?></button>
-                    <?php endforeach; ?>
-                </div>
+                <label id="modalSizeLabel">Chọn size</label>
+                <div class="size-options" id="modalSizeOptions"></div>
             </div>
             <button class="btn-add-cart-modal" id="modalAddBtn">Thêm vào giỏ hàng</button>
         </div>
@@ -152,7 +159,10 @@ function productDisplayType($product): string {
 <div class="toast" id="toast"></div>
 
 <script>
-const productsData = <?= json_encode(array_values($products), JSON_UNESCAPED_UNICODE) ?>;
+const productsData = <?= json_encode(array_map(function ($product) {
+    $product['size_options'] = productSizeOptions($product);
+    return $product;
+}, array_values($products)), JSON_UNESCAPED_UNICODE) ?>;
 let cart = [];
 
 function productImagePath(image) {
@@ -185,6 +195,11 @@ function openQuickView(index) {
     document.getElementById('modalName').textContent = product.name;
     document.getElementById('modalCategory').textContent = productDisplayType(product);
     document.getElementById('modalPrice').textContent = formatPrice(product.price);
+    const sizeOptions = product.size_options || ['Free Size'];
+    const isMillimeterSize = sizeOptions.some(size => size.endsWith(' mm'));
+    document.getElementById('modalSizeLabel').textContent = isMillimeterSize ? 'Chọn kích thước (mm)' : 'Chọn size';
+    document.getElementById('modalSizeOptions').innerHTML = sizeOptions
+        .map(size => `<button class="size-btn" onclick="selectSize(this)">${size}</button>`).join('');
 
     document.getElementById('modalAddBtn').onclick = () => {
         addToCart(product.id);

@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-$variantSizes = ['Free Size', 'S', 'M', 'L', 'XL'];
+$variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
 adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 ?>
 

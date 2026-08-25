@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-$variantSizes = ['Free Size', 'S', 'M', 'L', 'XL'];
+$variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
 $variantColors = ['White', 'Brown', 'Gray', 'Blue'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
 adminStart($title, 'products', $flash ?? null);
@@ -161,7 +161,7 @@ adminStart($title, 'products', $flash ?? null);
                             $selectedSize = 'Free Size';
                         }
                         if (preg_match('/^\d{2}$/', $selectedSize)) {
-                            $selectedSize = 'EU ' . $selectedSize;
+                            $selectedSize .= ' mm';
                         }
                         if (!in_array($selectedSize, $variantSizes, true)) {
                             $selectedSize = 'Free Size';
