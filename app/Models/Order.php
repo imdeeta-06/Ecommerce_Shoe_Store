@@ -101,7 +101,7 @@ class Order extends BaseModel {
                 ];
             }
 
-            $shippingFee = $subtotal >= 1000000 ? 0 : 30000;
+            $shippingFee = $subtotal >= 500000 ? 0 : 30000;
             $discount = 0.0;
             $couponId = !empty($orderData['coupon_id']) ? (int)$orderData['coupon_id'] : null;
             $paymentMethod = trim((string)($orderData['payment_method'] ?? 'cod')) ?: 'cod';

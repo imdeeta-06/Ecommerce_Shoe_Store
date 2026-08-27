@@ -3,9 +3,9 @@ require_once __DIR__ . '/../_helpers.php';
 adminStart('Mã giảm giá', 'coupons', $flash ?? null); 
 ?>
 
-<div class="admin-title" style="margin-bottom: 2rem; margin-top: -1rem;">
+<div class="admin-title" style="margin-bottom: 2rem;">
     <div>
-        <p style="color: var(--admin-text-light); font-size: 0.95rem;">Quản lý các chương trình khuyến mãi.</p>
+        <p>Quản lý các chương trình khuyến mãi.</p>
     </div>
     <a href="<?= BASE_URL ?>admin/coupons/create" class="admin-btn primary">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px;"><path d="M12 5v14M5 12h14"></path></svg>

@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-$variantSizes = ['S', 'M', 'L', 'XL', 'Mặc định'];
-$variantColors = ['Lam', 'Nâu', 'Trắng', 'Xám', 'Đen'];
+$variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+$variantColors = ['White', 'Brown', 'Gray', 'Blue'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
 adminStart($title, 'products', $flash ?? null);
 ?>
@@ -43,18 +43,6 @@ adminStart($title, 'products', $flash ?? null);
                 <div class="admin-field">
                     <label>Giá gốc (VNĐ) *</label>
                     <input type="number" name="base_price" min="0" step="1000" required value="<?= adminE($product['base_price'] ?? 0) ?>">
-                </div>
-                <div class="admin-field">
-                    <label>Phân loại *</label>
-                    <input type="text" name="type" required value="<?= adminE($product['type'] ?? '') ?>" placeholder="Ví dụ: Đồ lam đi chùa, Chuỗi hạt">
-                </div>
-                <div class="admin-field">
-                    <label>Giới tính</label>
-                    <select name="gender">
-                        <option value="">Chưa phân loại</option>
-                        <option value="men" <?= ($product['gender'] ?? '') === 'men' ? 'selected' : '' ?>>Nam</option>
-                        <option value="women" <?= ($product['gender'] ?? '') === 'women' ? 'selected' : '' ?>>Nữ</option>
-                    </select>
                 </div>
                 <div class="admin-field">
                     <label>Trạng thái hiển thị</label>
@@ -169,23 +157,26 @@ adminStart($title, 'products', $flash ?? null);
                         <?php
                         $variantFormId = 'variant-edit-' . (int)$variant['id'];
                         $selectedSize = trim((string)$variant['size']);
+                        if (in_array(strtolower($selectedSize), ['mặc định', 'freesize', 'free size'], true)) {
+                            $selectedSize = 'Free Size';
+                        }
                         if (preg_match('/^\d{2}$/', $selectedSize)) {
-                            $selectedSize = 'EU ' . $selectedSize;
+                            $selectedSize .= ' mm';
                         }
                         if (!in_array($selectedSize, $variantSizes, true)) {
-                            $selectedSize = 'EU 42';
+                            $selectedSize = 'Free Size';
                         }
 
                         $legacyColors = [
-                            'Đỏ' => 'Red',
                             'Trắng' => 'White',
-                            'Đen' => 'Black',
-                            'đỏ' => 'Red',
+                            'đỏ' => 'White',
+                            'red' => 'White',
+                            'black' => 'White',
                             'trắng' => 'White',
-                            'đen' => 'Black',
-                            'red' => 'Red',
+                            'đen' => 'White',
                             'white' => 'White',
-                            'black' => 'Black'
+                            'Black' => 'White',
+                            'Red' => 'White'
                         ];
                         $selectedColor = $legacyColors[$variant['color']] ?? $variant['color'];
                         ?>
@@ -230,7 +221,7 @@ adminStart($title, 'products', $flash ?? null);
                         <td>
                             <select form="variant-add-form" name="size" required style="width: 100px;">
                                 <?php foreach ($variantSizes as $size): ?>
-                                    <option value="<?= adminE($size) ?>" <?= $size === 'EU 42' ? 'selected' : '' ?>><?= adminE($size) ?></option>
+                                    <option value="<?= adminE($size) ?>" <?= $size === 'Free Size' ? 'selected' : '' ?>><?= adminE($size) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </td>
@@ -238,7 +229,7 @@ adminStart($title, 'products', $flash ?? null);
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <select form="variant-add-form" name="color" required style="width: 120px;">
                                     <?php foreach ($variantColors as $color): ?>
-                                        <option value="<?= adminE($color) ?>" <?= $color === 'Black' ? 'selected' : '' ?>><?= adminColorLabel($color) ?></option>
+                                        <option value="<?= adminE($color) ?>" <?= $color === 'White' ? 'selected' : '' ?>><?= adminColorLabel($color) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>

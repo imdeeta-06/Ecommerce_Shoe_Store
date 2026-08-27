@@ -6,7 +6,7 @@ $flashMessages = \App\Helpers\SessionHelper::getAllFlash();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đặt lại mật khẩu - PaceUp</title>
+    <title>Đặt lại mật khẩu - Liên Hoa</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
 <body>

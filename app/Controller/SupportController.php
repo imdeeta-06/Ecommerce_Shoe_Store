@@ -7,8 +7,8 @@ use App\Models\SupportTicket;
 
 class SupportController {
     public function index() {
-        $metaTitle = 'Hỗ trợ khách hàng - PaceUp';
-        $metaDescription = 'Gửi yêu cầu hỗ trợ, đổi trả, giao hàng hoặc sản phẩm cho PaceUp.';
+        $metaTitle = 'Hỗ trợ khách hàng - Liên Hoa';
+        $metaDescription = 'Gửi yêu cầu hỗ trợ, đổi trả, giao hàng hoặc sản phẩm cho Liên Hoa.';
         $flash = SessionHelper::getAllFlash();
         require __DIR__ . '/../Views/pages/support.php';
     }
@@ -29,7 +29,7 @@ class SupportController {
             SessionHelper::redirect('/support');
         }
         if (mb_strlen($message) < 10) {
-            SessionHelper::setFlash('error', 'Nội dung hỗ trợ cần ít nhất 10 ký tự để PaceUp có thể tiếp nhận.');
+            SessionHelper::setFlash('error', 'Nội dung hỗ trợ cần ít nhất 10 ký tự để Liên Hoa có thể tiếp nhận.');
             SessionHelper::redirect('/support');
         }
 
@@ -42,7 +42,7 @@ class SupportController {
             'message' => mb_substr($message, 0, 5000)
         ]);
         $ticket = (new SupportTicket())->getTicketById($id);
-        SessionHelper::setFlash('success', 'Đã tiếp nhận yêu cầu ' . ($ticket['ticket_code'] ?? '') . '. PaceUp sẽ phản hồi qua email.');
+        SessionHelper::setFlash('success', 'Đã tiếp nhận yêu cầu ' . ($ticket['ticket_code'] ?? '') . '. Liên Hoa sẽ phản hồi qua email.');
         SessionHelper::redirect('/support');
     }
 }

@@ -24,3 +24,9 @@ composer.phar
 # 5. Các file ghi lỗi (Logs) của hệ thống hoặc server
 *.log
 error_log
+
+# file dữ liệu port 
+database.php
+db.php
+# 6. Môi trường và cấu hình bảo mật
+.env

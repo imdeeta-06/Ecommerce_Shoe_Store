@@ -11,412 +11,576 @@ unset($_SESSION['login_old']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - PaceUp</title>
+    <title>Đăng nhập - Liên Hoa Đồ Lam Phật Giáo</title>
+    <meta name="description" content="Đăng nhập vào tài khoản Liên Hoa để mua sắm pháp phục và đồ lam Phật giáo cao cấp.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #8b6d5c;
-            --primary-hover: #755a4b;
-            --bg-page: #f9f6f0;
-            --text-main: #2c1e16;
-            --text-muted: #8c827a;
-            --border-color: #dcd7cd;
-            --font-serif: 'Playfair Display', Georgia, serif;
-            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        :root {
+            --primary-gold: #c59b6d;
+            --primary-gold-light: #e4c59e;
+            --text-light: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.75);
         }
 
         body {
-            font-family: var(--font-sans);
-            background-color: var(--bg-page);
-            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
             min-height: 100vh;
+            color: #ffffff;
+        }
+
+        /* ── Fullscreen Background ── */
+        .login-page {
+            min-height: 100vh;
+            background-image: url('<?= BASE_URL ?>assets/images/zen-login-banner.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
             display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 2rem 1.5rem;
+            justify-content: flex-start;
+            padding: 2.5rem 4rem;
         }
 
-        .auth-container {
+        /* Subtle dark & warm vignette overlay */
+        .login-page::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                rgba(18, 12, 8, 0.65) 0%,
+                rgba(18, 12, 8, 0.35) 45%,
+                rgba(18, 12, 8, 0.15) 100%
+            );
+            z-index: 1;
+        }
+
+        /* ── Seamless Translucent Glassmorphism Card ── */
+        .login-card {
+            position: relative;
+            z-index: 2;
             width: 100%;
-            max-width: 480px;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
+            max-width: 440px;
+            margin-left: 4%;
+            background: rgba(28, 18, 14, 0.45);
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 26px;
+            padding: 2.75rem 2.5rem;
+            box-shadow:
+                0 24px 50px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.18);
         }
 
-        /* Tabs Toggle */
-        .auth-tabs {
+        /* Brand Header */
+        .login-brand {
             display: flex;
-            background: #fff;
-            padding: 6px;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(139, 109, 92, 0.05);
-            border: 1px solid var(--border-color);
-        }
-
-        .auth-tab {
-            flex: 1;
-            text-align: center;
-            padding: 0.8rem 1rem;
-            font-size: 0.95rem;
-            font-weight: 600;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
             text-decoration: none;
-            color: var(--text-muted);
-            border-radius: 12px;
-            transition: all 0.3s ease;
         }
 
-        .auth-tab.active {
-            background-color: var(--primary-color);
-            color: #fff;
-            box-shadow: 0 4px 10px rgba(139, 109, 92, 0.15);
+        .login-brand-icon { 
+            font-size: 1.7rem; 
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
         }
 
-        /* Form Card */
-        .auth-card {
-            background: #fff;
-            border-radius: 24px;
-            padding: 3rem 2.5rem;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px rgba(139, 109, 92, 0.05);
+        .login-brand-text {
             display: flex;
             flex-direction: column;
-            align-items: center;
         }
 
-        /* Logo Badge */
-        .logo-badge {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #a88b77, #8b6d5c);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 6px 15px rgba(139, 109, 92, 0.2);
+        .login-brand-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.1;
+            letter-spacing: 0.5px;
         }
 
-        .logo-badge svg {
-            width: 38px;
-            height: 38px;
-        }
-
-        .auth-header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-        }
-
-        .auth-header h2 {
-            font-family: var(--font-serif);
-            font-size: 2rem;
-            color: var(--text-main);
-            margin-bottom: 0.5rem;
+        .login-brand-sub {
+            font-size: 0.65rem;
             font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--primary-gold-light);
+            text-transform: uppercase;
         }
 
-        .auth-header p {
+        /* Heading */
+        .login-heading {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.35rem;
+            line-height: 1.2;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .login-subheading {
+            font-size: 0.92rem;
             color: var(--text-muted);
-            font-size: 0.95rem;
+            margin-bottom: 1.75rem;
+            line-height: 1.5;
         }
 
-        /* Forms */
-        form {
-            width: 100%;
-        }
-
-        .form-group {
-            width: 100%;
-            margin-bottom: 1.5rem;
+        /* Flash Messages */
+        .flash-msg {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.84rem;
+            margin-bottom: 1.25rem;
             display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-label-row {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 0.5rem;
+            backdrop-filter: blur(10px);
         }
+        .flash-msg.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fecaca;
+        }
+        .flash-msg.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #bbf7d0;
+        }
+
+        /* Form Fields */
+        .form-field { margin-bottom: 1.25rem; }
 
         .form-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #5c524a;
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #f0e1d1;
+            margin-bottom: 0.45rem;
+            letter-spacing: 0.5px;
         }
 
-        .form-link {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-decoration: underline;
-            transition: color 0.2s;
-        }
-
-        .form-link:hover {
-            color: var(--primary-color);
-        }
-
-        .input-wrapper {
-            position: relative;
-            width: 100%;
-        }
+        .form-input-wrapper { position: relative; }
 
         .form-input {
             width: 100%;
-            padding: 1rem 1.2rem;
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            font-family: var(--font-sans);
+            padding: 0.85rem 1.1rem;
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
             font-size: 0.95rem;
-            color: var(--text-main);
-            background: #fff;
-            transition: all 0.2s ease;
-        }
-
-        .form-input:focus {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            transition: all 0.25s ease;
             outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(139, 109, 92, 0.1);
         }
 
         .form-input::placeholder {
-            color: #bcae9e;
+            color: rgba(255, 255, 255, 0.45);
         }
 
-        .btn-toggle-pw {
+        .form-input:focus {
+            border-color: var(--primary-gold-light);
+            background: rgba(255, 255, 255, 0.16);
+            box-shadow: 0 0 0 3px rgba(197, 155, 109, 0.25);
+        }
+
+        /* Chrome Autofill fix for transparent/dark glass */
+        .form-input:-webkit-autofill,
+        .form-input:-webkit-autofill:hover,
+        .form-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #ffffff !important;
+            -webkit-box-shadow: 0 0 0px 1000px rgba(45, 30, 24, 0.85) inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        .toggle-pw {
             position: absolute;
-            right: 1.2rem;
+            right: 14px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
             border: none;
             cursor: pointer;
-            font-family: var(--font-sans);
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-main);
+            color: var(--primary-gold-light);
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.5px;
         }
+        .toggle-pw:hover { color: #ffffff; }
 
-        .auth-options-row {
+        /* Options Row */
+        .form-options {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            font-size: 0.9rem;
-            color: #7c726a;
+            font-size: 0.85rem;
+            margin-bottom: 1.6rem;
+            color: rgba(255, 255, 255, 0.85);
         }
 
-        .remember-me {
+        .form-options label {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
             cursor: pointer;
-            user-select: none;
         }
 
-        .remember-me input {
-            accent-color: var(--primary-color);
+        .form-options input[type="checkbox"] {
+            accent-color: var(--primary-gold);
             width: 16px;
             height: 16px;
-            border-radius: 4px;
             cursor: pointer;
         }
 
-        /* Buttons */
+        .form-link {
+            color: var(--primary-gold-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .form-link:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        /* Submit Button */
         .btn-submit {
+            display: block;
             width: 100%;
-            padding: 1.1rem;
-            background: var(--primary-color);
-            color: #fff;
+            padding: 0.95rem;
+            background: linear-gradient(135deg, #c59b6d 0%, #9e7a4d 100%);
+            color: #ffffff;
             border: none;
-            border-radius: 100px;
-            font-family: var(--font-sans);
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.92rem;
             font-weight: 600;
-            font-size: 1rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 109, 92, 0.2);
-            text-align: center;
+            box-shadow: 0 6px 20px rgba(197, 155, 109, 0.35);
         }
 
         .btn-submit:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, #d8ab7b 0%, #b88e5d 100%);
+            box-shadow: 0 8px 25px rgba(197, 155, 109, 0.5);
+            transform: translateY(-2px);
         }
 
-        .divider {
+        /* Register Link */
+        .register-link {
+            text-align: center;
+            margin-top: 1.6rem;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        /* Trust Badges */
+        .login-trust {
+            display: flex;
+            gap: 1.25rem;
+            margin-top: 2rem;
+            padding-top: 1.35rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .trust-item {
             display: flex;
             align-items: center;
-            text-align: center;
-            width: 100%;
-            margin: 2rem 0;
-            color: #a89f95;
-            font-size: 0.85rem;
+            gap: 0.5rem;
         }
 
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid var(--border-color);
+        .trust-icon {
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
-        .divider:not(:empty)::before {
-            margin-right: 1rem;
+        .trust-icon svg {
+            width: 15px;
+            height: 15px;
+            stroke: var(--primary-gold-light);
+            fill: none;
+            stroke-width: 2;
         }
 
-        .divider:not(:empty)::after {
-            margin-left: 1rem;
+        .trust-text {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.3;
         }
 
-        .btn-google {
-            width: 100%;
-            padding: 1rem;
-            background: #fff;
-            border: 1px solid var(--border-color);
-            border-radius: 100px;
-            color: #4a423a;
-            font-family: var(--font-sans);
+        /* ── Quote Floating on Right side of Image ── */
+        .image-quote {
+            position: absolute;
+            z-index: 2;
+            bottom: 3rem;
+            right: 4rem;
+            max-width: 450px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .image-quote p {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.45rem;
             font-weight: 500;
-            font-size: 0.95rem;
-            cursor: pointer;
+            color: rgba(255, 255, 255, 0.95);
+            line-height: 1.45;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-quote span {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            color: var(--primary-gold-light);
+            letter-spacing: 2px;
+            font-weight: 600;
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .login-page {
+                justify-content: center;
+                align-items: center;
+                padding: 2rem 1.5rem;
+                min-height: 100vh;
+                min-height: 100dvh;
+            }
+            .login-card {
+                margin-left: 0;
+                max-width: 460px;
+                padding: 2.25rem 1.75rem;
+                background: rgba(28, 18, 14, 0.75);
+            }
+            .image-quote {
+                display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .login-page {
+                padding: 1.25rem 1rem;
+            }
+            .login-card {
+                padding: 2rem 1.25rem;
+                border-radius: 20px;
+                max-width: 100%;
+            }
+            .login-heading {
+                font-size: 1.85rem;
+            }
+            .login-subheading {
+                font-size: 0.85rem;
+                margin-bottom: 1.25rem;
+            }
+            .login-trust {
+                gap: 0.75rem;
+            }
+            .trust-item {
+                flex: 1;
+            }
+            .trust-text {
+                font-size: 0.68rem;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .login-page {
+                padding: 1rem 0.75rem;
+            }
+            .login-card {
+                padding: 1.5rem 1rem;
+                border-radius: 16px;
+            }
+            .login-heading {
+                font-size: 1.65rem;
+            }
+            .login-brand-name {
+                font-size: 1.25rem;
+            }
+            .form-options {
+                font-size: 0.78rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .login-trust {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.4rem;
+                padding-top: 1rem;
+                margin-top: 1.5rem;
+            }
+            .trust-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.25rem;
+            }
+            .trust-text {
+                font-size: 0.62rem;
+                line-height: 1.2;
+            }
+            .trust-icon {
+                margin: 0 auto;
+                width: 26px;
+                height: 26px;
+            }
+            .trust-icon svg {
+                width: 13px;
+                height: 13px;
+            }
+        }
+
+        .g-signin-wrapper {
             display: flex;
             justify-content: center;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
-        }
-
-        .btn-google:hover {
-            background: #fbfaf8;
-            border-color: #c0b5a8;
-        }
-
-        /* Flash messages */
-        .alert-box {
             width: 100%;
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-
-        .alert-box.error {
-            background: #fdf2f2;
-            border: 1px solid #f8b4b4;
-            color: #c81e1e;
-        }
-
-        .alert-box.success {
-            background: #f3faf7;
-            border: 1px solid #def7ec;
-            color: #03543f;
+            max-width: 100%;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
 
-<div class="auth-container">
-    <!-- Tabs Selector -->
-    <div class="auth-tabs">
-        <a href="<?= BASE_URL ?>login" class="auth-tab active">Đăng nhập</a>
-        <a href="<?= BASE_URL ?>register" class="auth-tab">Đăng ký</a>
-    </div>
+<main class="login-page">
+    <!-- Seamless Glass Card -->
+    <div class="login-card">
+        <a href="<?= BASE_URL ?>" class="login-brand">
+            <span class="login-brand-icon">🌸</span>
+            <div class="login-brand-text">
+                <span class="login-brand-name">Liên Hoa</span>
+                <span class="login-brand-sub">ĐỒ LAM PHẬT GIÁO</span>
+            </div>
+        </a>
 
-    <!-- Form Card -->
-    <div class="auth-card">
-        <!-- Logo Badge with Lotus SVG -->
-        <div class="logo-badge">
-            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M32 10C32 10 23 23 23 37C23 46 32 50 32 50C32 50 41 46 41 37C41 23 32 10 32 10Z" fill="#ffa7c4" />
-                <path d="M32 16C32 16 17 28 17 40C17 49 25 52 32 52C39 52 47 49 47 40C47 28 32 16 32 16Z" fill="#ff7da7" opacity="0.85" />
-                <path d="M32 23C32 23 12 32 12 43C12 51 21 53 32 53C43 53 52 51 52 43C52 32 32 23 32 23Z" fill="#e64c72" opacity="0.7" />
-                <circle cx="32" cy="45" r="4" fill="#ffd166" />
-                <circle cx="32" cy="45" r="2" fill="#fff" />
-            </svg>
-        </div>
+        <h1 class="login-heading">Chào mừng trở lại</h1>
+        <p class="login-subheading">Đăng nhập để tiếp tục mua sắm pháp phục và vật phẩm tâm linh.</p>
 
-        <div class="auth-header">
-            <h2>Chào mừng trở lại</h2>
-            <p>Đăng nhập để tiếp tục mua sắm</p>
-        </div>
-
-        <!-- Flash alerts -->
         <?php if ($error): ?>
-            <div class="alert-box error">
+            <div class="flash-msg error">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                 <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
         <?php if ($success): ?>
-            <div class="alert-box success">
+            <div class="flash-msg success">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 <?= htmlspecialchars($success) ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php $info = \App\Helpers\SessionHelper::getFlash('info'); ?>
+        <?php if ($info): ?>
+            <div class="alert-box" style="background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1;">
+                <?= htmlspecialchars($info) ?>
             </div>
         <?php endif; ?>
 
         <!-- Form -->
         <form action="<?= BASE_URL ?>login" method="POST">
-            <div class="form-group">
-                <div class="form-label-row">
-                    <label class="form-label" for="email">Email</label>
-                </div>
-                <div class="input-wrapper">
-                    <input type="email" id="email" name="email" class="form-input" placeholder="email@example.com" required value="<?= htmlspecialchars($oldEmail) ?>">
+            <div class="form-field">
+                <label class="form-label" for="email">Địa chỉ Email</label>
+                <div class="form-input-wrapper">
+                    <input type="email" id="email" name="email" class="form-input" placeholder="nhapemail@example.com" required value="<?= htmlspecialchars($oldEmail) ?>" autocomplete="email">
                 </div>
             </div>
 
-            <div class="form-group">
-                <div class="form-label-row">
-                    <label class="form-label" for="password">Mật khẩu</label>
-                    <a href="<?= BASE_URL ?>forgot-password" class="form-link">Quên mật khẩu?</a>
-                </div>
-                <div class="input-wrapper">
-                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
-                    <button type="button" id="togglePassword" class="btn-toggle-pw">Hiện</button>
+            <div class="form-field">
+                <label class="form-label" for="password">Mật khẩu</label>
+                <div class="form-input-wrapper">
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required style="padding-right: 60px;" autocomplete="current-password">
+                    <button type="button" id="togglePassword" class="toggle-pw">Hiện</button>
                 </div>
             </div>
 
-            <div class="auth-options-row">
-                <label class="remember-me">
-                    <input type="checkbox" name="remember">
-                    <span>Ghi nhớ tôi</span>
+            <div class="form-options">
+                <label>
+                    <input type="checkbox" name="remember"> Ghi nhớ tôi
                 </label>
+                <a href="<?= BASE_URL ?>forgot-password" class="form-link">Quên mật khẩu?</a>
             </div>
 
             <button type="submit" class="btn-submit">Đăng nhập</button>
 
             <div class="divider">hoặc</div>
 
-            <button type="button" class="btn-google" onclick="alert('Tính năng đăng nhập bằng Google đang được bảo trì. Vui lòng đăng nhập bằng Email!')">
-                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.8 2.72v2.24h2.9c1.7-1.57 2.7-3.87 2.7-6.59z" fill="#4285F4"/>
-                    <path d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.9-2.24c-.8.54-1.84.87-3.06.87-2.35 0-4.33-1.58-5.04-3.71H.95v2.3C2.43 15.89 5.5 18 9 18z" fill="#34A853"/>
-                    <path d="M3.96 10.72c-.18-.54-.28-1.12-.28-1.72s.1-1.18.28-1.72V5H.95A8.99 8.99 0 000 9c0 1.45.35 2.82.95 4.05l3.01-2.33z" fill="#FBBC05"/>
-                    <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.4C13.46.96 11.43 0 9 0 5.5 0 2.43 2.11.95 5.05l3.01 2.33c.71-2.13 2.69-3.71 5.04-3.71z" fill="#EA4335"/>
-                </svg>
-                <span>Đăng nhập bằng Google</span>
-            </button>
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <div id="g_id_onload"
+                 data-client_id="<?= getenv('GOOGLE_CLIENT_ID') ?: (defined('GOOGLE_CLIENT_ID') ? GOOGLE_CLIENT_ID : '') ?>"
+                 data-login_uri="<?= rtrim(BASE_URL, '/') ?>/auth/google"
+                 data-auto_prompt="false">
+            </div>
+            
+            <div class="g-signin-wrapper">
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left"
+                     data-width="320">
+                </div>
+            </div>
         </form>
+
+        <p class="register-link">
+            Bạn chưa có tài khoản? <a href="<?= BASE_URL ?>register" class="form-link">Đăng ký ngay</a>
+        </p>
+
+        <div class="login-trust">
+            <div class="trust-item">
+                <div class="trust-icon">
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <span class="trust-text">Bảo mật<br>SSL 256-bit</span>
+            </div>
+            <div class="trust-item">
+                <div class="trust-icon">
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <span class="trust-text">Thông tin<br>được bảo vệ</span>
+            </div>
+            <div class="trust-item">
+                <div class="trust-icon">
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </div>
+                <span class="trust-text">Hỗ trợ<br>7:00 – 21:00</span>
+            </div>
+        </div>
     </div>
-</div>
+
+    <!-- Quote on image -->
+    <div class="image-quote">
+        <p>"Phật tại tâm, trang nghiêm tại hạnh. Mỗi bộ pháp phục là một lời nguyện an lành."</p>
+        <span>— LIÊN HOA · ĐỒ LAM PHẬT GIÁO</span>
+    </div>
+</main>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const togglePassword = document.getElementById('togglePassword');
         const passwordInput = document.getElementById('password');
-        
+
         if(togglePassword) {
             togglePassword.addEventListener('click', function() {
                 if (passwordInput.type === 'password') {

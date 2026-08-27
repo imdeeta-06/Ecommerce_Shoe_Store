@@ -28,7 +28,7 @@ class OrderNotificationService {
         return $this->queue(
             $order,
             'order_created',
-            'PaceUp đã tiếp nhận đơn hàng ' . $orderCode,
+            'Liên Hoa đã tiếp nhận đơn hàng ' . $orderCode,
             $this->buildCreatedHtml($order),
             $recipient
         );
@@ -165,9 +165,9 @@ class OrderNotificationService {
         $name = htmlspecialchars((string)($order['shipping_name'] ?? $order['user_name'] ?? 'bạn'), ENT_QUOTES, 'UTF-8');
         $rows = $this->buildItemRows($order['items'] ?? []);
         return $this->layout(
-            'Chào ' . $name . ', PaceUp đã tiếp nhận đơn hàng <strong>' . htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') . '</strong>.',
+            'Chào ' . $name . ', Liên Hoa đã tiếp nhận đơn hàng <strong>' . htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') . '</strong>.',
             $rows,
-            'Trạng thái hiện tại: Chờ xác nhận. Nhân viên PaceUp sẽ kiểm tra tồn kho và liên hệ khi đơn được xác nhận.',
+            'Trạng thái hiện tại: Chờ xác nhận. Nhân viên Liên Hoa sẽ kiểm tra tồn kho và liên hệ khi đơn được xác nhận.',
             $order
         );
     }
@@ -185,7 +185,7 @@ class OrderNotificationService {
     private function layout(string $intro, string $rows, string $statusText, array $order): string {
         $trackingUrl = App::url('tracking?order_code=' . urlencode((string)$order['order_code']) . '&phone=' . urlencode((string)$order['shipping_phone']));
         return '<!doctype html><html lang="vi"><body style="font-family:Arial,sans-serif;color:#111;line-height:1.6;">'
-            . '<h2>PaceUp</h2><p>' . $intro . '</p><p>' . $statusText . '</p>'
+            . '<h2>Liên Hoa</h2><p>' . $intro . '</p><p>' . $statusText . '</p>'
             . '<table style="width:100%;max-width:680px;border-collapse:collapse;">' . $rows . '</table>'
             . '<p style="margin-top:24px;"><strong>Tổng tiền:</strong> ' . number_format((float)$order['final_amount'], 0, ',', '.') . ' ₫</p>'
             . '<p><a href="' . htmlspecialchars($trackingUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;">Tra cứu đơn hàng</a></p>'

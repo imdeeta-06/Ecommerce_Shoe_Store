@@ -62,15 +62,6 @@ class User extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // --- PASSWORD_RESET_OTP ---
-    public function createOtp($data) { return $this->insert('password_reset_otp', $data); }
-    public function getOtp($id) { return $this->getById('password_reset_otp', $id); }
-    public function updateOtp($id, $data) { return $this->update('password_reset_otp', $id, $data); }
-    public function deleteOtp($id) { return $this->delete('password_reset_otp', $id); }
-
-    public function getValidOtp($email, $otpCode) {
-        $stmt = $this->db->prepare("SELECT * FROM password_reset_otp WHERE email = :email AND otp_code = :otp_code AND is_used = 0 AND expires_at > NOW()");
-        $stmt->execute(['email' => $email, 'otp_code' => $otpCode]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
+    // --- PASSWORD_RESET_OTP / AUTH_OTPS ---
+    // Chuyển toàn bộ logic OTP sang auth_otps trong UserModel.php, các hàm ở đây đã bị lược bỏ.
 }

@@ -24,15 +24,17 @@ class UserModel extends BaseModel {
 
     public function create($data) {
         $stmt = $this->db->prepare("
-            INSERT INTO user (full_name, email, password, phone, role, status)
-            VALUES (?, ?, ?, ?, 'user', 1)
+            INSERT INTO user (full_name, email, password, phone, role, status, google_id, email_verified)
+            VALUES (?, ?, ?, ?, 'user', 1, ?, ?)
         ");
 
         $stmt->execute([
             $data['full_name'] ?? null,
             $data['email'] ?? null,
             $data['password'] ?? null,
-            $data['phone'] ?? null
+            $data['phone'] ?? null,
+            $data['google_id'] ?? null,
+            isset($data['email_verified']) ? $data['email_verified'] : 0
         ]);
 
         return $this->db->lastInsertId();
@@ -180,36 +182,49 @@ class UserModel extends BaseModel {
         return $stmt->execute([$addressId, $userId]);
     }
 
-    public function createOtp($email, $otp, $expiresAt) {
-        $existing = $this->findOtpByEmail($email);
-
-        if ($existing) {
-            $stmt = $this->db->prepare("UPDATE password_reset_otp SET otp_code = ?, expires_at = ?, is_used = 0 WHERE email = ?");
-            return $stmt->execute([$otp, $expiresAt, $email]);
-        }
-
-        $stmt = $this->db->prepare("INSERT INTO password_reset_otp (email, otp_code, expires_at, is_used) VALUES (?, ?, ?, 0)");
-        return $stmt->execute([$email, $otp, $expiresAt]);
+    public function updateEmailVerified($id, $status) {
+        $stmt = $this->db->prepare("UPDATE user SET email_verified = ? WHERE id = ?");
+        return $stmt->execute([$status, $id]);
     }
 
-    public function verifyOtp($email, $otp) {
+    public function updateGoogleId($id, $googleId) {
+        $stmt = $this->db->prepare("UPDATE user SET google_id = ? WHERE id = ?");
+        return $stmt->execute([$googleId, $id]);
+    }
+
+    public function findByGoogleId($googleId) {
+        $stmt = $this->db->prepare("SELECT * FROM user WHERE google_id = ?");
+        $stmt->execute([$googleId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function invalidateOtp($userId, $purpose) {
+        $stmt = $this->db->prepare("DELETE FROM auth_otps WHERE user_id = ? AND purpose = ?");
+        return $stmt->execute([$userId, $purpose]);
+    }
+
+    public function createAuthOtp($userId, $purpose, $otpHash, $expiresAt) {
         $stmt = $this->db->prepare("
-            SELECT * FROM password_reset_otp
-            WHERE email = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()
+            REPLACE INTO auth_otps (user_id, purpose, otp_hash, expires_at, attempts) 
+            VALUES (?, ?, ?, ?, 0)
         ");
-        $stmt->execute([$email, $otp]);
+        return $stmt->execute([$userId, $purpose, $otpHash, $expiresAt]);
+    }
+
+    public function findAuthOtp($userId, $purpose) {
+        $stmt = $this->db->prepare("SELECT * FROM auth_otps WHERE user_id = ? AND purpose = ?");
+        $stmt->execute([$userId, $purpose]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function deleteOtp($email) {
-        $stmt = $this->db->prepare("DELETE FROM password_reset_otp WHERE email = ?");
-        return $stmt->execute([$email]);
+    public function incrementOtpAttempts($otpId) {
+        $stmt = $this->db->prepare("UPDATE auth_otps SET attempts = attempts + 1 WHERE id = ?");
+        return $stmt->execute([$otpId]);
     }
 
-    private function findOtpByEmail($email) {
-        $stmt = $this->db->prepare("SELECT * FROM password_reset_otp WHERE email = ?");
-        $stmt->execute([$email]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+    public function deleteAuthOtp($otpId) {
+        $stmt = $this->db->prepare("DELETE FROM auth_otps WHERE id = ?");
+        return $stmt->execute([$otpId]);
     }
 
     private function hasColumn($column) {

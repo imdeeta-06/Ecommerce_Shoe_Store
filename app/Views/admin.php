@@ -257,6 +257,39 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
 ?>
 
         <?php if ($page === 'dashboard'): ?>
+            <?php
+            $dashboard = $dashboard ?? [
+                'revenue' => 0,
+                'latest_orders' => [],
+                'revenue_by_day' => [],
+                'status_counts' => [],
+                'customer_count' => 0,
+                'product_count' => 0,
+                'low_stock_count' => 0,
+                'new_order_count' => 0,
+                'new_customer_count' => 0,
+            ];
+            $dashboardStatusLabels = [
+                'pending' => 'Mới',
+                'confirmed' => 'Đã xác nhận',
+                'preparing' => 'Đang chuẩn bị',
+                'shipping' => 'Đang giao',
+                'delivered' => 'Đã giao',
+                'completed' => 'Hoàn thành',
+                'canceled' => 'Đã huỷ',
+            ];
+            $dashboardStatusColors = ['#3b82f6', '#60a5fa', '#f59e0b', '#f97316', '#10b981', '#059669', '#ef4444'];
+            $statusChartLabels = [];
+            $statusChartData = [];
+            $statusChartColors = [];
+            foreach ($dashboardStatusLabels as $status => $label) {
+                if ((int)($dashboard['status_counts'][$status] ?? 0) > 0) {
+                    $statusChartLabels[] = $label;
+                    $statusChartData[] = (int)$dashboard['status_counts'][$status];
+                    $statusChartColors[] = $dashboardStatusColors[count($statusChartColors) % count($dashboardStatusColors)];
+                }
+            }
+            ?>
             
             <div class="admin-grid" style="margin-bottom: 2rem;">
                 <!-- Card 1: Doanh thu -->
@@ -264,13 +297,13 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <div class="stat-header">
                         <div>
                             <div class="stat-title">Tổng doanh thu</div>
-                            <div class="stat-value" style="white-space: nowrap;">24.5M ₫</div>
+                            <div class="stat-value" style="white-space: nowrap;"><?= adminMoney($dashboard['revenue']) ?></div>
                         </div>
                         <div class="stat-icon" style="background: #E8F5E9; color: #4CAF50;">
                             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
                         </div>
                     </div>
-                    <div class="stat-change up">↑ +12% so với tháng trước</div>
+                    <div class="stat-change up">Doanh thu thực nhận</div>
                 </div>
 
                 <!-- Card 2: Đơn hàng -->
@@ -278,13 +311,13 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <div class="stat-header">
                         <div>
                             <div class="stat-title">Đơn hàng mới</div>
-                            <div class="stat-value">48</div>
+                            <div class="stat-value"><?= number_format($dashboard['new_order_count']) ?></div>
                         </div>
                         <div class="stat-icon" style="background: #E3F2FD; color: #2196F3;">
                             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"></path></svg>
                         </div>
                     </div>
-                    <div class="stat-change up">↑ +5% so với tháng trước</div>
+                    <div class="stat-change up">Đơn trong tháng này</div>
                 </div>
 
                 <!-- Card 3: Khách hàng -->
@@ -292,13 +325,13 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <div class="stat-header">
                         <div>
                             <div class="stat-title">Khách hàng</div>
-                            <div class="stat-value">1,024</div>
+                            <div class="stat-value"><?= number_format($dashboard['customer_count']) ?></div>
                         </div>
                         <div class="stat-icon" style="background: #F3E5F5; color: #9C27B0;">
                             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         </div>
                     </div>
-                    <div class="stat-change up">↑ +28 thành viên mới</div>
+                    <div class="stat-change up">+<?= number_format($dashboard['new_customer_count']) ?> thành viên mới tháng này</div>
                 </div>
 
                 <!-- Card 4: Sản phẩm -->
@@ -306,13 +339,13 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <div class="stat-header">
                         <div>
                             <div class="stat-title">Sản phẩm</div>
-                            <div class="stat-value">156</div>
+                            <div class="stat-value"><?= number_format($dashboard['product_count']) ?></div>
                         </div>
                         <div class="stat-icon" style="background: #FFF3E0; color: #FF9800;">
                             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                         </div>
                     </div>
-                    <div class="stat-change down">↓ 12 sản phẩm sắp hết</div>
+                    <div class="stat-change <?= $dashboard['low_stock_count'] > 0 ? 'down' : 'up' ?>"><?= $dashboard['low_stock_count'] > 0 ? '↓ ' : '' ?><?= number_format($dashboard['low_stock_count']) ?> biến thể sắp hết</div>
                 </div>
             </div>
 
@@ -342,27 +375,23 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>#ORD-001</td>
-                            <td style="font-weight: 600;">Nguyễn Văn A</td>
-                            <td style="color: #6b7280;">25/06/2026</td>
-                            <td style="font-weight: 600;">3.800.000 ₫</td>
-                            <td><span class="admin-badge neutral">MỚI</span></td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-002</td>
-                            <td style="font-weight: 600;">Trần Thị B</td>
-                            <td style="color: #6b7280;">24/06/2026</td>
-                            <td style="font-weight: 600;">4.200.000 ₫</td>
-                            <td><span class="admin-badge warning">ĐANG GIAO</span></td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-003</td>
-                            <td style="font-weight: 600;">Lê Văn C</td>
-                            <td style="color: #6b7280;">23/06/2026</td>
-                            <td style="font-weight: 600;">2.100.000 ₫</td>
-                            <td><span class="admin-badge success">HOÀN THÀNH</span></td>
-                        </tr>
+                        <?php if (empty($dashboard['latest_orders'])): ?>
+                            <tr><td colspan="5" style="text-align: center; color: #6b7280;">Chưa có đơn hàng.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($dashboard['latest_orders'] as $order): ?>
+                                <?php
+                                $status = $order['status'] ?? 'pending';
+                                $statusClass = in_array($status, ['delivered', 'completed'], true) ? 'success' : (in_array($status, ['shipping', 'preparing'], true) ? 'warning' : ($status === 'canceled' ? 'error' : 'neutral'));
+                                ?>
+                                <tr>
+                                    <td>#<?= adminE($order['order_code'] ?: str_pad($order['id'], 3, '0', STR_PAD_LEFT)) ?></td>
+                                    <td style="font-weight: 600;"><?= adminE($order['customer_name']) ?></td>
+                                    <td style="color: #6b7280;"><?= date('d/m/Y', strtotime($order['created_at'])) ?></td>
+                                    <td style="font-weight: 600;"><?= adminMoney($order['final_amount']) ?></td>
+                                    <td><span class="admin-badge <?= $statusClass ?>"><?= adminE($dashboardStatusLabels[$status] ?? 'Khác') ?></span></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -379,10 +408,10 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                 new Chart(ctxRevenue, {
                     type: 'bar',
                     data: {
-                        labels: ['19/06', '20/06', '21/06', '22/06', '23/06', '24/06', '25/06'],
+                        labels: <?= json_encode(array_map(function ($date) { return date('d/m', strtotime($date)); }, array_keys($dashboard['revenue_by_day'])), JSON_UNESCAPED_UNICODE) ?>,
                         datasets: [{
                             label: 'Doanh thu (VNĐ)',
-                            data: [3500000, 5200000, 4800000, 2100000, 7500000, 4200000, 8900000],
+                            data: <?= json_encode(array_values($dashboard['revenue_by_day'])) ?>,
                             backgroundColor: '#111',
                             borderRadius: 6,
                             barThickness: 32
@@ -427,10 +456,10 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                 new Chart(ctxStatus, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Mới', 'Đang giao', 'Hoàn thành', 'Đã huỷ'],
+                        labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
                         datasets: [{
-                            data: [15, 8, 22, 3],
-                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+                            data: <?= json_encode($statusChartData) ?>,
+                            backgroundColor: <?= json_encode($statusChartColors) ?>,
                             borderWidth: 2,
                             borderColor: '#ffffff',
                             hoverOffset: 4
@@ -1030,11 +1059,11 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
             <div class="admin-panel" style="max-width: 600px;">
                 <div class="admin-field">
                     <label>Tên website</label>
-                    <input type="text" value="PaceUp">
+                    <input type="text" value="Liên Hoa - Đồ Lam Phật Giáo">
                 </div>
                 <div class="admin-field">
                     <label>Email liên hệ</label>
-                    <input type="email" value="cskh@paceup.vn">
+                    <input type="email" value="lienhoashop.pg@gmail.com">
                 </div>
                 <div class="admin-field">
                     <label>Phí vận chuyển mặc định (VNĐ)</label>
@@ -1120,15 +1149,9 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
             </div>
 
         <?php elseif ($page === 'inventory'): ?>
-            <div class="admin-title" style="margin-bottom: 2rem;">
-                <div>
-                    <h1>Quản lý kho hàng</h1>
-                    <p>Kiểm soát số lượng sản phẩm nhập xuất.</p>
-                </div>
-                <button class="admin-btn primary" onclick="openModal('inventoryModal')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px;"><path d="M12 5v14M5 12h14"></path></svg>
-                    Nhập kho
-                </button>
+            <div class="admin-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2>Quản lý kho hàng</h2>
+                <button onclick="openModal('inventoryModal')" class="admin-btn primary">+ Nhập kho</button>
             </div>
 
             <div class="admin-table-wrapper">
@@ -1136,22 +1159,22 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                     <thead>
                         <tr>
                             <th>Sản phẩm</th>
-                            <th>Mã SP (SKU)</th>
+                            <th>Mã SKU</th>
                             <th>Tồn kho</th>
-                            <th>Trạng thái kho</th>
-                            <th>Lần nhập cuối</th>
-                            <th>Thao tác</th>
+                            <th>Trạng thái</th>
+                            <th>Cập nhật cuối</th>
+                            <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1025.jpg" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike Air Zoom Pegasus 42</strong>
+                                <strong style="color: #111;">Áo Lam Nữ Cổ Tàu Lanh</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">NK-PEG42-BLK</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-LAM-1025</span></td>
                             <td><strong style="font-size: 1.1rem;">124</strong></td>
                             <td><span class="admin-badge success">Đủ hàng</span></td>
                             <td style="color: #666; font-size: 0.9rem;">20/06/2026</td>
@@ -1162,11 +1185,11 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         <tr>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/NIKE+SB+DUNK+LOW+PRO.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike SB Dunk Low Pro</strong>
+                                <strong style="color: #111;">Túi Đeo Đi Chùa Thêu Hoa Sen</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">NK-DUNK-LOW</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-TUI-1075</span></td>
                             <td><strong style="font-size: 1.1rem; color: #f59e0b;">5</strong></td>
                             <td><span class="admin-badge warning">Sắp hết</span></td>
                             <td style="color: #666; font-size: 0.9rem;">15/05/2026</td>
@@ -1176,10 +1199,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         </tr>
                         <tr>
                             <td class="admin-product-cell">
-                                <div class="admin-thumb" style="width: 44px; height: 44px; background: #eee;"></div>
-                                <strong style="color: #111;">Adidas Ultraboost Light</strong>
+                                <div class="admin-thumb" style="width: 44px; height: 44px;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1100.jpg" style="width: 100%; height: 100%; object-fit: contain;">
+                                </div>
+                                <strong style="color: #111;">Tràng Hạt Trầm Hương 108 Hạt</strong>
                             </td>
-                            <td><span style="color: #666; font-family: monospace;">AD-UB-LGT</span></td>
+                            <td><span style="color: #666; font-family: monospace;">LH-TRANG-1100</span></td>
                             <td><strong style="font-size: 1.1rem; color: #ef4444;">0</strong></td>
                             <td><span class="admin-badge error">Hết hàng</span></td>
                             <td style="color: #666; font-size: 0.9rem;">10/04/2026</td>
@@ -1202,9 +1227,9 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                         <div style="margin-bottom: 1.5rem;">
                             <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Chọn sản phẩm *</label>
                             <select name="variant_id" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
-                                <option value="1">Nike Air Zoom Pegasus 42</option>
-                                <option value="2">Nike SB Dunk Low Pro</option>
-                                <option value="3">Adidas Ultraboost Light</option>
+                                <option value="1025">Áo Lam Nữ Cổ Tàu Lanh</option>
+                                <option value="1075">Túi Đeo Đi Chùa Thêu Hoa Sen</option>
+                                <option value="1100">Tràng Hạt Trầm Hương 108 Hạt</option>
                             </select>
                         </div>
                         
@@ -1458,12 +1483,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <td>1</td>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1000.jpg" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike Air Zoom Pegasus 42</strong>
+                                <strong style="color: #111;">Áo Tràng Hải Thanh</strong>
                             </td>
-                            <td>Giày Chạy Bộ Nam</td>
-                            <td style="font-weight: 600;">3.800.000 ₫</td>
+                            <td>Quần áo Tăng - Ni</td>
+                            <td style="font-weight: 600;">540.000 ₫</td>
                             <td>
                                 <div class="admin-actions">
                                     <a href="javascript:void(0)" onclick="openModal('productModal')" class="admin-btn-sm admin-btn light">Sửa</a>
@@ -1475,12 +1500,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <td>2</td>
                             <td class="admin-product-cell">
                                 <div class="admin-thumb" style="width: 44px; height: 44px;">
-                                    <img src="<?= BASE_URL ?>assets/images/NIKE+SB+DUNK+LOW+PRO.avif" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <img src="<?= BASE_URL ?>public/uploads/products/lam/lam-1075.webp" style="width: 100%; height: 100%; object-fit: contain;">
                                 </div>
-                                <strong style="color: #111;">Nike SB Dunk Low Pro</strong>
+                                <strong style="color: #111;">Túi Đeo Đi Chùa Hoa Sen</strong>
                             </td>
-                            <td>Giày Skate Nam</td>
-                            <td style="font-weight: 600;">4.200.000 ₫</td>
+                            <td>Túi đeo đi chùa</td>
+                            <td style="font-weight: 600;">220.000 ₫</td>
                             <td>
                                 <div class="admin-actions">
                                     <a href="javascript:void(0)" onclick="openModal('productModal')" class="admin-btn-sm admin-btn light">Sửa</a>
@@ -1506,7 +1531,7 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             </div>
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Giá bán (VNĐ) *</label>
-                                <input type="number" required placeholder="Ví dụ: 3800000" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                <input type="number" required placeholder="Ví dụ: 540000" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
                             </div>
                         </div>
 
@@ -1514,10 +1539,12 @@ adminStart($page === 'dashboard' ? 'Bảng điều khiển' : ucfirst($page), $p
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Phân loại *</label>
                                 <select style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
-                                    <option value="men_running">Giày chạy bộ nam</option>
-                                    <option value="women_running">Giày chạy bộ nữ</option>
-                                    <option value="men_lifestyle">Giày thời trang nam</option>
-                                    <option value="women_lifestyle">Giày thời trang nữ</option>
+                                    <option value="111">Quần áo Tăng - Ni</option>
+                                    <option value="112">Đồ lam đi chùa</option>
+                                    <option value="114">Túi đeo đi chùa</option>
+                                    <option value="113">Quần áo ngồi thiền</option>
+                                    <option value="115">Vòng tay - chuỗi hạt</option>
+                                    <option value="116">Phụ kiện đi chùa</option>
                                 </select>
                             </div>
                             <div>

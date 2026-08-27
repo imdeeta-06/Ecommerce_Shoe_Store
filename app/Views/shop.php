@@ -1,18 +1,6 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
 <?php
-$gender = $gender ?? (isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all');
-$gender = [
-    'mens' => 'men',
-    'womens' => 'women',
-][$gender] ?? $gender;
-if (!in_array($gender, ['all', 'men', 'women'], true)) {
-    $gender = 'all';
-}
-$genderLabel = 'Tất cả sản phẩm';
-if ($gender === 'men') $genderLabel = 'Pháp phục Nam';
-if ($gender === 'women') $genderLabel = 'Pháp phục Nữ';
-
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
 $priceRange = $_GET['price'] ?? 'all';
@@ -32,22 +20,27 @@ function productAssetPath($image): string {
 }
 
 function productDisplayType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? ''));
-    }
+    return trim((string)($product['category'] ?? ''));
+}
 
-    return $type;
+function productSizeOptions($product): array {
+    $category = mb_strtolower(productDisplayType($product), 'UTF-8');
+    if (str_contains($category, 'quần') || str_contains($category, 'áo') || str_contains($category, 'đồ lam') || str_contains($category, 'pháp phục')) {
+        return ['S', 'M', 'L'];
+    }
+    if (str_contains($category, 'vòng tay') || str_contains($category, 'dây chuyền')) {
+        return ['8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+    }
+    return ['Free Size'];
 }
 ?>
 
 <main>
     <section class="shop-page">
         <div class="shop-topbar">
-            <h1><?= htmlspecialchars($genderLabel) ?> (<?= count($products) ?>)</h1>
+            <h1>Tất cả sản phẩm (<?= count($products) ?>)</h1>
             <div class="shop-sort">
                 <form method="get" action="<?= BASE_URL ?>shop" id="sortForm">
-                    <input type="hidden" name="gender" value="<?= htmlspecialchars($gender) ?>">
                     <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
                     <input type="hidden" name="price" value="<?= htmlspecialchars($priceRange) ?>">
                     <?php if ($keyword !== ''): ?>
@@ -69,7 +62,7 @@ function productDisplayType($product): string {
                 <ul class="filter-cat-list">
                     <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả (<?= $totalActiveProducts ?>)</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'gender' => 'all'])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
                     <?php endforeach; ?>
                 </ul>
 
@@ -89,7 +82,10 @@ function productDisplayType($product): string {
                 <?php foreach ($products as $index => $product): ?>
                     <?php $imagePath = productAssetPath($product['image'] ?? ''); ?>
                     <div class="shop-product-card" data-index="<?= $index ?>">
-                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper">
+                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper" style="position:relative;">
+                            <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                <span class="badge-tag tag-sale" style="position:absolute; top:10px; left:10px; background:#e11d48; color:white; font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; z-index:2;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                            <?php endif; ?>
                             <?php if ($imagePath !== ''): ?>
                                 <img src="<?= BASE_URL . htmlspecialchars($imagePath) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
                             <?php endif; ?>
@@ -103,7 +99,14 @@ function productDisplayType($product): string {
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
                             <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
-                            <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
+                            <div class="product-price" style="margin-top:0.4rem;">
+                                <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                    <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                    <del style="color: #94a3b8; font-size: 0.85em; margin-left: 6px;"><?= number_format($cPrice, 0, ',', '.') ?> VNĐ</del>
+                                <?php else: ?>
+                                    <span style="font-weight: 600; color: #0f172a;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                <?php endif; ?>
+                            </div>
                         </a>
                     </div>
                 <?php endforeach; ?>
@@ -145,12 +148,8 @@ function productDisplayType($product): string {
             <p class="modal-price" id="modalPrice"></p>
             <p class="modal-desc">Sản phẩm đồ lam và vật dụng đi chùa. Vui lòng xem tên, màu sắc và phân loại trước khi đặt hàng.</p>
             <div class="modal-size-select">
-                <label>Chọn size</label>
-                <div class="size-options">
-                    <?php foreach (['38','39','40','41','42','43','44'] as $size): ?>
-                        <button class="size-btn" onclick="selectSize(this)"><?= $size ?></button>
-                    <?php endforeach; ?>
-                </div>
+                <label id="modalSizeLabel">Chọn size</label>
+                <div class="size-options" id="modalSizeOptions"></div>
             </div>
             <button class="btn-add-cart-modal" id="modalAddBtn">Thêm vào giỏ hàng</button>
         </div>
@@ -160,7 +159,10 @@ function productDisplayType($product): string {
 <div class="toast" id="toast"></div>
 
 <script>
-const productsData = <?= json_encode(array_values($products), JSON_UNESCAPED_UNICODE) ?>;
+const productsData = <?= json_encode(array_map(function ($product) {
+    $product['size_options'] = productSizeOptions($product);
+    return $product;
+}, array_values($products)), JSON_UNESCAPED_UNICODE) ?>;
 let cart = [];
 
 function productImagePath(image) {
@@ -193,6 +195,11 @@ function openQuickView(index) {
     document.getElementById('modalName').textContent = product.name;
     document.getElementById('modalCategory').textContent = productDisplayType(product);
     document.getElementById('modalPrice').textContent = formatPrice(product.price);
+    const sizeOptions = product.size_options || ['Free Size'];
+    const isMillimeterSize = sizeOptions.some(size => size.endsWith(' mm'));
+    document.getElementById('modalSizeLabel').textContent = isMillimeterSize ? 'Chọn kích thước (mm)' : 'Chọn size';
+    document.getElementById('modalSizeOptions').innerHTML = sizeOptions
+        .map(size => `<button class="size-btn" onclick="selectSize(this)">${size}</button>`).join('');
 
     document.getElementById('modalAddBtn').onclick = () => {
         addToCart(product.id);

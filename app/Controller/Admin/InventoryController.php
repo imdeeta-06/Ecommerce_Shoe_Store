@@ -13,9 +13,9 @@ class InventoryController {
     }
 
     public function index() {
-        $variants = $this->productModel->getInventoryOverview();
+        $variants = $this->productModel->getInventoryOverview(200);
         $logs = $this->productModel->getInventoryLogs(80);
-        $products = $this->productModel->getAllProducts(['status' => 1]);
+        $products = $this->productModel->getActiveProductsForInventory();
         $flash = $this->pullFlash();
         require __DIR__ . '/../../Views/admin/inventory/index.php';
     }
@@ -67,6 +67,54 @@ class InventoryController {
         $this->redirect('admin/inventory');
     }
 
+    public function updateVariant() {
+        $variantId = (int)($_POST['id'] ?? 0);
+        $variant = $this->productModel->getProductVariant($variantId);
+        if (!$variant) {
+            $this->setFlash('error', 'Không tìm thấy phân loại sản phẩm.');
+            $this->redirect('admin/inventory');
+        }
+
+        $size = $this->variantSize($_POST['size'] ?? '');
+        $color = $this->variantColor($_POST['color'] ?? '');
+        try {
+            if ($this->productModel->productVariantExists((int)$variant['product_id'], $size, $color, $variantId)) {
+                throw new \RuntimeException('Phân loại size/màu này đã tồn tại.');
+            }
+            $newStock = max(0, (int)($_POST['stock_quantity'] ?? 0));
+            $this->productModel->updateProductVariant($variantId, [
+                'size' => $size,
+                'color' => $color,
+                'price_modifier' => max(0, (float)($_POST['price_modifier'] ?? 0))
+            ]);
+            $stockDelta = $newStock - (int)$variant['stock_quantity'];
+            if ($stockDelta !== 0) {
+                $this->productModel->updateStock($variantId, $stockDelta, 'Điều chỉnh từ màn hình kho hàng');
+            }
+            $this->setFlash('success', 'Đã cập nhật phân loại và tồn kho.');
+        } catch (\Throwable $e) {
+            $this->setFlash('error', $e->getMessage());
+        }
+        $this->redirect('admin/inventory');
+    }
+
+    public function deleteVariant() {
+        $variantId = (int)($_POST['id'] ?? 0);
+        try {
+            if (!$this->productModel->getProductVariant($variantId)) {
+                throw new \RuntimeException('Không tìm thấy phân loại sản phẩm.');
+            }
+            if ($this->productModel->productVariantHasOrderItems($variantId)) {
+                throw new \RuntimeException('Phân loại đã phát sinh trong đơn hàng, không thể xóa để giữ lịch sử.');
+            }
+            $this->productModel->deleteProductVariant($variantId);
+            $this->setFlash('success', 'Đã xóa phân loại sản phẩm.');
+        } catch (\Throwable $e) {
+            $this->setFlash('error', $e->getMessage());
+        }
+        $this->redirect('admin/inventory');
+    }
+
     private function requireAdmin() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -84,18 +132,19 @@ class InventoryController {
     }
 
     private function variantColor($value) {
-        $allowed = ['Black', 'Red', 'White'];
-        return in_array($value, $allowed, true) ? $value : 'Black';
+        $legacy = ['Đen' => 'White', 'Đỏ' => 'White', 'Trắng' => 'White', 'Nâu' => 'Brown', 'Xám' => 'Gray', 'Lam' => 'Blue'];
+        $value = $legacy[$value] ?? $value;
+        $allowed = ['White', 'Brown', 'Gray', 'Blue'];
+        return in_array($value, $allowed, true) ? $value : 'White';
     }
 
     private function variantSize($value) {
         $value = trim((string)$value);
-        if (preg_match('/^\d{2}$/', $value)) {
-            $value = 'EU ' . $value;
+        if (in_array(strtolower($value), ['mặc định', 'freesize', 'free size'], true)) {
+            return 'Free Size';
         }
-
-        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-        return in_array($value, $allowed, true) ? $value : 'EU 42';
+        $allowed = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+        return in_array($value, $allowed, true) ? $value : 'Free Size';
     }
 
     private function setFlash($type, $message) {

@@ -73,9 +73,9 @@
         <h1 class="success-title">Đặt hàng thành công!</h1>
         <p class="success-desc">Cảm ơn quý Phật tử đã mua sắm tại Liên Hoa. Đơn hàng đã được ghi nhận và đang chờ xử lý. Chúng tôi sẽ gửi thông báo xác nhận và cập nhật trạng thái đơn hàng sớm nhất.</p>
         
-        <?php 
-        $paymentMethod = $order['payment']['payment_method'] ?? '';
-        if (isset($order) && $order && in_array($paymentMethod, ['bank', 'bank_transfer'], true)): 
+        <?php
+            $paymentMethod = $order['payment']['payment_method'] ?? '';
+            if (isset($order) && $order && in_array($paymentMethod, ['bank', 'bank_transfer'], true)):
         ?>
             <div class="bank-transfer-card" style="background:#fff; border:1px solid var(--border-color); border-radius:16px; padding:2rem; margin:2rem auto; text-align:left; box-shadow:0 4px 20px rgba(74, 59, 50, 0.05); max-width:450px;">
                 <h3 style="font-family:var(--font-ui); color:var(--primary-dark); font-size:1.2rem; margin-top:0; border-bottom:1px solid var(--border-color); padding-bottom:.8rem; text-align:center; text-transform:uppercase; letter-spacing:1px; font-weight:600;">Thông tin chuyển khoản</h3>

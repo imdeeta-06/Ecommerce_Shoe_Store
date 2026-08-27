@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-$variantSizes = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
+$variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
 adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 ?>
 
@@ -8,9 +8,10 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
     <div class="admin-flash error">Chưa có phân loại hàng (variant) nào. Bạn cần tạo phân loại trước khi có thể cập nhật tồn kho.</div>
 <?php endif; ?>
 
-<div class="admin-title" style="margin-bottom: 2rem; margin-top: -1rem;">
+<div class="admin-title" style="margin-bottom: 2rem;">
     <div>
-        <p style="color: var(--admin-text-light); font-size: 0.95rem;">Thêm phân loại sản phẩm và theo dõi lịch sử xuất/nhập kho.</p>
+        
+        <p>Thêm phân loại sản phẩm và theo dõi lịch sử xuất/nhập kho.</p>
     </div>
 </div>
 
@@ -36,16 +37,16 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
                     <label>Kích cỡ (Size)</label>
                     <select name="size" required>
                         <?php foreach ($variantSizes as $size): ?>
-                            <option value="<?= adminE($size) ?>" <?= $size === 'EU 42' ? 'selected' : '' ?>><?= adminE($size) ?></option>
+                            <option value="<?= adminE($size) ?>" <?= $size === 'Free Size' ? 'selected' : '' ?>><?= adminE($size) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="admin-field">
                     <label>Màu sắc</label>
                     <select name="color" required>
-                        <option value="Black" selected>Đen (Black)</option>
-                        <option value="Red">Đỏ (Red)</option>
-                        <option value="White">Trắng (White)</option>
+                        <?php foreach (['White', 'Brown', 'Gray', 'Blue'] as $color): ?>
+                            <option value="<?= adminE($color) ?>" <?= $color === 'White' ? 'selected' : '' ?>><?= adminE(adminColorLabel($color)) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
             </div>
@@ -107,6 +108,37 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
             </div>
         </form>
     </section>
+</div>
+
+<div class="admin-table-wrapper" style="margin-bottom: 2rem;">
+    <h2 style="font-size: 1.25rem; font-family: var(--font-heading); margin-bottom: 1rem; color: #111; padding: 1.5rem 1.5rem 0 1.5rem;">Danh sách phân loại trong kho</h2>
+    <table class="admin-table">
+        <thead>
+            <tr><th>Sản phẩm</th><th>Size</th><th>Màu</th><th>Tồn kho</th><th>Giá cộng thêm</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+            <?php foreach ($variants as $variant): ?>
+                <?php $variantFormId = 'inventory-variant-' . (int)$variant['id']; ?>
+                <tr>
+                    <td><?= adminE($variant['product_name'] ?? 'Sản phẩm đã xóa') ?></td>
+                    <td><select form="<?= $variantFormId ?>" name="size" aria-label="Size">
+                        <?php foreach ($variantSizes as $size): ?><option value="<?= adminE($size) ?>" <?= trim((string)$variant['size']) === $size ? 'selected' : '' ?>><?= adminE($size) ?></option><?php endforeach; ?>
+                    </select></td>
+                    <td><select form="<?= $variantFormId ?>" name="color" aria-label="Màu sắc">
+                        <?php foreach (['White', 'Brown', 'Gray', 'Blue'] as $color): ?><option value="<?= $color ?>" <?= ($variant['color'] === $color || ($variant['color'] === 'Đen' && $color === 'Black') || ($variant['color'] === 'Đỏ' && $color === 'Red') || ($variant['color'] === 'Trắng' && $color === 'White')) ? 'selected' : '' ?>><?= adminE(adminColorLabel($color)) ?></option><?php endforeach; ?>
+                    </select></td>
+                    <td><input form="<?= $variantFormId ?>" type="number" name="stock_quantity" min="0" value="<?= (int)$variant['stock_quantity'] ?>" aria-label="Tồn kho"></td>
+                    <td><input form="<?= $variantFormId ?>" type="number" name="price_modifier" min="0" step="1000" value="<?= adminE($variant['price_modifier']) ?>" aria-label="Giá cộng thêm"></td>
+                    <td><div class="admin-actions">
+                        <form id="<?= $variantFormId ?>" method="post" action="<?= BASE_URL ?>admin/inventory/variants/update"><input type="hidden" name="id" value="<?= (int)$variant['id'] ?>"></form>
+                        <button class="admin-btn-sm admin-btn light" form="<?= $variantFormId ?>" type="submit">Sửa</button>
+                        <form method="post" action="<?= BASE_URL ?>admin/inventory/variants/delete" onsubmit="return confirm('Xóa phân loại này?')"><input type="hidden" name="id" value="<?= (int)$variant['id'] ?>"><button class="admin-btn-sm admin-btn danger" type="submit">Xóa</button></form>
+                    </div></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($variants)): ?><tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">Chưa có phân loại sản phẩm.</td></tr><?php endif; ?>
+        </tbody>
+    </table>
 </div>
 
 <div class="admin-table-wrapper">

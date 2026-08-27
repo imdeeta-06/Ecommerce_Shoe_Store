@@ -17,6 +17,11 @@
         <button class="client-btn" type="submit" style="width:100%;">Gửi yêu cầu hỗ trợ</button>
     </form>
     <p style="max-width:720px;margin:1rem auto;text-align:center;color:#777;">Bạn có thể xem trước <a href="<?= BASE_URL ?>faqs">FAQs</a> hoặc dùng <a href="<?= BASE_URL ?>tracking">Tra cứu đơn hàng</a>.</p>
+    
+    <div style="max-width:720px;margin:2rem auto; border:1px solid #ddd; background:#fff; padding: 1rem;">
+        <h2 style="text-align:center;margin-bottom:1rem;font-size:1.2rem;">Bản đồ vị trí</h2>
+        <iframe src="https://maps.google.com/maps?q=Ho+Chi+Minh+City&t=&z=13&ie=UTF8&iwloc=&output=embed" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+    </div>
 </main>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

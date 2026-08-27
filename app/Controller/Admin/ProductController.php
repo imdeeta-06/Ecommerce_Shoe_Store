@@ -17,8 +17,7 @@ class ProductController {
         $filters = [
             'keyword' => $_GET['keyword'] ?? '',
             'category_id' => $_GET['category_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-            'gender' => $_GET['gender'] ?? ''
+            'status' => $_GET['status'] ?? ''
         ];
 
         $products = $this->productModel->getAllProducts($filters);
@@ -32,6 +31,7 @@ class ProductController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $productId = $this->productModel->createProduct($this->productPayload());
+                $this->productModel->ensureDefaultVariant($productId);
 
                 if (!empty($_FILES['image']['name'])) {
                     $imagePath = UploadService::image($_FILES['image'], 'products');
@@ -276,9 +276,6 @@ class ProductController {
             $status = 1;
         }
 
-        $gender = $_POST['gender'] ?? null;
-        $gender = in_array($gender, ['men', 'women'], true) ? $gender : null;
-
         $slug = $this->slugify($_POST['slug'] ?? $name);
         if ($this->productModel->productSlugExists($slug, $productId)) {
             throw new \RuntimeException('Slug sản phẩm đã tồn tại. Vui lòng chọn slug khác.');
@@ -290,8 +287,7 @@ class ProductController {
             'slug' => $slug,
             'description' => trim($_POST['description'] ?? ''),
             'base_price' => $basePrice,
-            'type' => trim($_POST['type'] ?? ''),
-            'gender' => $gender,
+            'product_type' => $productId ? ($this->productModel->getProductForAdmin($productId)['product_type'] ?? 'apparel') : 'apparel',
             'status' => $status,
             'is_featured' => !empty($_POST['is_featured']) ? 1 : 0
         ];
@@ -308,18 +304,19 @@ class ProductController {
     }
 
     private function variantColor($value) {
-        $allowed = ['Black', 'Red', 'White'];
-        return in_array($value, $allowed, true) ? $value : 'Black';
+        $legacy = ['Đen' => 'White', 'Đỏ' => 'White', 'Trắng' => 'White', 'Nâu' => 'Brown', 'Xám' => 'Gray', 'Lam' => 'Blue'];
+        $value = $legacy[$value] ?? $value;
+        $allowed = ['White', 'Brown', 'Gray', 'Blue'];
+        return in_array($value, $allowed, true) ? $value : 'White';
     }
 
     private function variantSize($value) {
         $value = trim((string)$value);
-        if (preg_match('/^\d{2}$/', $value)) {
-            $value = 'EU ' . $value;
+        if (in_array(strtolower($value), ['mặc định', 'freesize', 'free size'], true)) {
+            return 'Free Size';
         }
-
-        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-        return in_array($value, $allowed, true) ? $value : 'EU 42';
+        $allowed = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+        return in_array($value, $allowed, true) ? $value : 'Free Size';
     }
 
     private function requireAdmin() {
