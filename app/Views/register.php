@@ -9,7 +9,8 @@ unset($_SESSION['register_old']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng ký - PaceUp</title>
+    <title>Đăng ký - Liên Hoa</title>
+    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>assets/images/lien-hoa-favicon.svg?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,7 +23,7 @@ unset($_SESSION['register_old']);
         <div class="auth-form">
             <div style="text-align: center; margin-bottom: 3rem;">
                 <h2 style="font-family: var(--font-heading); font-size: 2rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;">Đăng ký</h2>
-                <p style="color: #666; font-size: 0.9rem;">Tạo tài khoản mới cùng PaceUp.</p>
+                <p style="color: #666; font-size: 0.9rem;">Tạo tài khoản mới cùng Liên Hoa.</p>
             </div>
 
             <?php if ($error): ?>
@@ -31,6 +32,7 @@ unset($_SESSION['register_old']);
                 </div>
             <?php endif; ?>
             <form action="<?= BASE_URL ?>register" method="POST">
+                <?= \App\Helpers\SessionHelper::csrfField() ?>
                 <div class="client-form-group">
                     <label class="client-label">Họ và tên</label>
                     <input type="text" name="full_name" class="client-input" required value="<?= htmlspecialchars($old['full_name'] ?? '') ?>">

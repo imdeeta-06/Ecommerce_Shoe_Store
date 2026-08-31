@@ -71,25 +71,23 @@ class Coupons extends BaseModel {
         return true;
     }
 
-    /**
-     * Hủy đơn trước khi hoàn tất phải hoàn lại lượt sử dụng đã giữ cho mã.
-     * Hàm này được gọi trong cùng transaction chuyển trạng thái đơn hàng.
-     */
-    public function releaseUsageForOrder(int $orderId): void {
-        $usageStmt = $this->db->prepare('SELECT id, coupon_id FROM coupon_usages WHERE order_id = :order_id FOR UPDATE');
-        $usageStmt->execute(['order_id' => $orderId]);
-        $usages = $usageStmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if (empty($usages)) {
-            return;
+    public function releaseUsageForOrder(int $orderId): bool {
+        $stmt = $this->db->prepare('SELECT id, coupon_id FROM coupon_usages WHERE order_id = :order_id LIMIT 1 FOR UPDATE');
+        $stmt->execute(['order_id' => $orderId]);
+        $usage = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$usage) {
+            return false;
         }
 
-        $deleteStmt = $this->db->prepare('DELETE FROM coupon_usages WHERE id = :id');
-        $releaseStmt = $this->db->prepare('UPDATE coupons SET used_count = GREATEST(0, used_count - 1) WHERE id = :coupon_id');
-        foreach ($usages as $usage) {
-            $deleteStmt->execute(['id' => (int)$usage['id']]);
-            $releaseStmt->execute(['coupon_id' => (int)$usage['coupon_id']]);
+        $stmt = $this->db->prepare('DELETE FROM coupon_usages WHERE id = :id');
+        $stmt->execute(['id' => (int)$usage['id']]);
+        if ($stmt->rowCount() !== 1) {
+            return false;
         }
+
+        $stmt = $this->db->prepare('UPDATE coupons SET used_count = GREATEST(0, used_count - 1) WHERE id = :coupon_id');
+        $stmt->execute(['coupon_id' => (int)$usage['coupon_id']]);
+        return true;
     }
 
     private function validateCouponData($coupon, $orderTotal, $userId, array $items) {

@@ -7,8 +7,8 @@ use App\Models\SupportTicket;
 
 class SupportController {
     public function index() {
-        $metaTitle = 'Hỗ trợ khách hàng - PaceUp';
-        $metaDescription = 'Gửi yêu cầu hỗ trợ, đổi trả, giao hàng hoặc sản phẩm cho PaceUp.';
+        $metaTitle = 'Hỗ trợ khách hàng - Liên Hoa';
+        $metaDescription = 'Gửi yêu cầu hỗ trợ, đổi trả, giao hàng hoặc sản phẩm cho Liên Hoa.';
         $flash = SessionHelper::getAllFlash();
         require __DIR__ . '/../Views/pages/support.php';
     }
@@ -23,14 +23,19 @@ class SupportController {
         $phone = trim((string)($_POST['phone'] ?? ''));
         $subject = trim((string)($_POST['subject'] ?? ''));
         $message = trim((string)($_POST['message'] ?? ''));
+        $rating = (int)($_POST['rating'] ?? 0);
+        if ($rating >= 1 && $rating <= 5) {
+            $message = "Mức độ hài lòng: {$rating}/5\n" . $message;
+        }
+        $returnTo = (string)($_POST['return_to'] ?? '') === 'feedback' ? '/feedback' : '/support';
 
         if ($name === '' || $subject === '' || $message === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             SessionHelper::setFlash('error', 'Vui lòng nhập họ tên, email hợp lệ, chủ đề và nội dung cần hỗ trợ.');
-            SessionHelper::redirect('/support');
+            SessionHelper::redirect($returnTo);
         }
         if (mb_strlen($message) < 10) {
-            SessionHelper::setFlash('error', 'Nội dung hỗ trợ cần ít nhất 10 ký tự để PaceUp có thể tiếp nhận.');
-            SessionHelper::redirect('/support');
+            SessionHelper::setFlash('error', 'Nội dung hỗ trợ cần ít nhất 10 ký tự để Liên Hoa có thể tiếp nhận.');
+            SessionHelper::redirect($returnTo);
         }
 
         $id = (new SupportTicket())->createTicket([
@@ -42,7 +47,7 @@ class SupportController {
             'message' => mb_substr($message, 0, 5000)
         ]);
         $ticket = (new SupportTicket())->getTicketById($id);
-        SessionHelper::setFlash('success', 'Đã tiếp nhận yêu cầu ' . ($ticket['ticket_code'] ?? '') . '. PaceUp sẽ phản hồi qua email.');
-        SessionHelper::redirect('/support');
+        SessionHelper::setFlash('success', 'Đã tiếp nhận yêu cầu ' . ($ticket['ticket_code'] ?? '') . '. Liên Hoa sẽ phản hồi qua email.');
+        SessionHelper::redirect($returnTo);
     }
 }

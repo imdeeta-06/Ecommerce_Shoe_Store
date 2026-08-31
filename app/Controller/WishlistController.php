@@ -16,6 +16,12 @@ class WishlistController {
     }
 
     public function add() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            return;
+        }
+
         if (!isset($_SESSION['user_id'])) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 echo json_encode(['success' => false, 'message' => 'Bạn cần đăng nhập để thêm vào danh sách yêu thích.']);
@@ -26,7 +32,7 @@ class WishlistController {
         }
 
         $userId = $_SESSION['user_id'];
-        $productId = isset($_POST['product_id']) ? (int) $_POST['product_id'] : (isset($_GET['product_id']) ? (int) $_GET['product_id'] : 0);
+        $productId = (int)($_POST['product_id'] ?? 0);
 
         if ($productId > 0) {
             $wishlistModel = new Wishlist();
@@ -69,6 +75,12 @@ class WishlistController {
     }
 
     public function remove() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            return;
+        }
+
         if (!isset($_SESSION['user_id'])) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 echo json_encode(['success' => false, 'message' => 'Bạn cần đăng nhập.']);
@@ -79,7 +91,7 @@ class WishlistController {
         }
 
         $userId = $_SESSION['user_id'];
-        $productId = isset($_POST['product_id']) ? (int) $_POST['product_id'] : (isset($_GET['product_id']) ? (int) $_GET['product_id'] : 0);
+        $productId = (int)($_POST['product_id'] ?? 0);
 
         if ($productId > 0) {
             $wishlistModel = new Wishlist();

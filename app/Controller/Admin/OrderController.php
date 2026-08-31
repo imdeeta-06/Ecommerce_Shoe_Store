@@ -14,6 +14,7 @@ class OrderController {
             'keyword' => trim((string)($_GET['keyword'] ?? ''))
         ];
         $model = new Order();
+        $model->expirePendingOrders(100);
         $orders = $model->getAdminOrders($filters, 1, 100);
         $flash = SessionHelper::getAllFlash();
         require __DIR__ . '/../../Views/admin/orders/index.php';
@@ -53,5 +54,37 @@ class OrderController {
         );
         SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
         SessionHelper::redirect('/admin/orders/view?id=' . (int)($_POST['order_id'] ?? 0));
+    }
+
+    public function confirmPayment() {
+        AuthMiddleware::requireAdmin();
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $result = (new Order())->confirmBankTransfer(
+            $orderId,
+            (string)($_POST['transaction_code'] ?? ''),
+            (int)($_SESSION['user_id'] ?? 0)
+        );
+        SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
+        SessionHelper::redirect('/admin/orders/view?id=' . $orderId);
+    }
+
+    public function refundCanceledPayment() {
+        AuthMiddleware::requireAdmin();
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $result = (new Order())->refundCanceledOrderPayment(
+            $orderId,
+            (string)($_POST['refund_transaction_code'] ?? ''),
+            (int)($_SESSION['user_id'] ?? 0)
+        );
+        SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
+        SessionHelper::redirect('/admin/orders/view?id=' . $orderId);
+    }
+
+    public function reconcilePayPal() {
+        AuthMiddleware::requireAdmin();
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $result = (new Order())->reconcilePayPalPayment($orderId);
+        SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
+        SessionHelper::redirect('/admin/orders/view?id=' . $orderId);
     }
 }

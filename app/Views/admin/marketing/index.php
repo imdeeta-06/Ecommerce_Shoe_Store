@@ -49,4 +49,39 @@ adminStart('Marketing thương mại điện tử', 'marketing', !empty($flash) 
         <?php if (empty($reminders)): ?><tr><td colspan="6" style="text-align:center;padding:2rem;color:#666;">Hiện không có email đủ điều kiện gửi.</td></tr><?php endif; ?>
     </tbody></table></div>
 </section>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap"><h2 class="admin-title" style="margin-top: 2rem; margin-bottom: 1.5rem; font-size: 1.25rem;">Phễu đo lường <?= (int)$analyticsDays ?> ngày (có đồng ý)</h2><form method="get"><label>Khoảng báo cáo <select name="days" onchange="this.form.submit()"><option value="7" <?= $analyticsDays===7?'selected':'' ?>>7 ngày</option><option value="30" <?= $analyticsDays===30?'selected':'' ?>>30 ngày</option><option value="90" <?= $analyticsDays===90?'selected':'' ?>>90 ngày</option><option value="365" <?= $analyticsDays===365?'selected':'' ?>>365 ngày</option></select></label></form></div>
+<?php $ae = $analytics['events'] ?? []; $sessions = (int)($analytics['total_sessions'] ?? 0); $purchases = (int)($ae['purchase']['sessions'] ?? 0); ?>
+<div class="admin-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-bottom: 2rem;">
+    <?php foreach (['page_view' => 'Lượt xem', 'product_view' => 'Xem sản phẩm', 'add_to_cart' => 'Thêm giỏ', 'checkout_started' => 'Bắt đầu checkout', 'purchase' => 'Mua thành công'] as $eventKey => $eventLabel): ?>
+        <div class="stat-card" style="padding: 1.5rem;">
+            <div class="stat-title" style="margin-bottom:0.5rem;"><?= adminE($eventLabel) ?></div>
+            <div class="stat-value" style="margin-bottom:0;"><?= (int)($ae[$eventKey]['total'] ?? 0) ?></div>
+        </div>
+    <?php endforeach; ?>
+</div>
+
+<div class="admin-table-wrapper" style="margin-bottom: 2.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding: 1.5rem 1.5rem 0 1.5rem;">
+        <h3 class="admin-panel-title" style="border: none; margin: 0; padding: 0;">Hiệu suất chiến dịch</h3>
+        <span style="font-size:0.875rem; color:#6b7280; font-weight: 500;">Tỷ lệ chuyển đổi phiên: <strong style="color:#111;"><?= $sessions > 0 ? number_format($purchases * 100 / $sessions, 2, ',', '.') : '0,00' ?>%</strong></span>
+    </div>
+    <table class="admin-table" style="margin-top: 1rem;">
+        <thead><tr><th>Chiến dịch</th><th>Phiên</th><th>Checkout</th><th>Mua</th><th>CVR</th></tr></thead>
+        <tbody>
+            <?php foreach (($analytics['campaigns'] ?? []) as $campaign): ?><tr><td><?= adminE($campaign['campaign']) ?></td><td><?= (int)$campaign['sessions'] ?></td><td><?= (int)$campaign['checkouts'] ?></td><td><?= (int)$campaign['purchases'] ?></td><td><?= (int)$campaign['sessions'] > 0 ? number_format((int)$campaign['purchases'] * 100 / (int)$campaign['sessions'], 2, ',', '.') : '0,00' ?>%</td></tr><?php endforeach; ?>
+            <?php if (empty($analytics['campaigns'])): ?><tr><td colspan="5" style="text-align:center;color:#666;padding:2rem;">Chưa có dữ liệu đo lường đã đồng ý.</td></tr><?php endif; ?>
+        </tbody>
+    </table>
+</div>
+<div class="admin-grid" style="margin-bottom:2rem;"><section class="admin-panel"><h3 class="admin-panel-title">Tạo chiến dịch newsletter</h3><form method="post" action="<?= BASE_URL ?>admin/marketing/campaign/store"><div class="admin-field"><label>Tên nội bộ *</label><input name="name" required></div><div class="admin-field"><label>Tiêu đề email *</label><input name="subject" required></div><div class="admin-field"><label>Nội dung *</label><textarea name="body" rows="5" required></textarea></div><div class="admin-field"><label>Liên kết đích</label><input name="target_url" placeholder="shop hoặc https://..."></div><div class="admin-field"><label>Phân khúc</label><select name="segment"><option value="all">Tất cả đã xác nhận</option><option value="customers">Đã có tài khoản</option><option value="prospects">Chưa có tài khoản</option></select></div><button class="admin-btn primary">Lưu bản nháp</button></form></section><section class="admin-panel"><h3 class="admin-panel-title">Chiến dịch & đo lường</h3><div class="admin-table-wrapper"><table class="admin-table"><thead><tr><th>Tên</th><th>Phân khúc</th><th>Trạng thái</th><th>Gửi/Mở/Click</th><th>Thao tác</th></tr></thead><tbody><?php foreach(($newsletterCampaigns??[]) as $c):?><tr><td><?= adminE($c['name']) ?><br><small><?= adminE($c['subject']) ?></small></td><td><?= adminE($c['segment']) ?></td><td><?= adminE($c['status']) ?></td><td><?= (int)$c['sent_count'] ?>/<?= (int)$c['open_count'] ?>/<?= (int)$c['click_count'] ?></td><td><div class="admin-actions"><?php if(in_array($c['status'],['draft','failed'],true)):?><form method="post" action="<?= BASE_URL ?>admin/marketing/campaign/queue"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><button class="admin-btn-sm admin-btn light">Xếp hàng</button></form><?php endif;?><?php if(in_array($c['status'],['queued','sending','failed'],true)):?><form method="post" action="<?= BASE_URL ?>admin/marketing/campaign/send"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><button class="admin-btn-sm admin-btn primary">Gửi</button></form><?php endif;?></div></td></tr><?php endforeach;?><?php if(empty($newsletterCampaigns)):?><tr><td colspan="5">Chưa có chiến dịch.</td></tr><?php endif;?></tbody></table></div></section></div>
+<div class="admin-table-wrapper" style="margin-bottom: 2rem;">
+    <h3 class="admin-panel-title" style="padding: 1.5rem 1.5rem 0 1.5rem; border: none; margin: 0;">Đăng ký newsletter có bằng chứng đồng ý</h3>
+    <table class="admin-table" style="margin-top: 1rem;">
+        <thead><tr><th>Email</th><th>Trạng thái</th><th>Phiên bản đồng ý</th><th>Nguồn</th><th>Yêu cầu</th><th>Xác nhận</th></tr></thead>
+        <tbody>
+            <?php foreach (($newsletterSubscriptions ?? []) as $subscription): ?><tr><td><?= adminE($subscription['email']) ?></td><td><?= adminE($subscription['status']) ?></td><td><?= adminE($subscription['consent_version']) ?></td><td><?= adminE($subscription['source']) ?></td><td><?= adminE($subscription['consented_at']) ?></td><td><?= adminE($subscription['confirmed_at']??'Chưa xác nhận') ?></td></tr><?php endforeach; ?>
+            <?php if (empty($newsletterSubscriptions)): ?><tr><td colspan="6" style="text-align:center;color:#666;padding:2rem;">Chưa có email đăng ký thật.</td></tr><?php endif; ?>
+        </tbody>
+    </table>
+</div>
 <?php adminEnd(); ?>

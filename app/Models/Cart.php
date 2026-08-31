@@ -215,7 +215,9 @@ class Cart extends BaseModel {
     }
 
     private function cartSelectSql(string $where): string {
-        return "SELECT c.*, pv.product_id, p.category_id, pv.size, pv.color, pv.stock_quantity,
+        return "SELECT c.*, pv.product_id, p.category_id, pv.size, pv.color,
+                       GREATEST(0, pv.stock_quantity - COALESCE(pv.reserved_quantity, 0)) AS stock_quantity,
+                       pv.weight_grams, pv.length_cm, pv.width_cm, pv.height_cm,
                        p.name, p.slug, p.base_price, (p.base_price + COALESCE(pv.price_modifier, 0)) AS price,
                        pi.image_url
                 FROM cart c

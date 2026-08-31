@@ -8,7 +8,10 @@ $keyword = trim($_GET['q'] ?? '');
 
 function shopUrl(array $overrides): string {
     $params = array_merge($_GET, $overrides);
-    return BASE_URL . 'shop?' . http_build_query($params);
+    $params = array_intersect_key($params, array_flip(['category', 'price', 'sort', 'q', 'page']));
+    if (isset($params['page']) && (int)$params['page'] <= 1) unset($params['page']);
+    $query = http_build_query($params);
+    return BASE_URL . 'shop' . ($query !== '' ? '?' . $query : '');
 }
 
 function productAssetPath($image): string {
@@ -19,25 +22,33 @@ function productAssetPath($image): string {
     return 'assets/images/' . $image;
 }
 
-function productDisplayType($product): string {
-    $category = trim((string)($product['category'] ?? ''));
-    if ($category !== '') {
-        return $category;
-    }
+function shopProductImageUrl($image): string {
+    $image = trim((string)$image);
+    if ($image === '') return '';
+    if (preg_match('/^https?:\/\//i', $image)) return $image;
+    return BASE_URL . productAssetPath($image);
+}
 
-    return [
-        'apparel' => 'Đồ lam và pháp phục',
-        'bag' => 'Túi đeo đi chùa',
-        'beads' => 'Vòng tay - chuỗi hạt',
-        'accessory' => 'Phụ kiện đi chùa'
-    ][trim((string)($product['product_type'] ?? ''))] ?? 'Sản phẩm đi chùa';
+function productDisplayType($product): string {
+    return trim((string)($product['category'] ?? ''));
+}
+
+function productSizeOptions($product): array {
+    $category = mb_strtolower(productDisplayType($product), 'UTF-8');
+    if (str_contains($category, 'quần') || str_contains($category, 'áo') || str_contains($category, 'đồ lam') || str_contains($category, 'pháp phục')) {
+        return ['S', 'M', 'L', 'XL'];
+    }
+    if (str_contains($category, 'vòng tay') || str_contains($category, 'dây chuyền')) {
+        return ['8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+    }
+    return ['Free Size'];
 }
 ?>
 
 <main>
     <section class="shop-page">
         <div class="shop-topbar">
-            <h1><?= htmlspecialchars($category === 'all' ? 'Tất cả sản phẩm' : $category) ?> (<?= count($products) ?>)</h1>
+            <h1><?= $category === 'all' ? 'Tất cả sản phẩm' : htmlspecialchars($category) ?> (<?= (int)$totalFilteredProducts ?>)</h1>
             <div class="shop-sort">
                 <form method="get" action="<?= BASE_URL ?>shop" id="sortForm">
                     <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
@@ -59,30 +70,35 @@ function productDisplayType($product): string {
         <div class="shop-layout">
             <aside class="shop-sidebar">
                 <ul class="filter-cat-list">
-                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả</a></li>
+                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all', 'page' => 1])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả (<?= $totalActiveProducts ?>)</a></li>
                     <?php foreach ($categories as $c): ?>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name'], 'page' => 1])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?> (<?= (int)$c['product_count'] ?>)</a></li>
                     <?php endforeach; ?>
                 </ul>
+
 
                 <details class="filter-group" <?= $priceRange !== 'all' ? 'open' : '' ?>>
                     <summary>Giá</summary>
                     <ul>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'all'])) ?>" class="<?= $priceRange === 'all' ? 'active' : '' ?>">Tất cả</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt3'])) ?>" class="<?= $priceRange === 'lt3' ? 'active' : '' ?>">Dưới 3.000.000 VNĐ</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '3to5'])) ?>" class="<?= $priceRange === '3to5' ? 'active' : '' ?>">3.000.000 - 5.000.000 VNĐ</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt5'])) ?>" class="<?= $priceRange === 'gt5' ? 'active' : '' ?>">Trên 5.000.000 VNĐ</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'all', 'page' => 1])) ?>" class="<?= $priceRange === 'all' ? 'active' : '' ?>">Tất cả</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt500k', 'page' => 1])) ?>" class="<?= $priceRange === 'lt500k' ? 'active' : '' ?>">Dưới 500.000 ₫</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '500kto1m5', 'page' => 1])) ?>" class="<?= $priceRange === '500kto1m5' ? 'active' : '' ?>">500.000 ₫ - 1.500.000 ₫</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt1m5', 'page' => 1])) ?>" class="<?= $priceRange === 'gt1m5' ? 'active' : '' ?>">Trên 1.500.000 ₫</a></li>
                     </ul>
                 </details>
             </aside>
 
+            <div class="shop-results">
             <div class="shop-grid">
                 <?php foreach ($products as $index => $product): ?>
-                    <?php $imagePath = productAssetPath($product['image'] ?? ''); ?>
+                    <?php $imagePath = shopProductImageUrl($product['image'] ?? ''); ?>
                     <div class="shop-product-card" data-index="<?= $index ?>">
-                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper">
+                        <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-img-wrapper" style="position:relative;">
+                            <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                <span class="badge-tag tag-sale" style="position:absolute; top:10px; left:10px; background:#e11d48; color:white; font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; z-index:2;">-<?= round((($cPrice - $price) / $cPrice) * 100) ?>%</span>
+                            <?php endif; ?>
                             <?php if ($imagePath !== ''): ?>
-                                <img src="<?= BASE_URL . htmlspecialchars($imagePath) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
+                                <img src="<?= htmlspecialchars($imagePath, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>">
                             <?php endif; ?>
                             <div class="product-actions" onclick="event.preventDefault(); event.stopPropagation()">
                                 <button class="btn-add-cart" onclick="goToProduct(<?= (int)$product['id'] ?>)">
@@ -94,10 +110,14 @@ function productDisplayType($product): string {
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
                             <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
-                            <span class="product-price">
-                                <?php if (!empty($product['old_price']) && (float)$product['old_price'] > (float)$product['price']): ?><del class="product-price-old"><?= number_format((float)$product['old_price'], 0, ',', '.') ?> VNĐ</del><?php endif; ?>
-                                <span><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
-                            </span>
+                            <div class="product-price" style="margin-top:0.4rem;">
+                                <?php $cPrice = (float)($product['compare_at_price'] ?? 0); $price = (float)$product['price']; if ($cPrice > $price): ?>
+                                    <span style="color: #e11d48; font-weight: 700;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                    <del style="color: #94a3b8; font-size: 0.85em; margin-left: 6px;"><?= number_format($cPrice, 0, ',', '.') ?> VNĐ</del>
+                                <?php else: ?>
+                                    <span style="font-weight: 600; color: #0f172a;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
+                                <?php endif; ?>
+                            </div>
                         </a>
                     </div>
                 <?php endforeach; ?>
@@ -106,6 +126,32 @@ function productDisplayType($product): string {
                         <?= $keyword !== '' ? 'Không tìm thấy kết quả cho "' . htmlspecialchars($keyword) . '".' : 'Không có sản phẩm phù hợp bộ lọc.' ?>
                     </p>
                 <?php endif; ?>
+            </div>
+            <?php if ($totalPages > 1): ?>
+                <?php
+                $visiblePages = array_unique(array_filter([1, $page - 2, $page - 1, $page, $page + 1, $page + 2, $totalPages], static fn($number) => $number >= 1 && $number <= $totalPages));
+                sort($visiblePages);
+                $previousVisiblePage = null;
+                ?>
+                <nav class="shop-pagination" aria-label="Phân trang sản phẩm">
+                    <?php if ($page > 1): ?>
+                        <a class="pagination-direction" href="<?= htmlspecialchars(shopUrl(['page' => $page - 1])) ?>" rel="prev">← Trước</a>
+                    <?php else: ?>
+                        <span class="pagination-direction disabled">← Trước</span>
+                    <?php endif; ?>
+                    <?php foreach ($visiblePages as $pageNumber): ?>
+                        <?php if ($previousVisiblePage !== null && $pageNumber > $previousVisiblePage + 1): ?><span class="pagination-ellipsis">…</span><?php endif; ?>
+                        <a href="<?= htmlspecialchars(shopUrl(['page' => $pageNumber])) ?>" class="<?= $pageNumber === $page ? 'active' : '' ?>" <?= $pageNumber === $page ? 'aria-current="page"' : '' ?>><?= $pageNumber ?></a>
+                        <?php $previousVisiblePage = $pageNumber; ?>
+                    <?php endforeach; ?>
+                    <?php if ($page < $totalPages): ?>
+                        <a class="pagination-direction" href="<?= htmlspecialchars(shopUrl(['page' => $page + 1])) ?>" rel="next">Sau →</a>
+                    <?php else: ?>
+                        <span class="pagination-direction disabled">Sau →</span>
+                    <?php endif; ?>
+                </nav>
+                <p class="shop-pagination-summary">Hiển thị <?= (($page - 1) * $perPage) + 1 ?>–<?= min($page * $perPage, $totalFilteredProducts) ?> trong <?= (int)$totalFilteredProducts ?> sản phẩm</p>
+            <?php endif; ?>
             </div>
         </div>
     </section>
@@ -139,7 +185,8 @@ function productDisplayType($product): string {
             <p class="modal-price" id="modalPrice"></p>
             <p class="modal-desc">Sản phẩm đồ lam và vật dụng đi chùa. Vui lòng xem tên, màu sắc và phân loại trước khi đặt hàng.</p>
             <div class="modal-size-select">
-                <p style="margin:0;color:#666;">Vui lòng mở trang chi tiết để chọn đúng kích cỡ, màu sắc hoặc quy cách.</p>
+                <label id="modalSizeLabel">Chọn size</label>
+                <div class="size-options" id="modalSizeOptions"></div>
             </div>
             <button class="btn-add-cart-modal" id="modalAddBtn">Thêm vào giỏ hàng</button>
         </div>
@@ -149,7 +196,10 @@ function productDisplayType($product): string {
 <div class="toast" id="toast"></div>
 
 <script>
-const productsData = <?= json_encode(array_values($products), JSON_UNESCAPED_UNICODE) ?>;
+const productsData = <?= json_encode(array_map(function ($product) {
+    $product['size_options'] = productSizeOptions($product);
+    return $product;
+}, array_values($products)), JSON_UNESCAPED_UNICODE) ?>;
 let cart = [];
 
 function productImagePath(image) {
@@ -165,28 +215,28 @@ function assetUrl(image) {
 }
 
 function productDisplayType(product) {
-    const category = String(product.category || '').trim();
-    if (category) {
-        return category;
+    const type = String(product.type || '').trim();
+    if (!type || type === '0' || type.includes('?')) {
+        return String(product.category || '').trim();
     }
 
-    return {
-        apparel: 'Đồ lam và pháp phục',
-        bag: 'Túi đeo đi chùa',
-        beads: 'Vòng tay - chuỗi hạt',
-        accessory: 'Phụ kiện đi chùa'
-    }[String(product.product_type || '').trim()] || 'Sản phẩm đi chùa';
+    return type;
 }
 
 function openQuickView(index) {
     const product = productsData[index];
     if (!product) return;
 
-    document.getElementById('modalImg').src = BASE_URL + productImagePath(product.image || '');
+    document.getElementById('modalImg').src = assetUrl(product.image || '');
     document.getElementById('modalImg').alt = product.name;
     document.getElementById('modalName').textContent = product.name;
     document.getElementById('modalCategory').textContent = productDisplayType(product);
     document.getElementById('modalPrice').textContent = formatPrice(product.price);
+    const sizeOptions = product.size_options || ['Free Size'];
+    const isMillimeterSize = sizeOptions.some(size => size.endsWith(' mm'));
+    document.getElementById('modalSizeLabel').textContent = isMillimeterSize ? 'Chọn kích thước (mm)' : 'Chọn size';
+    document.getElementById('modalSizeOptions').innerHTML = sizeOptions
+        .map(size => `<button class="size-btn" onclick="selectSize(this)">${size}</button>`).join('');
 
     document.getElementById('modalAddBtn').onclick = () => {
         addToCart(product.id);

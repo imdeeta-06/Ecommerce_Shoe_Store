@@ -20,6 +20,14 @@ namespace App\Core {
                 self::bootstrap();
 
                 $path = self::currentPath();
+                if (self::requiresPost($path) && strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+                    self::renderMethodNotAllowed();
+                    return;
+                }
+                if (self::isUnsafeRequest() && !self::isCsrfExemptPath($path) && !\App\Helpers\SessionHelper::validateCsrfRequest()) {
+                    self::renderCsrfFailure();
+                    return;
+                }
                 if (isset($_SESSION['user_id']) && in_array($path, ['/login', '/register'], true)) {
                     self::redirect(($_SESSION['user_role'] ?? null) === 'admin' ? '/admin' : '/');
                 }
@@ -31,9 +39,35 @@ namespace App\Core {
         }
 
         public static function bootstrap() {
+            self::loadEnv();
             self::defineBaseUrl();
+            self::enforceProductionHttps();
+            self::sendSecurityHeaders();
             self::startSession();
             self::registerAutoloader();
+        }
+
+        public static function loadEnv() {
+            $envFile = self::rootPath() . '/.env';
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    if (str_starts_with(trim($line), '#')) continue;
+                    $parts = explode('=', $line, 2);
+                    if (count($parts) === 2) {
+                        $name = trim($parts[0]);
+                        $value = trim($parts[1]);
+                        // Remove quotes if present
+                        $value = trim($value, '"\'');
+                        
+                        if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
+                            putenv(sprintf('%s=%s', $name, $value));
+                            $_ENV[$name] = $value;
+                            $_SERVER[$name] = $value;
+                        }
+                    }
+                }
+            }
         }
 
         public static function router() {
@@ -63,6 +97,37 @@ namespace App\Core {
             }
 
             return $baseUrl . ltrim($path, '/');
+        }
+
+        /**
+         * Tạo URL tuyệt đối cho nội dung rời khỏi website như email và cổng
+         * thanh toán. BASE_URL có thể chỉ là "/", nên không được dùng trực
+         * tiếp làm href trong email.
+         */
+        public static function publicUrl($path = '') {
+            $path = (string)$path;
+            if (preg_match('#^https?://#i', $path)) {
+                return $path;
+            }
+
+            $configured = trim((string)(getenv('APP_PUBLIC_URL') ?: ''));
+            if (preg_match('#^https?://[^/]+#i', $configured)) {
+                $origin = rtrim($configured, '/');
+            } else {
+                $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+                if ($host === '' || !preg_match('/^[a-z0-9.\-\[\]:]+$/i', $host)) {
+                    throw new \RuntimeException('Chưa cấu hình APP_PUBLIC_URL hợp lệ để tạo liên kết email.');
+                }
+                $origin = (self::isHttps() ? 'https://' : 'http://') . $host;
+                $basePath = rtrim((string)(defined('BASE_URL') ? BASE_URL : '/'), '/');
+                if ($basePath !== '') {
+                    $origin .= '/' . ltrim($basePath, '/');
+                }
+            }
+
+            return $path === '' || $path === '/'
+                ? $origin . '/'
+                : $origin . '/' . ltrim($path, '/');
         }
 
         public static function currentPath() {
@@ -171,19 +236,35 @@ namespace App\Core {
             $router->add('/wishlist/remove', 'WishlistController', 'remove');
             $router->add('/checkout', 'CheckoutController', 'index');
             $router->add('/checkout/place-order', 'CheckoutController', 'placeOrder');
+            $router->add('/shipping/quote', 'CheckoutController', 'shippingQuote');
+            $router->add('/paypal/return', 'CheckoutController', 'paypalReturn');
+            $router->add('/paypal/cancel', 'CheckoutController', 'paypalCancel');
+            $router->add('/paypal/webhook', 'CheckoutController', 'paypalWebhook');
             $router->add('/checkout-success', 'CheckoutController', 'success');
+            $router->add('/order/receipt', 'CheckoutController', 'receipt');
+            $router->add('/invoice/view', 'InvoiceController', 'view');
             $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
             $router->add('/support', 'SupportController', 'index');
             $router->add('/support/store', 'SupportController', 'store');
             $router->add('/review/store', 'ReviewController', 'store');
+            $router->add('/product/review', 'ReviewController', 'storeDirect');
             $router->add('/after-sale/request', 'AfterSaleController', 'store');
             $router->add('/login', 'AuthController', 'login');
             $router->add('/register', 'AuthController', 'register');
             $router->add('/logout', 'AuthController', 'logout');
             $router->add('/change-password', 'AuthController', 'changePassword');
+            
+            // Verification Routes
+            $router->add('/verify-email', 'AuthController', 'verifyEmail');
+            $router->add('/resend-verification-otp', 'AuthController', 'resendVerificationOtp');
+            
+            // Forgot Password Routes
             $router->add('/forgot-password', 'AuthController', 'forgotPassword');
-            $router->add('/verify-otp', 'AuthController', 'verifyOtp');
+            $router->add('/verify-reset-otp', 'AuthController', 'verifyResetOtp');
             $router->add('/reset-password', 'AuthController', 'resetPassword');
+
+            // Google Login
+            $router->add('/auth/google', 'AuthController', 'googleLoginCallback');
             $router->add('/account', 'User/ProfileController', 'index');
             $router->add('/account/update', 'User/ProfileController', 'update');
             $router->add('/account/avatar', 'User/ProfileController', 'uploadAvatar');
@@ -201,6 +282,13 @@ namespace App\Core {
             $router->add('/terms', 'PageController', 'terms');
             $router->add('/tracking', 'PageController', 'tracking');
             $router->add('/cart-reminder/unsubscribe', 'PageController', 'unsubscribeCartReminder');
+            $router->add('/feedback', 'PageController', 'feedback');
+            $router->add('/newsletter/subscribe', 'PageController', 'subscribeNewsletter');
+            $router->add('/newsletter/unsubscribe', 'PageController', 'unsubscribeNewsletter');
+            $router->add('/newsletter/confirm', 'PageController', 'confirmNewsletter');
+            $router->add('/newsletter/open', 'PageController', 'openNewsletter');
+            $router->add('/newsletter/click', 'PageController', 'clickNewsletter');
+            $router->add('/analytics/event', 'PageController', 'recordAnalytics');
 
             $router->add('/admin', 'AdminController', 'index');
             $router->add('/admin/users/create', 'Admin\UserController', 'create');
@@ -220,6 +308,8 @@ namespace App\Core {
             $router->add('/admin/inventory', 'Admin\InventoryController', 'index');
             $router->add('/admin/inventory/update', 'Admin\InventoryController', 'update');
             $router->add('/admin/inventory/variants/create', 'Admin\InventoryController', 'createVariant');
+            $router->add('/admin/inventory/variants/update', 'Admin\InventoryController', 'updateVariant');
+            $router->add('/admin/inventory/variants/delete', 'Admin\InventoryController', 'deleteVariant');
             $router->add('/admin/coupons', 'Admin\CouponController', 'index');
             $router->add('/admin/coupons/create', 'Admin\CouponController', 'create');
             $router->add('/admin/coupons/store', 'Admin\CouponController', 'store');
@@ -230,6 +320,9 @@ namespace App\Core {
             $router->add('/admin/orders/view', 'Admin\OrderController', 'view');
             $router->add('/admin/orders/status', 'Admin\OrderController', 'updateStatus');
             $router->add('/admin/orders/shipping', 'Admin\OrderController', 'updateShipping');
+            $router->add('/admin/orders/payment/confirm', 'Admin\OrderController', 'confirmPayment');
+            $router->add('/admin/orders/payment/refund-canceled', 'Admin\OrderController', 'refundCanceledPayment');
+            $router->add('/admin/orders/paypal/reconcile', 'Admin\OrderController', 'reconcilePayPal');
             $router->add('/admin/after-sales', 'Admin\AfterSaleController', 'index');
             $router->add('/admin/after-sales/update', 'Admin\AfterSaleController', 'update');
             $router->add('/admin/marketing', 'Admin\MarketingController', 'index');
@@ -238,6 +331,18 @@ namespace App\Core {
             $router->add('/admin/marketing/banner/delete', 'Admin\MarketingController', 'deleteBanner');
             $router->add('/admin/marketing/cart-reminders/send', 'Admin\MarketingController', 'sendAbandonedReminders');
             $router->add('/admin/marketing/order-notifications/send', 'Admin\MarketingController', 'sendOrderNotifications');
+            $router->add('/admin/marketing/campaign/store', 'Admin\MarketingController', 'storeCampaign');
+            $router->add('/admin/marketing/campaign/queue', 'Admin\MarketingController', 'queueCampaign');
+            $router->add('/admin/marketing/campaign/send', 'Admin\MarketingController', 'sendCampaign');
+            $router->add('/admin/invoices', 'Admin\InvoiceController', 'index');
+            $router->add('/admin/invoices/issue', 'Admin\InvoiceController', 'issue');
+            $router->add('/admin/invoices/adjust', 'Admin\InvoiceController', 'adjust');
+            $router->add('/admin/invoices/cancel', 'Admin\InvoiceController', 'cancel');
+            $router->add('/admin/procurement', 'Admin\ProcurementController', 'index');
+            $router->add('/admin/procurement/supplier', 'Admin\ProcurementController', 'supplier');
+            $router->add('/admin/procurement/order', 'Admin\ProcurementController', 'order');
+            $router->add('/admin/procurement/receive', 'Admin\ProcurementController', 'receive');
+            $router->add('/admin/procurement/pay', 'Admin\ProcurementController', 'pay');
             $router->add('/admin/support', 'Admin\SupportController', 'index');
             $router->add('/admin/support/status', 'Admin\SupportController', 'updateStatus');
             $router->add('/admin/support/send-auto-replies', 'Admin\SupportController', 'sendAutoReplies');
@@ -295,7 +400,147 @@ namespace App\Core {
 
         private static function isHttps() {
             return (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off')
-                || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+                || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443
+                || strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0])) === 'https';
+        }
+
+        private static function enforceProductionHttps(): void {
+            // Cron/CLI không có HTTP host hoặc scheme; không được kết thúc các
+            // tác vụ nền chỉ vì production đang cưỡng chế HTTPS cho web.
+            if (PHP_SAPI === 'cli') {
+                return;
+            }
+            $enabled = in_array(strtolower((string)getenv('FORCE_HTTPS')), ['1', 'true', 'yes', 'on'], true);
+            $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+            $isLocal = preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i', $host);
+            if (!$enabled || $host === '' || self::isHttps() || $isLocal || headers_sent()) {
+                return;
+            }
+            header('Location: https://' . $host . (string)($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+            exit;
+        }
+
+        private static function sendSecurityHeaders(): void {
+            if (headers_sent()) {
+                return;
+            }
+            header('X-Content-Type-Options: nosniff');
+            header('X-Frame-Options: DENY');
+            header('Referrer-Policy: strict-origin-when-cross-origin');
+            header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://www.paypal.com")');
+            header("Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com; script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.paypalobjects.com https://accounts.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com https://accounts.google.com; frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://accounts.google.com");
+            if (self::isHttps()) {
+                header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+            }
+        }
+
+        private static function isUnsafeRequest(): bool {
+            return in_array(strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+        }
+
+        private static function requiresPost(string $path): bool {
+            return in_array($path, [
+                '/cart/add',
+                '/cart/remove',
+                '/cart/update',
+                '/wishlist/add',
+                '/wishlist/remove',
+                '/checkout/place-order',
+                '/paypal/webhook',
+                '/shipping/quote',
+                '/apply-coupon',
+                '/support/store',
+                '/newsletter/subscribe',
+                '/analytics/event',
+                '/review/store',
+                '/product/review',
+                '/after-sale/request',
+                '/change-password',
+                '/resend-verification-otp',
+                '/auth/google',
+                '/account/update',
+                '/account/avatar',
+                '/account/addresses/add',
+                '/account/addresses/default',
+                '/account/addresses/delete',
+                '/account/orders/cancel',
+                '/admin/products/delete',
+                '/admin/products/destroy',
+                '/admin/products/variants/add',
+                '/admin/products/variants/update',
+                '/admin/products/variants/delete',
+                '/admin/products/images/primary',
+                '/admin/products/images/delete',
+                '/admin/categories/create',
+                '/admin/categories/delete',
+                '/admin/inventory/update',
+                '/admin/inventory/variants/create',
+                '/admin/inventory/variants/update',
+                '/admin/inventory/variants/delete',
+                '/admin/coupons/store',
+                '/admin/coupons/update',
+                '/admin/coupons/delete',
+                '/admin/orders/status',
+                '/admin/orders/shipping',
+                '/admin/orders/payment/confirm',
+                '/admin/orders/payment/refund-canceled',
+                '/admin/orders/paypal/reconcile',
+                '/admin/after-sales/update',
+                '/admin/marketing/banner/store',
+                '/admin/marketing/banner/status',
+                '/admin/marketing/banner/delete',
+                '/admin/marketing/cart-reminders/send',
+                '/admin/marketing/order-notifications/send',
+                '/admin/marketing/campaign/store',
+                '/admin/marketing/campaign/queue',
+                '/admin/marketing/campaign/send',
+                '/admin/invoices/issue',
+                '/admin/invoices/adjust',
+                '/admin/invoices/cancel',
+                '/admin/procurement/supplier',
+                '/admin/procurement/order',
+                '/admin/procurement/receive',
+                '/admin/procurement/pay',
+                '/admin/support/status',
+                '/admin/support/send-auto-replies'
+            ], true);
+        }
+
+        private static function renderMethodNotAllowed(): void {
+            http_response_code(405);
+            header('Allow: POST');
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo '405 Method Not Allowed';
+        }
+
+        private static function isCsrfExemptPath(string $path): bool {
+            // Google Identity Services posts directly from Google's origin.
+            // Its callback validates Google's own double-submit CSRF token.
+            return in_array($path, ['/auth/google', '/paypal/webhook'], true);
+        }
+
+        private static function renderCsrfFailure(): void {
+            http_response_code(419);
+            $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
+            $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+            $isJson = strpos($contentType, 'application/json') !== false
+                || strpos($accept, 'application/json') !== false
+                || strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+            if ($isJson) {
+                header('Content-Type: application/json; charset=UTF-8');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Phiên bảo mật đã hết hạn. Vui lòng tải lại trang và thử lại.'
+                ], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+
+            header('Content-Type: text/html; charset=UTF-8');
+            echo '<!doctype html><html lang="vi"><meta charset="utf-8"><title>Phiên đã hết hạn</title>'
+                . '<body style="font-family:Arial,sans-serif;max-width:680px;margin:80px auto;padding:24px">'
+                . '<h1>Phiên bảo mật đã hết hạn</h1><p>Vui lòng quay lại, tải lại trang rồi thực hiện thao tác một lần nữa.</p>'
+                . '<p><a href="javascript:history.back()">Quay lại</a></p></body></html>';
         }
 
         private static function renderException(\Throwable $exception) {

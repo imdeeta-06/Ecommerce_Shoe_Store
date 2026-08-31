@@ -2,12 +2,14 @@
 namespace App\Controller;
 
 use App\Middleware\AuthMiddleware;
+use App\Helpers\SessionHelper;
 
 class AdminController {
     public function index() {
         AuthMiddleware::requireAdmin();
-        header('Location: ' . BASE_URL . 'admin/products');
-        exit;
+        // Dashboard cũ thực hiện SQL trực tiếp trong view. Không cho phép nó
+        // tiếp tục là entry-point; các thao tác quản trị phải đi qua controller/model mới.
+        SessionHelper::redirect('/admin/orders');
     }
 
 }
