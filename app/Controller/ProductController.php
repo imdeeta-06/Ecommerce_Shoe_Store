@@ -19,8 +19,8 @@ class ProductController {
 
         $related = $productModel->getRelatedProducts($product['id'], $product['category_id'], 4);
         $reviews = $productModel->getProductReviews($product['id']);
-        $metaTitle = $product['name'] . ' - PaceUp';
-        $metaDescription = trim((string)($product['description'] ?? '')) ?: ($product['name'] . ' chính hãng tại PaceUp. Chọn size, màu và đặt hàng online.');
+        $metaTitle = $product['name'] . ' - Liên Hoa';
+        $metaDescription = trim((string)($product['description'] ?? '')) ?: ($product['name'] . ' tại Liên Hoa. Chọn size, màu và đặt hàng online.');
         $canonicalUrl = \App\Core\App::url('/product?id=' . $id);
 
         require __DIR__ . '/../Views/product.php';

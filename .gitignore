@@ -24,3 +24,8 @@ composer.phar
 # 5. Các file ghi lỗi (Logs) của hệ thống hoặc server
 *.log
 error_log
+
+# 6. Cấu hình cục bộ và khóa bí mật
+.env
+.env.*
+!.env.example

@@ -25,8 +25,9 @@ class ShopController {
 
         $products = $productModel->getProductsByFilter($filters, $perPage, ($page - 1) * $perPage);
 
-        $categories = $productModel->getActiveCategories();
-        $metaTitle = 'Cửa hàng đồ lam và pháp phục - PaceUp';
+        $categories = $productModel->getCategoriesWithCounts();
+        $totalActiveProducts = $productModel->getActiveProductsCount();
+        $metaTitle = 'Cửa hàng đồ lam và pháp phục - Liên Hoa';
         $metaDescription = 'Tìm kiếm và lọc đồ lam, pháp phục, túi đi chùa, chuỗi hạt theo danh mục và mức giá.';
 
         require __DIR__ . '/../Views/shop.php';
