@@ -10,6 +10,7 @@ Thumbs.db
 # 2. Các thư mục cấu hình của Trình soạn thảo (IDE/Editor)
 .vscode/
 .idea/
+.vs/
 *.suo
 *.sw?
 

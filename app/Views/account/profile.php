@@ -296,7 +296,7 @@ $hasLocalPassword = isset($user['password']) && is_string($user['password']) && 
             </section>
         </div>
     </div>
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 document.addEventListener('DOMContentLoaded', function() {
     const texts = { 1: '(Không tốt)', 2: '(Tạm được)', 3: '(Bình thường)', 4: '(Hài lòng)', 5: '(Rất hài lòng)' };
     document.querySelectorAll('.star-rating-widget').forEach(widget => {

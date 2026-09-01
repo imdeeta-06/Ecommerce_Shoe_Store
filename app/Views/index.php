@@ -325,7 +325,7 @@ foreach (($bestSellingProducts ?? []) as $salesProduct) {
     </section>
 </main>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 // ===== NO LIFESTYLE SLIDER OR HERO SLIDESHOW SCRIPTS NEEDED =====
 
 // ===== CART SYSTEM (Database) =====

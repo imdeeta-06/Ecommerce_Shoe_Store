@@ -120,7 +120,7 @@ $compareAtPrice = !empty($product['compare_at_price']) ? (float)$product['compar
 $basePrice = (float)($product['base_price'] ?? 0);
 ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .product-detail-container {
     max-width: 1240px;
     margin: 2rem auto 4rem;
@@ -1068,7 +1068,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
 <!-- Toast Feedback -->
 <div class="toast" id="toast"></div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let selectedSize = '';
 let selectedVariantId = 0;
 let selectedColor = <?= json_encode($availableColors[0] ?? '', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;

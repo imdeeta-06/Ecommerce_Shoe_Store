@@ -78,6 +78,7 @@ class Database {
             $this->migrateInvoiceSequenceSchema();
             $this->migrateCriticalBusinessV9();
             $this->migrateHouseholdSalesInvoiceSchema();
+            $this->migrateCatalogSourceDisclosure();
             $stmt = $this->connection->prepare('SELECT 1 FROM schema_migrations WHERE version = :version LIMIT 1');
             $stmt->execute(['version' => 'ecommerce_business_v8']);
             if ($stmt->fetchColumn()) {
@@ -647,6 +648,36 @@ class Database {
                 ON DUPLICATE KEY UPDATE current_number=GREATEST(current_number,VALUES(current_number))");
         }
         $this->connection->prepare('INSERT INTO schema_migrations(version) VALUES(:version)')->execute(['version' => $version]);
+    }
+
+    /**
+     * Catalog 150 sản phẩm cũ không còn thông tin URL nguồn ban đầu. Không
+     * được bịa quyền sử dụng; thay vào đó lưu bản ghi công khai rằng nguồn
+     * chưa xác minh và chỉ được dùng trong phạm vi đồ án học tập.
+     */
+    private function migrateCatalogSourceDisclosure(): void {
+        $version = 'catalog_source_disclosure_v13';
+        $check = $this->connection->prepare('SELECT 1 FROM schema_migrations WHERE version=:version LIMIT 1');
+        $check->execute(['version' => $version]);
+        if ($check->fetchColumn()) {
+            return;
+        }
+
+        if ($this->tableExists('product') && $this->tableExists('product_sources')) {
+            $this->connection->exec("INSERT INTO product_sources
+                (product_id, source_site, source_product_url, source_name, usage_note)
+                SELECT p.id,
+                    'Catalog cũ của đồ án',
+                    CONCAT('internal://legacy-catalog/', p.id),
+                    p.name,
+                    'Nguồn gốc và quyền sử dụng ảnh chưa được xác minh; chỉ dùng để minh họa trong đồ án học tập, không dùng cho kinh doanh thực tế.'
+                FROM product p
+                LEFT JOIN product_sources ps ON ps.product_id = p.id
+                WHERE ps.id IS NULL");
+        }
+
+        $this->connection->prepare('INSERT INTO schema_migrations(version) VALUES(:version)')
+            ->execute(['version' => $version]);
     }
 
     private function migrateVariantColumns(): void {

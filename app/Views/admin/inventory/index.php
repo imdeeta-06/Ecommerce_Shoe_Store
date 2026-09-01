@@ -4,7 +4,7 @@ $variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', 
 adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
 ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .inventory-variants-table {
     min-width: 1040px;
     table-layout: fixed;
@@ -181,7 +181,7 @@ adminStart('Quản lý Kho hàng', 'inventory', $flash ?? null);
     <button type="button" class="admin-btn light inventory-more-btn" id="inventoryVariantsMore">Xem thêm</button>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 document.getElementById('inventorySearch')?.addEventListener('input', function () {
     const query = this.value.trim().toLowerCase();
     const rows = document.querySelectorAll('.inventory-row');
@@ -289,7 +289,7 @@ function toggleInventoryEdit(variantId, button) {
     <button type="button" class="admin-btn light inventory-more-btn" id="inventoryLogsMore">Xem thêm</button>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let inventoryLogLimit = 10;
 const inventoryLogRows = document.querySelectorAll('.inventory-log-row');
 

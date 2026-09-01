@@ -12,7 +12,7 @@ $defaultCheckoutAddress = $defaultCheckoutAddress ?: (($checkoutAddresses ?? [])
 include __DIR__ . '/partials/header.php';
 ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .checkout-layout { display: flex; gap: 4rem; }
 .checkout-form-section { flex: 1.5; }
 .checkout-summary-section { flex: 1; background: var(--primary-light); padding: 2rem; border: 1px solid var(--border-color); border-radius: 16px; align-self: flex-start; position: sticky; top: 20px; box-shadow: 0 4px 15px rgba(74, 59, 50, 0.03); }
@@ -188,7 +188,7 @@ include __DIR__ . '/partials/header.php';
     </div>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let checkoutCart = [];
 const PAYPAL_ENABLED = <?= json_encode($paypalEnabled) ?>;
 const PAYPAL_RATE = <?= json_encode($paypalRate) ?>;

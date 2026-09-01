@@ -61,7 +61,7 @@ $readNumber = function($amount) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?= $e($invoiceTitle . ' ' . $series . '-' . $invoice['invoice_number']) ?></title>
-    <style>
+    <style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
         * { box-sizing: border-box; }
         body { margin: 0; background: #f3f4f6; font: 14px/1.55 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #222; }
         .actions { text-align: center; padding: 20px; }

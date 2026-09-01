@@ -122,7 +122,7 @@ if (!function_exists('productAssetPath')) {
         </div>
     </header>
 
-    <script>
+    <script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     const BASE_URL = '<?= BASE_URL ?>';
     window.CSRF_TOKEN = <?= json_encode(\App\Helpers\SessionHelper::csrfToken(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 

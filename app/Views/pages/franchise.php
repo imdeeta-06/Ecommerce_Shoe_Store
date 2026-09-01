@@ -1,4 +1,6 @@
 <?php
+$store = require __DIR__ . '/../../../config/store.php';
+$contactEmail = (string)$store['email'];
 include __DIR__ . '/../partials/header.php';
 ?>
 
@@ -20,7 +22,7 @@ include __DIR__ . '/../partials/header.php';
         
         <div style="background: #f9f9f9; padding: 2rem; text-align: center;">
             <p style="margin-bottom: 0.5rem; font-weight: 600;">Hotline Nhượng quyền: 0909 123 456</p>
-            <p style="margin-bottom: 0;">Email: franchise@paceup.vn</p>
+            <p style="margin-bottom: 0;">Email: <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?>?subject=Hợp tác nhượng quyền Liên Hoa"><?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?></a></p>
         </div>
     </div>
 </main>

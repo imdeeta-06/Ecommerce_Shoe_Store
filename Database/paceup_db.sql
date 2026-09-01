@@ -2304,6 +2304,19 @@ INSERT INTO `product_sources`
 (1154,'Shop Hoan Hỷ','https://shophoanhy.com/quan-ao-phat-tu/ao-dai-di-chua-co-tron-theu-sen-vai-lua-tam-uot-mau-nau.html','Áo dài đi chùa cổ tròn thêu sen vải lụa tằm ướt','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
 (1155,'Shop Hoan Hỷ','https://shophoanhy.com/quan-ao-phat-tu/bo-do-lam-di-chua-nu-co-tron-phoi-theu-hoa-sala-vai-linen-mau-kem.html','Bộ đồ lam đi chùa nữ cổ tròn phối thêu hoa Sala - vải linen','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.');
 
+-- Không bịa URL nguồn cho catalog cũ. Mỗi sản phẩm chưa có nguồn được gắn
+-- nhãn minh bạch là dữ liệu học tập và không được dùng để kinh doanh thật.
+INSERT INTO `product_sources`
+(`product_id`,`source_site`,`source_product_url`,`source_name`,`usage_note`)
+SELECT p.id,
+       'Catalog cũ của đồ án',
+       CONCAT('internal://legacy-catalog/',p.id),
+       p.name,
+       'Nguồn gốc và quyền sử dụng ảnh chưa được xác minh; chỉ dùng để minh họa trong đồ án học tập, không dùng cho kinh doanh thực tế.'
+FROM `product` p
+LEFT JOIN `product_sources` ps ON ps.product_id=p.id
+WHERE ps.id IS NULL;
+
 INSERT INTO `product_images` (`product_id`,`image_url`,`alt_text`,`is_primary`) VALUES
 (1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/01.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 1',1),
 (1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/02.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 2',0),
@@ -2403,7 +2416,9 @@ INSERT INTO `schema_migrations` (`version`) VALUES
 ('commerce_profit_snapshot_v1'),
 ('cleanup_legacy_categories_v1'),
 ('commerce_invoice_sequence_v1'),
-('critical_business_v10');
+('critical_business_v10'),
+('critical_business_v12'),
+('catalog_source_disclosure_v13');
 INSERT IGNORE INTO `schema_migrations` (`version`) VALUES
 ('household_sales_invoice_v11');
 

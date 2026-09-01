@@ -14,6 +14,7 @@ namespace {
 namespace App\Core {
     class App {
         private static $autoloadRegistered = false;
+        private static $cspNonce = null;
 
         public static function run() {
             try {
@@ -128,6 +129,17 @@ namespace App\Core {
             return $path === '' || $path === '/'
                 ? $origin . '/'
                 : $origin . '/' . ltrim($path, '/');
+        }
+
+        /**
+         * Nonce dùng cho các khối script/style nội tuyến do chính ứng dụng
+         * sinh ra. Giá trị chỉ sống trong một request và không được tái sử dụng.
+         */
+        public static function cspNonce(): string {
+            if (self::$cspNonce === null) {
+                self::$cspNonce = rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+            }
+            return self::$cspNonce;
         }
 
         public static function currentPath() {
@@ -245,6 +257,9 @@ namespace App\Core {
             $router->add('/invoice/view', 'InvoiceController', 'view');
             $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
             $router->add('/support', 'SupportController', 'index');
+            // Giữ alias phổ biến để liên kết cũ hoặc người dùng nhập trực tiếp
+            // /contact không rơi vào trang 404.
+            $router->add('/contact', 'SupportController', 'index');
             $router->add('/support/store', 'SupportController', 'store');
             $router->add('/review/store', 'ReviewController', 'store');
             $router->add('/product/review', 'ReviewController', 'storeDirect');
@@ -428,7 +443,8 @@ namespace App\Core {
             header('X-Frame-Options: DENY');
             header('Referrer-Policy: strict-origin-when-cross-origin');
             header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://www.paypal.com")');
-            header("Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com; script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.paypalobjects.com https://accounts.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com https://accounts.google.com; frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://accounts.google.com");
+            $nonce = self::cspNonce();
+            header("Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com; script-src 'self' 'nonce-{$nonce}' https://www.paypal.com https://www.paypalobjects.com https://accounts.google.com https://cdn.jsdelivr.net; script-src-elem 'self' 'nonce-{$nonce}' https://www.paypal.com https://www.paypalobjects.com https://accounts.google.com https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com https://cdnjs.cloudflare.com; style-src-elem 'self' 'nonce-{$nonce}' https://fonts.googleapis.com https://cdnjs.cloudflare.com; style-src-attr 'unsafe-inline'; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com https://accounts.google.com; frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://accounts.google.com");
             if (self::isHttps()) {
                 header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
             }

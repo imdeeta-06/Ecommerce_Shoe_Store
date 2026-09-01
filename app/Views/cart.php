@@ -1,6 +1,6 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .cart-page-layout {
     display: flex;
     gap: 4rem;
@@ -180,7 +180,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let localCartItems = [];
 
 function getProductImagePath(image) {

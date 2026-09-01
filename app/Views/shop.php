@@ -177,7 +177,7 @@ function productSizeOptions($product): array {
     <div class="modal-content" onclick="event.stopPropagation()">
         <button class="modal-close" onclick="closeQuickView()">x</button>
         <div class="modal-img">
-            <img id="modalImg" src="" alt="">
+            <img id="modalImg" src="<?= BASE_URL ?>assets/images/lam-placeholder.svg" alt="Ảnh xem nhanh sản phẩm">
         </div>
         <div class="modal-details">
             <h2 id="modalName"></h2>
@@ -195,7 +195,7 @@ function productSizeOptions($product): array {
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 const productsData = <?= json_encode(array_map(function ($product) {
     $product['size_options'] = productSizeOptions($product);
     return $product;

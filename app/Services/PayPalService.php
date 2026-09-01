@@ -25,6 +25,7 @@ class PayPalService {
             $forceHttps = in_array(strtolower(trim((string)getenv('FORCE_HTTPS'))), ['1', 'true', 'yes', 'on'], true);
             return preg_match('#^https://[^/]+(?:/.*)?$#i', $publicUrl) === 1
                 && $forceHttps
+                && !empty($this->config['live_credentials_rotated'])
                 && $this->config['webhook_id'] !== '';
         }
 
@@ -200,7 +201,7 @@ class PayPalService {
 
     private function assertConfigured(): void {
         if (!$this->isConfigured()) {
-            throw new RuntimeException('PayPal chưa được cấu hình đầy đủ; chế độ Live bắt buộc APP_PUBLIC_URL HTTPS, FORCE_HTTPS=true và PAYPAL_WEBHOOK_ID hợp lệ.');
+            throw new RuntimeException('PayPal chưa được cấu hình đầy đủ; chế độ Live bắt buộc khóa mới đã được xác nhận, APP_PUBLIC_URL HTTPS, FORCE_HTTPS=true và PAYPAL_WEBHOOK_ID hợp lệ.');
         }
         if (!function_exists('curl_init')) {
             throw new RuntimeException('PHP cURL chưa được bật nên không thể kết nối PayPal.');

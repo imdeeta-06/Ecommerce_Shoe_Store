@@ -1,6 +1,6 @@
 <?php include __DIR__ . '/../../partials/header.php'; ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     .admin-form-panel {
         background: #fff;
         border: 1px solid #f0f0f0;

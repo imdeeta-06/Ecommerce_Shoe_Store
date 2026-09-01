@@ -67,6 +67,35 @@ class NewsletterCampaign extends BaseModel {
         return ['success'=>$failed===0,'message'=>"Đã gửi $sent email, lỗi $failed email."];
     }
 
+    public function processQueued(int $campaignLimit = 10, int $recipientLimit = 100): array {
+        $campaignLimit = max(1, min(50, $campaignLimit));
+        $stmt = $this->db->prepare("SELECT id FROM newsletter_campaigns
+            WHERE status IN ('queued','sending') ORDER BY queued_at ASC, id ASC LIMIT ?");
+        $stmt->bindValue(1, $campaignLimit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $processed = 0;
+        $failed = 0;
+        $messages = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $campaignId) {
+            $result = $this->process((int)$campaignId, $recipientLimit);
+            $processed++;
+            if (empty($result['success'])) {
+                $failed++;
+            }
+            $messages[] = '#' . (int)$campaignId . ': ' . (string)($result['message'] ?? 'Không có kết quả.');
+        }
+
+        return [
+            'success' => $failed === 0,
+            'processed' => $processed,
+            'failed' => $failed,
+            'message' => $processed === 0
+                ? 'Không có chiến dịch newsletter đang chờ.'
+                : implode(' ', $messages),
+        ];
+    }
+
     public function markOpen(string $token): void {
         if(preg_match('/^[a-f0-9]{64}$/',$token))$this->db->prepare('UPDATE newsletter_campaign_recipients SET opened_at=COALESCE(opened_at,NOW()) WHERE open_token=?')->execute([$token]);
     }

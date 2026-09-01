@@ -63,7 +63,7 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 function removeFromWishlist(productId) {
     const formData = new FormData();
     formData.append('product_id', productId);

@@ -92,7 +92,7 @@ if (!function_exists('adminStart')) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
+    <style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
         :root {
             --admin-bg: #fcfaf6;
             --admin-sidebar: #3e2723;
@@ -306,7 +306,7 @@ if (!function_exists('adminStart')) {
     </style>
 </head>
 <body>
-    <script>
+    <script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     window.CSRF_TOKEN = <?= json_encode(\App\Helpers\SessionHelper::csrfToken(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     (() => {
         const originalFetch = window.fetch.bind(window);
@@ -396,7 +396,7 @@ if (!function_exists('adminEnd')) {
         </div> <!-- /.admin-content -->
     </main> <!-- /.admin-main -->
 
-    <script>
+    <script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     document.addEventListener('DOMContentLoaded', function() {
         const toggleBtn = document.getElementById('adminSidebarToggle');
         const closeBtn = document.getElementById('adminSidebarClose');

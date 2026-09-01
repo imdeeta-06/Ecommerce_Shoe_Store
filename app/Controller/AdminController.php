@@ -7,8 +7,8 @@ use App\Helpers\SessionHelper;
 class AdminController {
     public function index() {
         AuthMiddleware::requireAdmin();
-        // Dashboard cũ thực hiện SQL trực tiếp trong view. Không cho phép nó
-        // tiếp tục là entry-point; các thao tác quản trị phải đi qua controller/model mới.
+        // Dashboard quản trị thống nhất bắt đầu ở danh sách đơn hàng; mọi
+        // thao tác dữ liệu đi qua controller/model chuyên trách.
         SessionHelper::redirect('/admin/orders');
     }
 

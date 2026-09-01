@@ -83,7 +83,7 @@
         <button type="button" data-analytics-choice="accept">Đồng ý đo lường</button>
         <button type="button" data-analytics-choice="reject">Từ chối</button>
     </div>
-    <script>
+    <script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     (() => {
         const key = 'lienhoa_analytics_consent_v1';
         const box = document.getElementById('analyticsConsent');
