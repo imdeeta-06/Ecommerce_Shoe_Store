@@ -797,8 +797,11 @@ $basePrice = (float)($product['base_price'] ?? 0);
             </div>
 
             <div class="pd-price-row">
-                <div class="pd-price-current" id="displayedPrice" data-base-price="<?= $basePrice ?>">
-                    <?= number_format($basePrice, 0, ',', '.') ?> ₫
+                <div>
+                    <div class="pd-price-current" id="displayedPrice" data-base-price="<?= $basePrice ?>">
+                        <?= number_format($basePrice, 0, ',', '.') ?> ₫
+                    </div>
+                    <div style="font-size: 0.85rem; color: #666; margin-top: 0.4rem;">(đã bao gồm 8% VAT)</div>
                 </div>
                 <?php if ($compareAtPrice > $basePrice): ?>
                     <del class="pd-price-old"><?= number_format($compareAtPrice, 0, ',', '.') ?> ₫</del>

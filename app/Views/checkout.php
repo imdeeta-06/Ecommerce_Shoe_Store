@@ -197,6 +197,7 @@ function renderCheckoutSummary() {
                 <div class="summary-item-info">
                     <div class="summary-item-name">${item.name}</div>
                     <div style="font-size:0.8rem;color:#666;">Size: ${item.size || 'Mặc định'} · Màu: ${item.color || 'Mặc định'}</div>
+                    <div style="font-size:0.75rem;color:#999;margin-top:2px;">(đã bao gồm 8% VAT)</div>
                     <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
                         <button type="button" onclick="updateCartItem(${item.cart_id}, ${item.qty - 1})" style="width:24px; height:24px; border:1px solid #ddd; background:#fff; cursor:pointer;">-</button>
                         <span>${item.qty}</span>

@@ -113,6 +113,7 @@ function productDisplayType($product): string {
                                 <?php else: ?>
                                     <span style="font-weight: 600; color: #0f172a;"><?= number_format($price, 0, ',', '.') ?> VNĐ</span>
                                 <?php endif; ?>
+                                <div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">(đã bao gồm 8% VAT)</div>
                             </div>
                         </a>
                     </div>
