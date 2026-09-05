@@ -593,7 +593,7 @@ class AuthController {
             SessionHelper::redirect('/login');
         }
 
-        $googleClientId = trim((string)\App\Core\App::env('GOOGLE_CLIENT_ID'));
+        $googleClientId = trim((string)getenv('GOOGLE_CLIENT_ID'));
         if (!$googleClientId && defined('GOOGLE_CLIENT_ID')) {
              $googleClientId = GOOGLE_CLIENT_ID;
         }

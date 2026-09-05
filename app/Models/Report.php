@@ -32,68 +32,6 @@ class Report extends BaseModel {
 
     // --- DASHBOARD STATISTICS ---
 
-    public function getDashboardData(): array {
-        $revenue = $this->calculateTotalRevenue();
-        $latestOrders = $this->db->query("SELECT o.id, o.order_code, o.created_at, o.final_amount, o.status,
-                COALESCE(u.full_name, o.shipping_name, 'Khách lẻ') AS customer_name
-            FROM orders o
-            LEFT JOIN `user` u ON u.id = o.user_id
-            ORDER BY o.created_at DESC, o.id DESC
-            LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-
-        $revenueByDay = [];
-        $dayStart = new \DateTimeImmutable('-6 days');
-        for ($offset = 0; $offset < 7; $offset++) {
-            $date = $dayStart->modify("+{$offset} days")->format('Y-m-d');
-            $revenueByDay[$date] = 0;
-        }
-
-        $revenueStmt = $this->db->prepare("SELECT
-                DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at)) AS report_date,
-                COALESCE(SUM(GREATEST(0, o.final_amount - COALESCE(pr.refunded_amount, 0))), 0) AS revenue
-            FROM orders o
-            LEFT JOIN (
-                SELECT order_id, MAX(refunded_amount) AS refunded_amount
-                FROM payments
-                GROUP BY order_id
-            ) pr ON pr.order_id = o.id
-            WHERE o.status IN ('delivered', 'completed')
-              AND DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at)) >= :start_date
-            GROUP BY DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at))");
-        $revenueStmt->execute(['start_date' => $dayStart->format('Y-m-d')]);
-        foreach ($revenueStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            if (array_key_exists($row['report_date'], $revenueByDay)) {
-                $revenueByDay[$row['report_date']] = (float)$row['revenue'];
-            }
-        }
-
-        $statusRows = $this->db->query('SELECT status, COUNT(*) AS total FROM orders GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
-        $customerCount = (int)$this->db->query("SELECT COUNT(*) FROM `user` WHERE role = 'user' AND status = 1")->fetchColumn();
-        $productCount = (int)$this->db->query('SELECT COUNT(*) FROM product WHERE status = 1')->fetchColumn();
-        $lowStockCount = (int)$this->db->query("SELECT COUNT(*)
-            FROM product_variants pv
-            JOIN product p ON p.id = pv.product_id
-            WHERE p.status = 1 AND pv.status = 1
-              AND GREATEST(CAST(pv.stock_quantity AS SIGNED) - CAST(pv.reserved_quantity AS SIGNED), 0) <= 5")->fetchColumn();
-        $newOrderCount = (int)$this->db->query("SELECT COUNT(*) FROM orders
-            WHERE created_at >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')")->fetchColumn();
-        $newCustomerCount = (int)$this->db->query("SELECT COUNT(*) FROM `user`
-            WHERE role = 'user' AND status = 1
-              AND created_at >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01')")->fetchColumn();
-
-        return [
-            'revenue' => $revenue,
-            'latest_orders' => $latestOrders,
-            'revenue_by_day' => $revenueByDay,
-            'status_counts' => $statusRows,
-            'customer_count' => $customerCount,
-            'product_count' => $productCount,
-            'low_stock_count' => $lowStockCount,
-            'new_order_count' => $newOrderCount,
-            'new_customer_count' => $newCustomerCount,
-        ];
-    }
-
     // 1. Doanh thu thực nhận: chỉ tính đơn đã giao/hoàn thành và trừ hoàn tiền.
     public function calculateTotalRevenue($startDate = null, $endDate = null) {
         $query = "SELECT COALESCE(SUM(final_amount), 0) as total_revenue FROM orders WHERE status IN ('delivered', 'completed')";

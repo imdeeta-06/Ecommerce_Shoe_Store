@@ -4,7 +4,7 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
 ?>
 
 <div class="admin-panel" style="margin-bottom: 2rem;">
-    <div class="admin-section-head" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
         <div>
             <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Bộ lọc sản phẩm</div>
             <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Tìm nhanh theo tên, danh mục hoặc trạng thái.</p>
@@ -53,7 +53,6 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
                 <th>Sản phẩm</th>
                 <th>Danh mục</th>
                 <th>Giá bán / giá cũ</th>
-                <th>Thuế GTGT</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
             </tr>
@@ -89,7 +88,6 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
                             <del style="display:block;color:#9ca3af;font-size:.8rem;font-weight:400;margin-top:.2rem;"><?= adminMoney($product['old_price']) ?></del>
                         <?php endif; ?>
                     </td>
-                    <td><span class="admin-badge neutral"><?= adminE(($product['tax_category'] ?? '') === 'not_subject' ? 'Không chịu thuế' : number_format(\App\Services\TaxService::rateFor((string)($product['tax_category'] ?? 'standard_reduced'), $product['tax_rate'] ?? null), 2, ',', '.') . '%') ?></span></td>
                     <td>
                         <span class="admin-badge <?= $isActive ? 'success' : 'neutral' ?>">
                             <?= $isActive ? 'Hiển thị' : 'Đã ẩn' ?>
@@ -114,7 +112,7 @@ adminStart('Quản lý sản phẩm', 'products', $flash ?? null);
             <?php endforeach; ?>
             <?php if (empty($products)): ?>
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: #6b7280;">
+                    <td colspan="5" style="text-align: center; padding: 3rem 1rem; color: #6b7280;">
                         Không tìm thấy sản phẩm phù hợp.
                     </td>
                 </tr>

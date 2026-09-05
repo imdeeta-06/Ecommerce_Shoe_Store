@@ -21,8 +21,8 @@ class PayPalService {
         }
 
         if ($this->config['mode'] === 'live') {
-            $publicUrl = trim((string)(\App\Core\App::env('APP_PUBLIC_URL') ?: ''));
-            $forceHttps = in_array(strtolower(trim((string)\App\Core\App::env('FORCE_HTTPS'))), ['1', 'true', 'yes', 'on'], true);
+            $publicUrl = trim((string)(getenv('APP_PUBLIC_URL') ?: ''));
+            $forceHttps = in_array(strtolower(trim((string)getenv('FORCE_HTTPS'))), ['1', 'true', 'yes', 'on'], true);
             return preg_match('#^https://[^/]+(?:/.*)?$#i', $publicUrl) === 1
                 && $forceHttps
                 && !empty($this->config['live_credentials_rotated'])

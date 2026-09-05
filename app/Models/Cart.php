@@ -219,7 +219,6 @@ class Cart extends BaseModel {
                        GREATEST(0, pv.stock_quantity - COALESCE(pv.reserved_quantity, 0)) AS stock_quantity,
                        pv.weight_grams, pv.length_cm, pv.width_cm, pv.height_cm,
                        p.name, p.slug, p.base_price, (p.base_price + COALESCE(pv.price_modifier, 0)) AS price,
-                       p.tax_category, p.tax_rate,
                        pi.image_url
                 FROM cart c
                 JOIN product_variants pv ON pv.id = c.variant_id

@@ -162,7 +162,7 @@ include __DIR__ . '/partials/header.php';
 
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
                 <div class="summary-row">
-                    <span>Tạm tính hàng hóa (đã gồm VAT)</span>
+                    <span>Tạm tính</span>
                     <span id="checkoutSubtotal">0 ₫</span>
                 </div>
                 <div class="summary-row" id="discountRow" style="display: none; color: #388E3C;">
@@ -172,18 +172,6 @@ include __DIR__ . '/partials/header.php';
                 <div class="summary-row">
                     <span>Phí vận chuyển</span>
                     <span id="checkoutShippingFee">0 ₫</span>
-                </div>
-                <div class="summary-row">
-                    <span>Tiền trước thuế</span>
-                    <span id="checkoutTaxableAmount">0 ₫</span>
-                </div>
-                <div class="summary-row" id="nonTaxableRow" style="display:none;">
-                    <span>Tiền không chịu thuế</span>
-                    <span id="checkoutNonTaxableAmount">0 ₫</span>
-                </div>
-                <div class="summary-row">
-                    <span>Thuế GTGT (đã gồm trong giá)</span>
-                    <span id="checkoutTaxAmount">0 ₫</span>
                 </div>
                 <div class="summary-total">
                     <span>Tổng cộng</span>
@@ -204,13 +192,10 @@ include __DIR__ . '/partials/header.php';
 let checkoutCart = [];
 const PAYPAL_ENABLED = <?= json_encode($paypalEnabled) ?>;
 const PAYPAL_RATE = <?= json_encode($paypalRate) ?>;
-const SHIPPING_TAX_CATEGORY = <?= json_encode($shippingTaxCategory ?? 'standard_reduced') ?>;
-const SHIPPING_TAX_RATE = <?= json_encode((float)($shippingTaxRate ?? 8)) ?>;
 let selectedShippingFee = 0;
 let shippingQuotes = [];
 let shippingQuoteTimer = null;
 let checkoutSubmitting = false;
-let appliedCouponScope = {product_id: null, category_id: null};
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchCart();
@@ -223,17 +208,14 @@ function fetchCart() {
             if (data.success) {
                 checkoutCart = data.items.map(item => ({
                     cart_id: item.id,
-                    product_id: item.product_id ? parseInt(item.product_id) : null,
+                    product_id: item.product_id,
                     variant_id: item.variant_id,
                     size: item.size,
                     color: item.color,
                     name: item.name,
                     price: parseFloat(item.price),
                     qty: parseInt(item.quantity),
-                    image: item.image_url,
-                    category_id: item.category_id ? parseInt(item.category_id) : null,
-                    tax_category: item.tax_category || 'standard_reduced',
-                    tax_rate: parseFloat(item.tax_rate || 0)
+                    image: item.image_url
                 }));
                 
                 if (checkoutCart.length === 0) {
@@ -367,11 +349,6 @@ function updateTotals() {
     document.getElementById('checkoutSubtotal').textContent = formatPrice(subtotal);
     document.getElementById('checkoutShippingFee').textContent = shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí';
     document.getElementById('checkoutTotal').textContent = formatPrice(payableTotal);
-    const tax = calculateTaxBreakdown(shippingFee, appliedDiscount);
-    document.getElementById('checkoutTaxableAmount').textContent = formatPrice(tax.taxable);
-    document.getElementById('checkoutTaxAmount').textContent = formatPrice(tax.tax);
-    document.getElementById('checkoutNonTaxableAmount').textContent = formatPrice(tax.nonTaxable);
-    document.getElementById('nonTaxableRow').style.display = tax.nonTaxable > 0 ? 'flex' : 'none';
     const paypalAmount = document.getElementById('paypalEstimatedAmount');
     if (paypalAmount && PAYPAL_RATE > 0) {
         paypalAmount.textContent = (payableTotal / PAYPAL_RATE).toFixed(2) + ' USD';
@@ -384,40 +361,6 @@ function updateTotals() {
     } else {
         discountRow.style.display = 'none';
     }
-}
-
-function splitInclusive(amount, category, rate) {
-    amount = Math.max(0, Math.round(amount * 100) / 100);
-    if (category === 'not_subject') return {taxable: 0, tax: 0, nonTaxable: amount};
-    const taxable = rate > 0 ? Math.round((amount / (1 + rate / 100)) * 100) / 100 : amount;
-    return {taxable, tax: Math.round((amount - taxable) * 100) / 100, nonTaxable: 0};
-}
-
-function calculateTaxBreakdown(shippingFee, discount) {
-    const eligible = checkoutCart.map((item, index) => ({item, index})).filter(({item}) => {
-        if (appliedCouponScope.product_id) return item.product_id === appliedCouponScope.product_id;
-        if (appliedCouponScope.category_id) return item.category_id === appliedCouponScope.category_id;
-        return true;
-    });
-    const eligibleSubtotal = eligible.reduce((sum, row) => sum + row.item.price * row.item.qty, 0);
-    const lineDiscounts = {};
-    let remaining = Math.min(Math.max(0, discount), eligibleSubtotal);
-    if (eligibleSubtotal > 0) {
-        eligible.forEach((row, position) => {
-            const gross = row.item.price * row.item.qty;
-            const allocated = position === eligible.length - 1 ? remaining : Math.min(remaining, Math.round(discount * gross / eligibleSubtotal * 100) / 100);
-            lineDiscounts[row.index] = allocated;
-            remaining = Math.max(0, Math.round((remaining - allocated) * 100) / 100);
-        });
-    }
-    let totals = {taxable: 0, tax: 0, nonTaxable: 0};
-    checkoutCart.forEach((item, index) => {
-        const split = splitInclusive(item.price * item.qty - (lineDiscounts[index] || 0), item.tax_category, item.tax_rate);
-        totals.taxable += split.taxable; totals.tax += split.tax; totals.nonTaxable += split.nonTaxable;
-    });
-    const shipping = splitInclusive(shippingFee, SHIPPING_TAX_CATEGORY, SHIPPING_TAX_RATE);
-    totals.taxable += shipping.taxable; totals.tax += shipping.tax; totals.nonTaxable += shipping.nonTaxable;
-    return totals;
 }
 
 function applySavedAddress(select) {
@@ -477,7 +420,6 @@ function applyCoupon() {
             appliedDiscount = data.discount;
             appliedCouponId = data.coupon_id;
             appliedCouponCode = data.code;
-            appliedCouponScope = {product_id: data.product_id || null, category_id: data.category_id || null};
             msg.innerHTML = '';
             document.getElementById('couponInputWrap').style.display = 'none';
             const applied = document.getElementById('couponApplied');
@@ -498,7 +440,6 @@ function removeCoupon() {
     appliedDiscount = 0;
     appliedCouponId = null;
     appliedCouponCode = '';
-    appliedCouponScope = {product_id: null, category_id: null};
     document.getElementById('couponApplied').style.display = 'none';
     document.getElementById('couponInputWrap').style.display = 'flex';
     document.getElementById('couponCode').value = '';

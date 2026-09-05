@@ -15,7 +15,6 @@ namespace App\Core {
     class App {
         private static $autoloadRegistered = false;
         private static $cspNonce = null;
-        private static $environment = [];
 
         public static function run() {
             try {
@@ -50,27 +49,7 @@ namespace App\Core {
         }
 
         public static function loadEnv() {
-            $rootPath = self::rootPath();
-            $envFile = null;
-
-            // Trên shared hosting, ưu tiên đặt .env ở ngoài document root
-            // (ví dụ /home/.../.env trong khi mã nguồn nằm ở /home/.../htdocs).
-            // Máy local vẫn dùng .env trong thư mục dự án như trước.
-            $candidates = [
-                dirname($rootPath) . '/.env',
-                $rootPath . '/.env',
-            ];
-            foreach ($candidates as $candidate) {
-                if (is_file($candidate) && is_readable($candidate)) {
-                    $envFile = $candidate;
-                    break;
-                }
-            }
-
-            if ($envFile === null) {
-                return;
-            }
-
+            $envFile = self::rootPath() . '/.env';
             if (file_exists($envFile)) {
                 $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 foreach ($lines as $line) {
@@ -81,46 +60,15 @@ namespace App\Core {
                         $value = trim($parts[1]);
                         // Remove quotes if present
                         $value = trim($value, '"\'');
-
-                        if (!array_key_exists($name, self::$environment)) {
-                            self::$environment[$name] = $value;
-                        }
-                        if (!array_key_exists($name, $_SERVER)) {
-                            $_SERVER[$name] = $value;
-                        }
-                        if (!array_key_exists($name, $_ENV)) {
-                            $_ENV[$name] = $value;
-                        }
-
-                        // InfinityFree vô hiệu hóa putenv(). Ứng dụng không phụ thuộc
-                        // vào hàm này: App::env() luôn đọc được giá trị đã nạp ở trên.
-                        if (function_exists('putenv')) {
+                        
+                        if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
                             putenv(sprintf('%s=%s', $name, $value));
+                            $_ENV[$name] = $value;
+                            $_SERVER[$name] = $value;
                         }
                     }
                 }
             }
-        }
-
-        /**
-         * Đọc cấu hình môi trường tương thích cả shared hosting chặn putenv().
-         */
-        public static function env(string $name, $default = null) {
-            $native = function_exists('getenv') ? getenv($name) : false;
-            if ($native !== false && $native !== '') {
-                return $native;
-            }
-            if (array_key_exists($name, self::$environment)) {
-                return self::$environment[$name];
-            }
-            if (array_key_exists($name, $_ENV)) {
-                return $_ENV[$name];
-            }
-            if (array_key_exists($name, $_SERVER)) {
-                return $_SERVER[$name];
-            }
-
-            return $default;
         }
 
         public static function router() {
@@ -163,7 +111,7 @@ namespace App\Core {
                 return $path;
             }
 
-            $configured = trim((string)(self::env('APP_PUBLIC_URL') ?: ''));
+            $configured = trim((string)(getenv('APP_PUBLIC_URL') ?: ''));
             if (preg_match('#^https?://[^/]+#i', $configured)) {
                 $origin = rtrim($configured, '/');
             } else {
@@ -217,7 +165,7 @@ namespace App\Core {
                 return;
             }
 
-            $configured = self::env('APP_BASE_URL');
+            $configured = getenv('APP_BASE_URL');
             if ($configured !== false && trim($configured) !== '') {
                 define('BASE_URL', self::normalizeBaseUrl($configured));
                 return;
@@ -357,7 +305,7 @@ namespace App\Core {
             $router->add('/newsletter/click', 'PageController', 'clickNewsletter');
             $router->add('/analytics/event', 'PageController', 'recordAnalytics');
 
-            $router->add('/admin', 'Admin\\DashboardController', 'index');
+            $router->add('/admin', 'AdminController', 'index');
             $router->add('/admin/users/create', 'Admin\UserController', 'create');
             $router->add('/admin/products', 'Admin\ProductController', 'index');
             $router->add('/admin/products/create', 'Admin\ProductController', 'create');
@@ -405,7 +353,6 @@ namespace App\Core {
             $router->add('/admin/invoices/issue', 'Admin\InvoiceController', 'issue');
             $router->add('/admin/invoices/adjust', 'Admin\InvoiceController', 'adjust');
             $router->add('/admin/invoices/cancel', 'Admin\InvoiceController', 'cancel');
-            $router->add('/admin/tax-report', 'Admin\TaxReportController', 'index');
             $router->add('/admin/procurement', 'Admin\ProcurementController', 'index');
             $router->add('/admin/procurement/supplier', 'Admin\ProcurementController', 'supplier');
             $router->add('/admin/procurement/order', 'Admin\ProcurementController', 'order');
@@ -478,7 +425,7 @@ namespace App\Core {
             if (PHP_SAPI === 'cli') {
                 return;
             }
-            $enabled = in_array(strtolower((string)self::env('FORCE_HTTPS')), ['1', 'true', 'yes', 'on'], true);
+            $enabled = in_array(strtolower((string)getenv('FORCE_HTTPS')), ['1', 'true', 'yes', 'on'], true);
             $host = (string)($_SERVER['HTTP_HOST'] ?? '');
             $isLocal = preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i', $host);
             if (!$enabled || $host === '' || self::isHttps() || $isLocal || headers_sent()) {
@@ -614,7 +561,7 @@ namespace App\Core {
 
         private static function renderException(\Throwable $exception) {
             http_response_code(500);
-            $debug = strtolower((string) self::env('APP_DEBUG'));
+            $debug = strtolower((string) getenv('APP_DEBUG'));
 
             if (in_array($debug, ['1', 'true', 'yes', 'on'], true)) {
                 echo '<pre>' . htmlspecialchars((string) $exception, ENT_QUOTES, 'UTF-8') . '</pre>';

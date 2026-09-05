@@ -140,7 +140,7 @@ include __DIR__ . '/partials/header.php';
         <?php endif; ?>
         
         <p style="margin:0 0 2.5rem; color:var(--text-muted); font-size:.95rem;">Bạn có thể xem đơn hàng trong tài khoản cá nhân hoặc <a href="<?= BASE_URL ?>tracking" style="color:var(--primary-color); font-weight:500; text-decoration:underline;">tra cứu đơn hàng</a>.</p>
-        <?php if (!empty($order['id'])): ?><a href="<?= BASE_URL ?>order/receipt?order_id=<?= (int)$order['id'] ?>" class="btn-continue" target="_blank" rel="noopener" style="margin-right:.5rem;">In hóa đơn / Xuất PDF</a><?php endif; ?>
+        <?php if (!empty($order['id'])): ?><a href="<?= BASE_URL ?>order/receipt?order_id=<?= (int)$order['id'] ?>" class="btn-continue" target="_blank" rel="noopener" style="margin-right:.5rem;">In phiếu đơn hàng</a><?php endif; ?>
         <a href="<?= BASE_URL ?>shop" class="btn-continue">Tiếp tục mua sắm</a>
     </div>
 </div>

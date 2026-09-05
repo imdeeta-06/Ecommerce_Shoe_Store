@@ -232,8 +232,6 @@ class OrderNotificationService {
         return '<!doctype html><html lang="vi"><body style="font-family:Arial,sans-serif;color:#111;line-height:1.6;">'
             . '<h2>Liên Hoa</h2><p>' . $intro . '</p><p>' . $statusText . '</p>'
             . '<table style="width:100%;max-width:680px;border-collapse:collapse;">' . $rows . '</table>'
-            . '<p><strong>Tiền trước thuế:</strong> ' . number_format((float)($order['taxable_amount'] ?? 0), 0, ',', '.') . ' ₫<br>'
-            . '<strong>Thuế GTGT (đã gồm trong giá):</strong> ' . number_format((float)($order['tax_amount'] ?? 0), 0, ',', '.') . ' ₫</p>'
             . '<p style="margin-top:24px;"><strong>Tổng tiền:</strong> ' . number_format((float)$order['final_amount'], 0, ',', '.') . ' ₫</p>'
             . '<p><a href="' . htmlspecialchars($trackingUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;">Tra cứu đơn hàng</a></p>'
             . '<p style="font-size:12px;color:#777;">Đây là email giao dịch liên quan đến đơn hàng của bạn.</p></body></html>';

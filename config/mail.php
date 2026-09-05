@@ -1,9 +1,9 @@
 <?php
 
-$enabled = filter_var((string)(\App\Core\App::env('SMTP_ENABLED') ?: 'false'), FILTER_VALIDATE_BOOLEAN);
-$appEnvironment = strtolower(trim((string)(\App\Core\App::env('APP_ENV') ?: 'local')));
+$enabled = filter_var((string)(getenv('SMTP_ENABLED') ?: 'false'), FILTER_VALIDATE_BOOLEAN);
+$appEnvironment = strtolower(trim((string)(getenv('APP_ENV') ?: 'local')));
 $credentialsRotated = filter_var(
-    (string)(\App\Core\App::env('SMTP_CREDENTIALS_ROTATED') ?: 'false'),
+    (string)(getenv('SMTP_CREDENTIALS_ROTATED') ?: 'false'),
     FILTER_VALIDATE_BOOLEAN
 );
 
@@ -15,11 +15,11 @@ if ($appEnvironment === 'production' && !$credentialsRotated) {
 return [
     'enabled' => $enabled,
     'credentials_rotated' => $credentialsRotated,
-    'host' => trim((string)(\App\Core\App::env('SMTP_HOST') ?: 'smtp.gmail.com')),
-    'port' => (int)(\App\Core\App::env('SMTP_PORT') ?: 587),
-    'username' => trim((string)(\App\Core\App::env('SMTP_USERNAME') ?: '')),
-    'password' => (string)(\App\Core\App::env('SMTP_PASSWORD') ?: ''),
-    'encryption' => strtolower(trim((string)(\App\Core\App::env('SMTP_ENCRYPTION') ?: 'tls'))),
-    'from_email' => trim((string)(\App\Core\App::env('SMTP_FROM_EMAIL') ?: '')),
-    'from_name' => trim((string)(\App\Core\App::env('SMTP_FROM_NAME') ?: 'Liên Hoa Shop')),
+    'host' => trim((string)(getenv('SMTP_HOST') ?: 'smtp.gmail.com')),
+    'port' => (int)(getenv('SMTP_PORT') ?: 587),
+    'username' => trim((string)(getenv('SMTP_USERNAME') ?: '')),
+    'password' => (string)(getenv('SMTP_PASSWORD') ?: ''),
+    'encryption' => strtolower(trim((string)(getenv('SMTP_ENCRYPTION') ?: 'tls'))),
+    'from_email' => trim((string)(getenv('SMTP_FROM_EMAIL') ?: '')),
+    'from_name' => trim((string)(getenv('SMTP_FROM_NAME') ?: 'Liên Hoa Shop')),
 ];

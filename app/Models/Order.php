@@ -7,7 +7,6 @@ use Throwable;
 use App\Services\OrderNotificationService;
 use App\Services\PayPalService;
 use App\Services\ShippingService;
-use App\Services\TaxService;
 
 class Order extends BaseModel {
     private const VALID_STATUSES = ['pending', 'confirmed', 'preparing', 'shipping', 'delivered', 'completed', 'canceled'];
@@ -104,13 +103,11 @@ class Order extends BaseModel {
                     'product_name_snapshot' => $variant['product_name'],
                     'variant_size_snapshot' => $variant['size'],
                     'variant_color_snapshot' => $variant['color'],
-                    'unit_name_snapshot' => trim((string)($variant['unit_name'] ?? 'Cái')) ?: 'Cái',
-                    'tax_category_snapshot' => TaxService::normalizeCategory((string)($variant['tax_category'] ?? 'standard_reduced')),
-                    'tax_rate_snapshot' => TaxService::rateFor((string)($variant['tax_category'] ?? 'standard_reduced'), $variant['tax_rate'] ?? null),
-                    'weight_grams' => (int)($variant['weight_grams'] ?? 500),
-                    'length_cm' => (float)($variant['length_cm'] ?? 25),
-                    'width_cm' => (float)($variant['width_cm'] ?? 20),
-                    'height_cm' => (float)($variant['height_cm'] ?? 5)
+                    'unit_name_snapshot' => trim((string)($variant['unit_name'] ?? 'Cái')) ?: 'Cái'
+                    ,'weight_grams' => (int)($variant['weight_grams'] ?? 500)
+                    ,'length_cm' => (float)($variant['length_cm'] ?? 25)
+                    ,'width_cm' => (float)($variant['width_cm'] ?? 20)
+                    ,'height_cm' => (float)($variant['height_cm'] ?? 5)
                 ];
             }
 
@@ -139,27 +136,6 @@ class Order extends BaseModel {
             }
 
             $normalizedItems = $this->allocateItemDiscounts($normalizedItems, $couponData, $discount);
-            $taxableAmount = 0.0;
-            $taxAmount = 0.0;
-            $nonTaxableAmount = 0.0;
-            foreach ($normalizedItems as $index => $item) {
-                $lineGross = (float)$item['price_at_time'] * (int)$item['quantity'];
-                $split = TaxService::splitInclusive(
-                    $lineGross - (float)($item['discount_amount'] ?? 0),
-                    (string)$item['tax_category_snapshot'],
-                    (float)$item['tax_rate_snapshot']
-                );
-                $normalizedItems[$index] = array_merge($item, $split);
-                $taxableAmount += $split['taxable_amount'];
-                $taxAmount += $split['tax_amount'];
-                $nonTaxableAmount += $split['non_taxable_amount'];
-            }
-            $shippingTaxCategory = TaxService::shippingCategory();
-            $shippingTaxRate = TaxService::rateFor($shippingTaxCategory);
-            $shippingTax = TaxService::splitInclusive($shippingFee, $shippingTaxCategory, $shippingTaxRate);
-            $taxableAmount = round($taxableAmount + $shippingTax['taxable_amount'], 2);
-            $taxAmount = round($taxAmount + $shippingTax['tax_amount'], 2);
-            $nonTaxableAmount = round($nonTaxableAmount + $shippingTax['non_taxable_amount'], 2);
             $couponCodeSnapshot = null;
             if ($couponId) {
                 $couponModel = new Coupons();
@@ -185,13 +161,6 @@ class Order extends BaseModel {
                 'coupon_id' => $couponId,
                 'final_amount' => $finalAmount,
                 'shipping_fee' => $shippingFee,
-                'taxable_amount' => $taxableAmount,
-                'tax_amount' => $taxAmount,
-                'non_taxable_amount' => $nonTaxableAmount,
-                'shipping_tax_category' => $shippingTaxCategory,
-                'shipping_tax_rate' => $shippingTaxRate,
-                'shipping_tax_amount' => $shippingTax['tax_amount'],
-                'prices_include_tax' => 1,
                 'shipping_name' => $shippingName,
                 'shipping_phone' => $shippingPhone,
                 'shipping_address' => $shippingAddress,
@@ -233,11 +202,7 @@ class Order extends BaseModel {
                     'product_name_snapshot' => $item['product_name_snapshot'],
                     'variant_size_snapshot' => $item['variant_size_snapshot'],
                     'variant_color_snapshot' => $item['variant_color_snapshot'],
-                    'unit_name_snapshot' => $item['unit_name_snapshot'],
-                    'tax_category_snapshot' => $item['tax_category_snapshot'],
-                    'tax_rate_snapshot' => $item['tax_rate_snapshot'],
-                    'taxable_amount' => $item['taxable_amount'],
-                    'tax_amount' => $item['tax_amount']
+                    'unit_name_snapshot' => $item['unit_name_snapshot']
                 ]);
             }
 
@@ -637,22 +602,8 @@ class Order extends BaseModel {
                 }
             }
             $newFinalAmount = max(0, (float)$order['final_amount'] - (float)$order['shipping_fee'] + $newShippingFee);
-            $shippingCategory = TaxService::normalizeCategory((string)($order['shipping_tax_category'] ?? 'standard_reduced'));
-            // Giữ mức thuế đã chụp tại thời điểm tạo đơn. Việc đổi chính sách
-            // sau này không được làm thay đổi lịch sử của một đơn cũ.
-            $shippingRate = isset($order['shipping_tax_rate'])
-                ? round(max(0, min(100, (float)$order['shipping_tax_rate'])), 2)
-                : TaxService::rateFor($shippingCategory);
-            $oldShippingSplit = TaxService::splitInclusive((float)$order['shipping_fee'], $shippingCategory, $shippingRate);
-            $newShippingSplit = TaxService::splitInclusive($newShippingFee, $shippingCategory, $shippingRate);
-            $newTaxableAmount = max(0, round((float)($order['taxable_amount'] ?? 0) - $oldShippingSplit['taxable_amount'] + $newShippingSplit['taxable_amount'], 2));
-            $newTaxAmount = max(0, round((float)($order['tax_amount'] ?? 0) - $oldShippingSplit['tax_amount'] + $newShippingSplit['tax_amount'], 2));
-            $newNonTaxableAmount = max(0, round((float)($order['non_taxable_amount'] ?? 0) - $oldShippingSplit['non_taxable_amount'] + $newShippingSplit['non_taxable_amount'], 2));
             $stmt = $this->db->prepare('UPDATE orders SET shipping_carrier = :carrier, tracking_code = :tracking_code,
                 shipping_status = :shipping_status, shipping_fee = :shipping_fee, final_amount = :final_amount,
-                taxable_amount = :taxable_amount, tax_amount = :tax_amount, non_taxable_amount = :non_taxable_amount,
-                shipping_tax_category = :shipping_tax_category, shipping_tax_rate = :shipping_tax_rate,
-                shipping_tax_amount = :shipping_tax_amount,
                 shipped_at = CASE WHEN :is_transit = 1 THEN COALESCE(shipped_at, NOW()) ELSE shipped_at END,
                 delivered_at = CASE WHEN :is_delivered = 1 THEN COALESCE(delivered_at, NOW()) ELSE delivered_at END
                 WHERE id = :id');
@@ -662,12 +613,6 @@ class Order extends BaseModel {
                 'shipping_status' => $expectedStatus,
                 'shipping_fee' => $newShippingFee,
                 'final_amount' => $newFinalAmount,
-                'taxable_amount' => $newTaxableAmount,
-                'tax_amount' => $newTaxAmount,
-                'non_taxable_amount' => $newNonTaxableAmount,
-                'shipping_tax_category' => $shippingCategory,
-                'shipping_tax_rate' => $shippingRate,
-                'shipping_tax_amount' => $newShippingSplit['tax_amount'],
                 'is_transit' => $expectedStatus === 'in_transit' ? 1 : 0,
                 'is_delivered' => $expectedStatus === 'delivered' ? 1 : 0,
                 'id' => $orderId
@@ -1674,7 +1619,7 @@ class Order extends BaseModel {
     private function getVariantForUpdate(int $variantId) {
         $stmt = $this->db->prepare("
             SELECT pv.*, p.name AS product_name, p.base_price, p.category_id, p.status AS product_status,
-                p.unit_name, p.tax_category, p.tax_rate
+                p.unit_name
             FROM product_variants pv
             LEFT JOIN product p ON pv.product_id = p.id
             WHERE pv.id = :variant_id

@@ -7,7 +7,7 @@ $refundLabels = ['not_requested' => 'Không áp dụng', 'pending' => 'Chờ ho�
 ?>
 <div class="admin-panel">
     <p style="color:#666;line-height:1.7;margin-bottom:1rem;">Duyệt số lượng thực tế, xác nhận đã nhận lại hàng, chọn hàng có thể nhập kho và nhập mã giao dịch khi hoàn tiền. Hệ thống chỉ cập nhật tồn kho/doanh thu ở đúng bước nghiệp vụ và có kiểm tra idempotent.</p>
-    <div class="admin-table-wrapper">
+    <div class="admin-table-wrapper" style="overflow:visible;">
         <table class="admin-table" style="min-width: 800px;">
             <thead>
                 <tr>
