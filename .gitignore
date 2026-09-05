@@ -30,3 +30,6 @@ error_log
 .env
 .env.*
 !.env.example
+
+# Legacy local database connection file
+/config/db.php

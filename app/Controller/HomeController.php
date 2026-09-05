@@ -10,7 +10,16 @@ class HomeController {
         $productModel = new Product();
         $banners = $this->getBanners();
         $featuredProducts = $productModel->getFeaturedProducts(3);
-        $bestSellingProducts = $productModel->getBestSellingProducts(6);
+        $featuredIds = array_column($featuredProducts, 'id');
+        $bestSellingProducts = [];
+        foreach ($productModel->getBestSellingProducts(20) as $product) {
+            if (!in_array($product['id'], $featuredIds)) {
+                $bestSellingProducts[] = $product;
+            }
+            if (count($bestSellingProducts) >= 6) {
+                break;
+            }
+        }
         $discountedProducts = $productModel->getDiscountedProducts(4);
 
         // Real stats for hero section
