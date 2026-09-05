@@ -2,7 +2,7 @@
 
 <main class="client-page">
     <h1 class="client-title" style="text-align:center;margin-bottom:1rem;">Hỗ trợ khách hàng</h1>
-    <p style="max-width:720px;margin:0 auto 2rem;text-align:center;color:#666;line-height:1.7;">Gửi yêu cầu về đơn hàng, giao hàng, đổi trả, bảo hành hoặc sản phẩm. Hệ thống cấp mã yêu cầu và gửi email xác nhận tự động khi SMTP được bật.</p>
+    <p style="max-width:720px;margin:0 auto 2rem;text-align:center;color:#333;line-height:1.7;font-size:1.05rem;">Gửi yêu cầu về đơn hàng, giao hàng, đổi trả, bảo hành hoặc sản phẩm. Hệ thống cấp mã yêu cầu và gửi email xác nhận tự động khi SMTP được bật.</p>
     <?php if (!empty($flash)): ?>
         <?php foreach ($flash as $type => $message): ?>
             <div style="max-width:720px;margin:0 auto 1rem;padding:1rem;border:1px solid <?= $type === 'error' ? '#fecaca' : '#bbf7d0' ?>;background:<?= $type === 'error' ? '#fef2f2' : '#f0fdf4' ?>;color:<?= $type === 'error' ? '#991b1b' : '#166534' ?>;"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div>

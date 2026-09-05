@@ -39,7 +39,10 @@
                     </div>
                     <div style="padding: 1rem; display: flex; flex-direction: column; flex: 1;">
                         <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;"><a href="<?= BASE_URL ?>product?id=<?= $item['product_id'] ?>" style="color: inherit; text-decoration: none;"><?= htmlspecialchars($item['name']) ?></a></h3>
-                        <div style="font-weight: 600; margin-bottom: 1rem; margin-top: auto;"><?= number_format($item['price'], 0, ',', '.') ?> ₫</div>
+                        <div style="font-weight: 600; margin-bottom: 1rem; margin-top: auto;">
+                            <?php if (!empty($item['old_price']) && (float)$item['old_price'] > (float)$item['price']): ?><del class="product-price-old"><?= number_format($item['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
+                            <?= number_format($item['price'], 0, ',', '.') ?> ₫
+                        </div>
                         <button onclick="addToCartFromWishlist(<?= $item['product_id'] ?>)" style="width: 100%; padding: 0.8rem; background: #111; color: #fff; border: none; border-radius: 100px; font-weight: 500; cursor: pointer;">
                             Thêm vào giỏ
                         </button>
@@ -60,7 +63,7 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 function removeFromWishlist(productId) {
     const formData = new FormData();
     formData.append('product_id', productId);

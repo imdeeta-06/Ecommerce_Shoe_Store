@@ -29,10 +29,10 @@ class AbandonedCartReminderService {
                     continue;
                 }
 
-                $unsubscribeUrl = App::url('cart-reminder/unsubscribe?token=' . urlencode((string)$reminder['unsubscribe_token']));
+                $unsubscribeUrl = App::publicUrl('cart-reminder/unsubscribe?token=' . urlencode((string)$reminder['unsubscribe_token']));
                 MailService::sendHtml(
                     (string)$reminder['email'],
-                    'Bạn còn sản phẩm trong giỏ hàng PaceUp',
+                    'Bạn còn sản phẩm trong giỏ hàng Liên Hoa',
                     $this->buildHtml((string)($reminder['full_name'] ?? 'bạn'), $items, $unsubscribeUrl)
                 );
                 if ($cart->markReminderSent((int)$reminder['id'])) {
@@ -66,9 +66,9 @@ class AbandonedCartReminderService {
 
         return '<!doctype html><html lang="vi"><body style="font-family:Arial,sans-serif;color:#111;line-height:1.6;">'
             . '<h2>Chào ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</h2>'
-            . '<p>Bạn vẫn còn sản phẩm trong giỏ hàng PaceUp. Nếu còn nhu cầu, bạn có thể quay lại hoàn tất đơn hàng:</p>'
+            . '<p>Bạn vẫn còn sản phẩm trong giỏ hàng Liên Hoa. Nếu còn nhu cầu, bạn có thể quay lại hoàn tất đơn hàng:</p>'
             . '<table style="width:100%;max-width:640px;border-collapse:collapse;">' . $rows . '</table>'
-            . '<p style="margin-top:24px;"><a href="' . htmlspecialchars(App::url('cart'), ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;">Quay lại giỏ hàng</a></p>'
+            . '<p style="margin-top:24px;"><a href="' . htmlspecialchars(App::publicUrl('cart'), ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;">Quay lại giỏ hàng</a></p>'
             . '<p style="font-size:12px;color:#777;">Nếu không muốn nhận email nhắc giỏ hàng, hãy <a href="' . htmlspecialchars($unsubscribeUrl, ENT_QUOTES, 'UTF-8') . '">hủy nhận email tại đây</a>.</p>'
             . '</body></html>';
     }

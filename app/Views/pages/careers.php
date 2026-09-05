@@ -1,4 +1,6 @@
 <?php
+$store = require __DIR__ . '/../../../config/store.php';
+$contactEmail = (string)$store['email'];
 include __DIR__ . '/../partials/header.php';
 ?>
 
@@ -20,7 +22,7 @@ include __DIR__ . '/../partials/header.php';
             <p style="margin-bottom: 0;">Yêu cầu: Tối thiểu 1 năm kinh nghiệm chạy Ads (FB, Google), hiểu biết về ngành bán lẻ thời trang.</p>
         </div>
 
-        <p style="text-align: center;">Vui lòng gửi CV về địa chỉ email: <strong>hr.lienhoa@gmail.com</strong> với tiêu đề: <em>[Vị trí ứng tuyển] - Họ Tên</em>.</p>
+        <p style="text-align: center;">Vui lòng gửi CV về địa chỉ email: <strong><a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?>?subject=Ứng tuyển Liên Hoa"><?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?></a></strong> với tiêu đề: <em>[Vị trí ứng tuyển] - Họ Tên</em>.</p>
     </div>
 </main>
 

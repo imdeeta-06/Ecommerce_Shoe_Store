@@ -6,32 +6,29 @@ use App\Models\Product;
 class ShopController {
     public function index() {
         $productModel = new Product();
-        $gender = isset($_GET['gender']) ? strtolower(trim((string)$_GET['gender'])) : 'all';
-        // Support both the current filter values and legacy links such as gender=mens.
-        $gender = [
-            'mens' => 'men',
-            'womens' => 'women',
-        ][$gender] ?? $gender;
-        if (!in_array($gender, ['all', 'men', 'women'], true)) {
-            $gender = 'all';
-        }
         $category = $_GET['category'] ?? 'all';
         $sort = $_GET['sort'] ?? 'default';
         $priceRange = $_GET['price'] ?? 'all';
         $keyword = trim($_GET['q'] ?? '');
+        $perPage = 10;
+        $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1;
 
-        $products = $productModel->getProductsByFilter([
-            'gender' => $gender,
+        $filters = [
             'category' => $category,
             'price' => $priceRange,
             'sort' => $sort,
             'keyword' => $keyword
-        ]);
+        ];
+        $totalFilteredProducts = $productModel->getProductsCountByFilter($filters);
+        $totalPages = max(1, (int)ceil($totalFilteredProducts / $perPage));
+        $page = min($page, $totalPages);
+
+        $products = $productModel->getProductsByFilter($filters, $perPage, ($page - 1) * $perPage);
 
         $categories = $productModel->getCategoriesWithCounts();
         $totalActiveProducts = $productModel->getActiveProductsCount();
-        $metaTitle = 'Cửa hàng Pháp phục & Đồ lam Phật giáo - Liên Hoa';
-        $metaDescription = 'Mua sắm áo lam, tràng hạt, tượng thờ và các vật phẩm Phật giáo chọn lọc tại Liên Hoa.';
+        $metaTitle = 'Cửa hàng đồ lam và pháp phục - Liên Hoa';
+        $metaDescription = 'Tìm kiếm và lọc đồ lam, pháp phục, túi đi chùa, chuỗi hạt theo danh mục và mức giá.';
 
         require __DIR__ . '/../Views/shop.php';
     }

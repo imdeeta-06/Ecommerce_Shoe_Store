@@ -1,26 +1,34 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-$variantSizes = ['S', 'M', 'L', 'XL', 'Mặc định'];
-$variantColors = ['Lam', 'Nâu', 'Trắng', 'Xám', 'Đen'];
+$variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
+$variantColors = ['White', 'Brown', 'Gray', 'Blue'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
+$currentTaxCategory = \App\Services\TaxService::normalizeCategory((string)($product['tax_category'] ?? 'standard_reduced'));
+$currentTaxRate = \App\Services\TaxService::rateFor($currentTaxCategory, $product['tax_rate'] ?? null);
 adminStart($title, 'products', $flash ?? null);
 ?>
+
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+.product-form-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:2rem}.product-info-grid{grid-template-columns:1fr 1fr}.product-field-wide{grid-column:span 2}.product-form-actions{border-top:1px solid var(--admin-border);margin:2rem -1.5rem 0;padding:1.5rem 1.5rem 0;display:flex;justify-content:flex-end;gap:1rem}
+@media(max-width:850px){.product-form-layout{grid-template-columns:1fr}.product-info-grid{grid-template-columns:1fr}.product-field-wide{grid-column:auto}}
+@media(max-width:600px){.product-form-actions{margin:1.5rem -1rem 0;padding:1rem 1rem 0}.product-form-actions .admin-btn{flex:1}.product-form-layout aside{padding:1rem!important}}
+</style>
 
 <form class="admin-panel" method="post" enctype="multipart/form-data" action="<?= $isEdit ? BASE_URL . 'admin/products/edit?id=' . (int)$product['id'] : BASE_URL . 'admin/products/create' ?>">
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int)$product['id'] ?>">
     <?php endif; ?>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <div class="product-form-layout">
         <section>
             <div class="admin-panel-title">
                 <div>Thông tin chung</div>
                 <p style="color: var(--admin-text-light); font-size: 0.85rem; font-weight: normal; text-transform: none; margin-top: 0.25rem;">Các thông tin hiển thị trên trang cửa hàng.</p>
             </div>
 
-            <div class="admin-grid" style="grid-template-columns: 1fr 1fr;">
-                <div class="admin-field" style="grid-column: span 2;">
+            <div class="admin-grid product-info-grid">
+                <div class="admin-field product-field-wide">
                     <label>Tên sản phẩm *</label>
                     <input type="text" name="name" required value="<?= adminE($product['name'] ?? '') ?>" placeholder="Ví dụ: Áo tràng Hải Thanh Đài Loan">
                 </div>
@@ -41,20 +49,30 @@ adminStart($title, 'products', $flash ?? null);
                     </select>
                 </div>
                 <div class="admin-field">
-                    <label>Giá gốc (VNĐ) *</label>
+                    <label>Giá bán hiện tại (VNĐ) *</label>
                     <input type="number" name="base_price" min="0" step="1000" required value="<?= adminE($product['base_price'] ?? 0) ?>">
                 </div>
                 <div class="admin-field">
-                    <label>Phân loại *</label>
-                    <input type="text" name="type" required value="<?= adminE($product['type'] ?? '') ?>" placeholder="Ví dụ: Đồ lam đi chùa, Chuỗi hạt">
+                    <label>Giá niêm yết để gạch giá</label>
+                    <input type="number" name="old_price" min="0" step="1000" value="<?= adminE($product['old_price'] ?? '') ?>" placeholder="Để trống nếu không giảm giá">
+                    <small style="color:var(--admin-text-light);">Chỉ hiển thị khi giá này lớn hơn giá bán hiện tại.</small>
                 </div>
                 <div class="admin-field">
-                    <label>Giới tính</label>
-                    <select name="gender">
-                        <option value="">Chưa phân loại</option>
-                        <option value="men" <?= ($product['gender'] ?? '') === 'men' ? 'selected' : '' ?>>Nam</option>
-                        <option value="women" <?= ($product['gender'] ?? '') === 'women' ? 'selected' : '' ?>>Nữ</option>
+                    <label>Đơn vị tính</label>
+                    <input name="unit_name" maxlength="30" value="<?= adminE($product['unit_name'] ?? 'Cái') ?>" placeholder="Cái, Bộ, Chuỗi...">
+                </div>
+                <div class="admin-field">
+                    <label>Phân loại thuế GTGT *</label>
+                    <select name="tax_category" id="taxCategory" required onchange="syncTaxRate()">
+                        <?php foreach (($taxCategories ?? []) as $code => $tax): ?>
+                            <option value="<?= adminE($code) ?>" data-rate="<?= adminE($tax['rate']) ?>" <?= $currentTaxCategory === $code ? 'selected' : '' ?>><?= adminE($tax['label']) ?></option>
+                        <?php endforeach; ?>
                     </select>
+                    <small style="color:var(--admin-text-light);">Phải phân loại theo hồ sơ hàng hóa thực tế; hệ thống không đoán thuế từ tên sản phẩm.</small>
+                </div>
+                <div class="admin-field">
+                    <label>Thuế suất lưu trên sản phẩm (%)</label>
+                    <input id="taxRate" name="tax_rate" type="number" min="0" max="100" step="0.01" readonly value="<?= adminE($currentTaxRate) ?>">
                 </div>
                 <div class="admin-field">
                     <label>Trạng thái hiển thị</label>
@@ -91,15 +109,19 @@ adminStart($title, 'products', $flash ?? null);
         </aside>
     </div>
 
-    <div style="border-top: 1px solid var(--admin-border); margin: 2rem -1.5rem 0 -1.5rem; padding: 1.5rem 1.5rem 0 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
+    <div class="product-form-actions">
         <a class="admin-btn light" href="<?= BASE_URL ?>admin/products">Hủy bỏ</a>
         <button class="admin-btn primary" type="submit"><?= $isEdit ? 'Lưu thay đổi' : 'Tạo sản phẩm' ?></button>
     </div>
 </form>
 
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+function syncTaxRate(){const s=document.getElementById('taxCategory');const r=document.getElementById('taxRate');if(s&&r)r.value=s.options[s.selectedIndex].dataset.rate||'0';}
+</script>
+
 <?php if ($isEdit): ?>
     <section class="admin-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+        <div class="admin-section-head" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
             <div>
                 <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Thư viện ảnh</div>
                 <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Quản lý tất cả hình ảnh của sản phẩm.</p>
@@ -141,7 +163,7 @@ adminStart($title, 'products', $flash ?? null);
     </section>
 
     <section class="admin-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+        <div class="admin-section-head" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
             <div>
                 <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Phân loại biến thể</div>
                 <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Quản lý kích cỡ, màu sắc, tồn kho và chênh lệch giá.</p>
@@ -159,7 +181,12 @@ adminStart($title, 'products', $flash ?? null);
                     <tr>
                         <th>Kích cỡ (Size)</th>
                         <th>Màu sắc</th>
+                        <th>Ảnh theo màu</th>
+                        <th>SKU / Barcode</th>
                         <th>Tồn kho</th>
+                        <th>Trạng thái</th>
+                        <th>Giá vốn</th>
+                        <th>KL (g)</th>
                         <th>Cộng giá (VNĐ)</th>
                         <th>Thao tác</th>
                     </tr>
@@ -169,45 +196,32 @@ adminStart($title, 'products', $flash ?? null);
                         <?php
                         $variantFormId = 'variant-edit-' . (int)$variant['id'];
                         $selectedSize = trim((string)$variant['size']);
-                        if (preg_match('/^\d{2}$/', $selectedSize)) {
-                            $selectedSize = 'EU ' . $selectedSize;
-                        }
-                        if (!in_array($selectedSize, $variantSizes, true)) {
-                            $selectedSize = 'EU 42';
-                        }
-
-                        $legacyColors = [
-                            'Đỏ' => 'Red',
-                            'Trắng' => 'White',
-                            'Đen' => 'Black',
-                            'đỏ' => 'Red',
-                            'trắng' => 'White',
-                            'đen' => 'Black',
-                            'red' => 'Red',
-                            'white' => 'White',
-                            'black' => 'Black'
-                        ];
-                        $selectedColor = $legacyColors[$variant['color']] ?? $variant['color'];
+                        $selectedColor = trim((string)$variant['color']);
                         ?>
                         <tr>
                             <td>
-                                <select form="<?= $variantFormId ?>" name="size" style="width: 100px;">
-                                    <?php foreach ($variantSizes as $size): ?>
-                                        <option value="<?= adminE($size) ?>" <?= $selectedSize === $size ? 'selected' : '' ?>><?= adminE($size) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <input form="<?= $variantFormId ?>" name="size" value="<?= adminE($selectedSize) ?>" required style="width:100px;">
                             </td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <div style="width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); background-color: <?= strtolower($selectedColor) === 'white' ? '#f8f9fa' : (strtolower($selectedColor) === 'red' ? '#dc2626' : '#111') ?>;"></div>
-                                    <select form="<?= $variantFormId ?>" name="color" style="width: 120px;">
-                                        <?php foreach ($variantColors as $color): ?>
-                                            <option value="<?= adminE($color) ?>" <?= $selectedColor === $color ? 'selected' : '' ?>><?= adminColorLabel($color) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <input form="<?= $variantFormId ?>" name="color" value="<?= adminE($selectedColor) ?>" required style="width:120px;">
                                 </div>
                             </td>
+                            <td>
+                                <select form="<?= $variantFormId ?>" name="image_url" style="width:170px;">
+                                    <option value="">Dùng ảnh chính</option>
+                                    <?php foreach ($images as $imageIndex => $image): ?>
+                                        <option value="<?= adminE($image['image_url']) ?>" <?= ($variant['image_url'] ?? '') === $image['image_url'] ? 'selected' : '' ?>>Ảnh <?= $imageIndex + 1 ?><?= !empty($image['is_primary']) ? ' (chính)' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if (!empty($variant['image_url'])): ?><img src="<?= adminE(adminImageUrl($variant['image_url'])) ?>" alt="Ảnh biến thể" style="display:block;width:52px;height:52px;object-fit:contain;margin-top:6px;border:1px solid #ddd;border-radius:6px;"><?php endif; ?>
+                            </td>
+                            <td><input form="<?= $variantFormId ?>" name="sku" value="<?= adminE($variant['sku'] ?? '') ?>" placeholder="SKU" style="width:145px;"><br><input form="<?= $variantFormId ?>" name="barcode" value="<?= adminE($variant['barcode'] ?? '') ?>" placeholder="Barcode" style="width:145px;margin-top:4px;"></td>
                             <td><input form="<?= $variantFormId ?>" type="number" min="0" name="stock_quantity" value="<?= (int)$variant['stock_quantity'] ?>" style="width: 100px;"></td>
+                            <td><select form="<?= $variantFormId ?>" name="status"><option value="1" <?= !empty($variant['status']) ? 'selected' : '' ?>>Đang bán</option><option value="0" <?= empty($variant['status']) ? 'selected' : '' ?>>Ngừng bán</option></select></td>
+                            <td><input form="<?= $variantFormId ?>" type="number" min="0" name="cost_price" step="1000" value="<?= adminE($variant['cost_price'] ?? 0) ?>" style="width:110px;"></td>
+                            <td><input form="<?= $variantFormId ?>" type="number" min="1" name="weight_grams" value="<?= (int)($variant['weight_grams'] ?? 500) ?>" style="width:80px;"><input form="<?= $variantFormId ?>" type="hidden" name="length_cm" value="<?= adminE($variant['length_cm'] ?? 25) ?>"><input form="<?= $variantFormId ?>" type="hidden" name="width_cm" value="<?= adminE($variant['width_cm'] ?? 20) ?>"><input form="<?= $variantFormId ?>" type="hidden" name="height_cm" value="<?= adminE($variant['height_cm'] ?? 5) ?>"></td>
                             <td><input form="<?= $variantFormId ?>" type="number" min="0" name="price_modifier" step="1000" value="<?= adminE($variant['price_modifier']) ?>" style="width: 120px;"></td>
                             <td>
                                 <div class="admin-actions">
@@ -228,22 +242,19 @@ adminStart($title, 'products', $flash ?? null);
 
                     <tr style="background: #f9fafb;">
                         <td>
-                            <select form="variant-add-form" name="size" required style="width: 100px;">
-                                <?php foreach ($variantSizes as $size): ?>
-                                    <option value="<?= adminE($size) ?>" <?= $size === 'EU 42' ? 'selected' : '' ?>><?= adminE($size) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input form="variant-add-form" name="size" required value="Mặc định" style="width:100px;">
                         </td>
                         <td>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <select form="variant-add-form" name="color" required style="width: 120px;">
-                                    <?php foreach ($variantColors as $color): ?>
-                                        <option value="<?= adminE($color) ?>" <?= $color === 'Black' ? 'selected' : '' ?>><?= adminColorLabel($color) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <input form="variant-add-form" name="color" required value="Mặc định" style="width:120px;">
                             </div>
                         </td>
+                        <td><select form="variant-add-form" name="image_url" style="width:170px;"><option value="">Dùng ảnh chính</option><?php foreach ($images as $imageIndex => $image): ?><option value="<?= adminE($image['image_url']) ?>">Ảnh <?= $imageIndex + 1 ?><?= !empty($image['is_primary']) ? ' (chính)' : '' ?></option><?php endforeach; ?></select></td>
+                        <td><input form="variant-add-form" name="sku" placeholder="Tự sinh nếu trống" style="width:145px;"><br><input form="variant-add-form" name="barcode" placeholder="Tự sinh nếu trống" style="width:145px;margin-top:4px;"></td>
                         <td><input form="variant-add-form" type="number" min="0" name="stock_quantity" value="0" style="width: 100px;"></td>
+                        <td><select form="variant-add-form" name="status"><option value="1">Đang bán</option><option value="0">Ngừng bán</option></select></td>
+                        <td><input form="variant-add-form" type="number" min="0" name="cost_price" step="1000" value="0" style="width:110px;"></td>
+                        <td><input form="variant-add-form" type="number" min="1" name="weight_grams" value="500" style="width:80px;"><input form="variant-add-form" type="hidden" name="length_cm" value="25"><input form="variant-add-form" type="hidden" name="width_cm" value="20"><input form="variant-add-form" type="hidden" name="height_cm" value="5"></td>
                         <td><input form="variant-add-form" type="number" min="0" name="price_modifier" step="1000" value="0" style="width: 120px;"></td>
                         <td><button class="admin-btn-sm admin-btn primary" form="variant-add-form" type="submit">+ Thêm mới</button></td>
                     </tr>

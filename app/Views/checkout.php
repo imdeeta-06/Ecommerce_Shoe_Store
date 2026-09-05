@@ -1,6 +1,18 @@
-<?php include __DIR__ . '/partials/header.php'; ?>
+<?php
+$checkoutFlashMessages = \App\Helpers\SessionHelper::getAllFlash();
+$checkoutStore = require __DIR__ . '/../../config/store.php';
+$paypalEnabled = !empty($paypalCheckout['enabled']);
+$paypalMode = (string)($paypalCheckout['mode'] ?? 'sandbox');
+$paypalRate = (float)($paypalCheckout['vnd_per_usd'] ?? 0);
+$defaultCheckoutAddress = null;
+foreach (($checkoutAddresses ?? []) as $candidateAddress) {
+    if (!empty($candidateAddress['is_default'])) { $defaultCheckoutAddress = $candidateAddress; break; }
+}
+$defaultCheckoutAddress = $defaultCheckoutAddress ?: (($checkoutAddresses ?? [])[0] ?? null);
+include __DIR__ . '/partials/header.php';
+?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .checkout-layout { display: flex; gap: 4rem; }
 .checkout-form-section { flex: 1.5; }
 .checkout-summary-section { flex: 1; background: var(--primary-light); padding: 2rem; border: 1px solid var(--border-color); border-radius: 16px; align-self: flex-start; position: sticky; top: 20px; box-shadow: 0 4px 15px rgba(74, 59, 50, 0.03); }
@@ -14,6 +26,10 @@
 .payment-method input[type="radio"] { margin: 0; width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: var(--primary-dark); }
 .payment-method label { margin: 0; cursor: pointer; font-weight: 500; font-size: 0.9rem; flex: 1; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); }
 .payment-method.active { border-color: var(--primary-color); background: var(--primary-light); }
+.payment-method.is-disabled { cursor: not-allowed; opacity: .62; background: #f7f7f7; }
+.payment-method-copy { display: flex; flex: 1; flex-direction: column; gap: .25rem; }
+.payment-method-copy label { flex: initial; }
+.payment-method-copy small { color: var(--text-muted); line-height: 1.45; }
 
 .summary-item { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
 .summary-item img { width: 70px; height: 70px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 8px; }
@@ -34,31 +50,53 @@
 
 <div class="client-page">
     <h1 class="client-title">Thanh toán</h1>
+
+    <?php foreach ($checkoutFlashMessages as $type => $message): ?>
+        <div class="client-flash <?= $type === 'error' ? 'error' : 'success' ?>" role="status">
+            <?= htmlspecialchars((string)$message, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endforeach; ?>
     
     <div class="checkout-layout">
         <form class="checkout-form-section" id="checkoutForm" onsubmit="handleCheckout(event)">
             
             <h2 class="client-section-title">Thông tin giao hàng</h2>
+
+            <?php if (!empty($checkoutAddresses)): ?>
+            <div class="client-form-group">
+                <label for="savedAddress" class="client-label">Chọn địa chỉ đã lưu</label>
+                <select id="savedAddress" class="client-input" onchange="applySavedAddress(this)">
+                    <?php foreach ($checkoutAddresses as $address): ?>
+                        <option value="<?= (int)$address['id'] ?>" data-name="<?= htmlspecialchars($address['recipient_name'], ENT_QUOTES, 'UTF-8') ?>" data-phone="<?= htmlspecialchars($address['recipient_phone'], ENT_QUOTES, 'UTF-8') ?>" data-address="<?= htmlspecialchars($address['address_line'], ENT_QUOTES, 'UTF-8') ?>" data-province="<?= htmlspecialchars($address['ward_district_city'], ENT_QUOTES, 'UTF-8') ?>" <?= !empty($address['is_default']) ? 'selected' : '' ?>><?= htmlspecialchars($address['recipient_name'] . ' — ' . $address['address_line'] . ', ' . $address['ward_district_city']) ?><?= !empty($address['is_default']) ? ' (mặc định)' : '' ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
             
             <div class="client-form-group">
                 <label for="fullName" class="client-label">Họ và tên *</label>
-                <input type="text" id="fullName" class="client-input" required placeholder="Nhập họ và tên">
+                <input type="text" id="fullName" class="client-input" required placeholder="Nhập họ và tên" value="<?= htmlspecialchars($defaultCheckoutAddress['recipient_name'] ?? $checkoutUser['full_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
             </div>
             
             <div class="form-row">
                 <div class="client-form-group">
                     <label for="phone" class="client-label">Số điện thoại *</label>
-                    <input type="tel" id="phone" class="client-input" required placeholder="Nhập số điện thoại">
+                    <input type="tel" id="phone" class="client-input" required placeholder="Nhập số điện thoại" value="<?= htmlspecialchars($defaultCheckoutAddress['recipient_phone'] ?? $checkoutUser['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                 </div>
                 <div class="client-form-group">
                     <label for="email" class="client-label">Email</label>
-                    <input type="email" id="email" class="client-input" placeholder="Nhập địa chỉ email (tuỳ chọn)">
+                    <input type="email" id="email" class="client-input" placeholder="Nhập địa chỉ email (tuỳ chọn)" value="<?= htmlspecialchars($checkoutUser['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                 </div>
             </div>
             
             <div class="client-form-group">
                 <label for="address" class="client-label">Địa chỉ chi tiết *</label>
-                <input type="text" id="address" class="client-input" required placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố">
+                <input type="text" id="address" class="client-input" required placeholder="Số nhà, tên đường, phường/xã, quận/huyện" value="<?= htmlspecialchars($defaultCheckoutAddress['address_line'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            </div>
+
+            <div class="form-row">
+                <div class="client-form-group"><label for="province" class="client-label">Tỉnh/Thành phố *</label><input type="text" id="province" class="client-input" list="provinceSuggestions" required value="<?= htmlspecialchars($defaultCheckoutAddress['ward_district_city'] ?? '', ENT_QUOTES, 'UTF-8') ?>" oninput="scheduleShippingQuote()" placeholder="Ví dụ: Thành phố Hồ Chí Minh"><datalist id="provinceSuggestions"><option value="Thành phố Hồ Chí Minh"><option value="Hà Nội"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Cần Thơ"><option value="Đồng Nai"><option value="Bình Dương"></datalist></div>
+                <div class="client-form-group"><label for="shippingCarrier" class="client-label">Đơn vị vận chuyển *</label><select id="shippingCarrier" class="client-input" required onchange="selectShippingQuote()"><option value="">Đang tính cước...</option></select><small id="shippingQuoteNote" style="color:#666;display:block;margin-top:.4rem;">Cước được tính ở server theo địa chỉ, trọng lượng thực và trọng lượng quy đổi.</small></div>
             </div>
             
             <div class="client-form-group">
@@ -76,9 +114,19 @@
                     <input type="radio" name="payment" id="pay_bank" value="bank">
                     <label for="pay_bank">Chuyển khoản ngân hàng (VietQR)</label>
                 </div>
-                <div class="payment-method" onclick="selectPayment(this)">
-                    <input type="radio" name="payment" id="pay_momo" value="momo" disabled>
-                    <label for="pay_momo" style="color:#999;">Thanh toán qua ví điện tử (sẽ bổ sung)</label>
+                <div class="payment-method <?= $paypalEnabled ? '' : 'is-disabled' ?>" onclick="selectPayment(this)">
+                    <input type="radio" name="payment" id="pay_paypal" value="paypal" <?= $paypalEnabled ? '' : 'disabled' ?>>
+                    <div class="payment-method-copy">
+                        <label for="pay_paypal" style="display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1rem; color: #003087;">
+                            PayPal
+                            <img src="https://www.paypalobjects.com/webstatic/mktg/logo/AM_mc_vs_dc_ae.jpg" alt="Thẻ tín dụng" style="height: 32px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 3px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        </label>
+                        <?php if ($paypalEnabled): ?>
+                            <!-- PayPal is enabled -->
+                        <?php else: ?>
+                            <small>Chưa khả dụng vì quản trị viên chưa cấu hình PayPal trong môi trường chạy.</small>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
 
@@ -87,7 +135,7 @@
                 <span>Tôi đồng ý với <a href="<?= BASE_URL ?>terms" target="_blank" rel="noopener">Điều khoản mua hàng</a> và <a href="<?= BASE_URL ?>privacy" target="_blank" rel="noopener">Chính sách bảo mật</a> của Liên Hoa.</span>
             </label>
 
-            <button type="submit" class="client-btn" style="width: 100%; margin-top: 2rem;">Hoàn tất đặt hàng</button>
+            <button type="submit" id="checkoutSubmitButton" class="client-btn" style="width: 100%; margin-top: 2rem;">Hoàn tất đặt hàng</button>
         </form>
 
         <div class="checkout-summary-section">
@@ -114,7 +162,7 @@
 
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
                 <div class="summary-row">
-                    <span>Tạm tính</span>
+                    <span>Tạm tính hàng hóa (đã gồm VAT)</span>
                     <span id="checkoutSubtotal">0 ₫</span>
                 </div>
                 <div class="summary-row" id="discountRow" style="display: none; color: #388E3C;">
@@ -125,17 +173,44 @@
                     <span>Phí vận chuyển</span>
                     <span id="checkoutShippingFee">0 ₫</span>
                 </div>
+                <div class="summary-row">
+                    <span>Tiền trước thuế</span>
+                    <span id="checkoutTaxableAmount">0 ₫</span>
+                </div>
+                <div class="summary-row" id="nonTaxableRow" style="display:none;">
+                    <span>Tiền không chịu thuế</span>
+                    <span id="checkoutNonTaxableAmount">0 ₫</span>
+                </div>
+                <div class="summary-row">
+                    <span>Thuế GTGT (đã gồm trong giá)</span>
+                    <span id="checkoutTaxAmount">0 ₫</span>
+                </div>
                 <div class="summary-total">
                     <span>Tổng cộng</span>
                     <span id="checkoutTotal">0 ₫</span>
                 </div>
+                <?php if ($paypalEnabled && $paypalRate > 0): ?>
+                    <div id="paypalEstimateRow" style="display:none;margin-top:.9rem;padding:.85rem;border-radius:8px;background:#fff;border:1px solid #d8d8d8;color:#555;font-size:.82rem;line-height:1.55;">
+                        PayPal sẽ thu khoảng <strong id="paypalEstimatedAmount">0.00 USD</strong>.<br>
+                        Tỷ giá cửa hàng: 1 USD = <?= number_format($paypalRate, 0, ',', '.') ?> ₫.
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let checkoutCart = [];
+const PAYPAL_ENABLED = <?= json_encode($paypalEnabled) ?>;
+const PAYPAL_RATE = <?= json_encode($paypalRate) ?>;
+const SHIPPING_TAX_CATEGORY = <?= json_encode($shippingTaxCategory ?? 'standard_reduced') ?>;
+const SHIPPING_TAX_RATE = <?= json_encode((float)($shippingTaxRate ?? 8)) ?>;
+let selectedShippingFee = 0;
+let shippingQuotes = [];
+let shippingQuoteTimer = null;
+let checkoutSubmitting = false;
+let appliedCouponScope = {product_id: null, category_id: null};
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchCart();
@@ -148,14 +223,17 @@ function fetchCart() {
             if (data.success) {
                 checkoutCart = data.items.map(item => ({
                     cart_id: item.id,
-                    product_id: item.product_id,
+                    product_id: item.product_id ? parseInt(item.product_id) : null,
                     variant_id: item.variant_id,
                     size: item.size,
                     color: item.color,
                     name: item.name,
                     price: parseFloat(item.price),
                     qty: parseInt(item.quantity),
-                    image: item.image_url
+                    image: item.image_url,
+                    category_id: item.category_id ? parseInt(item.category_id) : null,
+                    tax_category: item.tax_category || 'standard_reduced',
+                    tax_rate: parseFloat(item.tax_rate || 0)
                 }));
                 
                 if (checkoutCart.length === 0) {
@@ -164,12 +242,13 @@ function fetchCart() {
                     return;
                 }
                 renderCheckoutSummary();
+                scheduleShippingQuote();
             }
         });
 }
 
 function formatPrice(price) {
-    return new Intl.NumberFormat('vi-VN').format(price) + ' ₫';
+    return new Intl.NumberFormat('vi-VN', {maximumFractionDigits: 0}).format(Math.round(price)) + ' ₫';
 }
 
 function checkoutImageUrl(image) {
@@ -220,6 +299,17 @@ function selectPayment(element) {
     document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
     element.querySelector('input').checked = true;
+    updatePaymentUi();
+}
+
+function updatePaymentUi() {
+    const method = document.querySelector('input[name="payment"]:checked')?.value || 'cod';
+    const submitButton = document.getElementById('checkoutSubmitButton');
+    if (submitButton && !checkoutSubmitting) {
+        submitButton.textContent = method === 'paypal' ? 'Tiếp tục với PayPal' : 'Hoàn tất đặt hàng';
+    }
+    const paypalEstimate = document.getElementById('paypalEstimateRow');
+    if (paypalEstimate) paypalEstimate.style.display = method === 'paypal' ? 'block' : 'none';
 }
 
 function updateCartItem(cartId, newQty) {
@@ -271,11 +361,21 @@ function getSubtotal() {
 
 function updateTotals() {
     const subtotal = getSubtotal();
-    const shippingFee = subtotal >= 1000000 ? 0 : 30000;
+    const shippingFee = selectedShippingFee;
     const total = subtotal + shippingFee - appliedDiscount;
+    const payableTotal = total > 0 ? total : 0;
     document.getElementById('checkoutSubtotal').textContent = formatPrice(subtotal);
     document.getElementById('checkoutShippingFee').textContent = shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí';
-    document.getElementById('checkoutTotal').textContent = formatPrice(total > 0 ? total : 0);
+    document.getElementById('checkoutTotal').textContent = formatPrice(payableTotal);
+    const tax = calculateTaxBreakdown(shippingFee, appliedDiscount);
+    document.getElementById('checkoutTaxableAmount').textContent = formatPrice(tax.taxable);
+    document.getElementById('checkoutTaxAmount').textContent = formatPrice(tax.tax);
+    document.getElementById('checkoutNonTaxableAmount').textContent = formatPrice(tax.nonTaxable);
+    document.getElementById('nonTaxableRow').style.display = tax.nonTaxable > 0 ? 'flex' : 'none';
+    const paypalAmount = document.getElementById('paypalEstimatedAmount');
+    if (paypalAmount && PAYPAL_RATE > 0) {
+        paypalAmount.textContent = (payableTotal / PAYPAL_RATE).toFixed(2) + ' USD';
+    }
 
     const discountRow = document.getElementById('discountRow');
     if (appliedDiscount > 0) {
@@ -284,6 +384,79 @@ function updateTotals() {
     } else {
         discountRow.style.display = 'none';
     }
+}
+
+function splitInclusive(amount, category, rate) {
+    amount = Math.max(0, Math.round(amount * 100) / 100);
+    if (category === 'not_subject') return {taxable: 0, tax: 0, nonTaxable: amount};
+    const taxable = rate > 0 ? Math.round((amount / (1 + rate / 100)) * 100) / 100 : amount;
+    return {taxable, tax: Math.round((amount - taxable) * 100) / 100, nonTaxable: 0};
+}
+
+function calculateTaxBreakdown(shippingFee, discount) {
+    const eligible = checkoutCart.map((item, index) => ({item, index})).filter(({item}) => {
+        if (appliedCouponScope.product_id) return item.product_id === appliedCouponScope.product_id;
+        if (appliedCouponScope.category_id) return item.category_id === appliedCouponScope.category_id;
+        return true;
+    });
+    const eligibleSubtotal = eligible.reduce((sum, row) => sum + row.item.price * row.item.qty, 0);
+    const lineDiscounts = {};
+    let remaining = Math.min(Math.max(0, discount), eligibleSubtotal);
+    if (eligibleSubtotal > 0) {
+        eligible.forEach((row, position) => {
+            const gross = row.item.price * row.item.qty;
+            const allocated = position === eligible.length - 1 ? remaining : Math.min(remaining, Math.round(discount * gross / eligibleSubtotal * 100) / 100);
+            lineDiscounts[row.index] = allocated;
+            remaining = Math.max(0, Math.round((remaining - allocated) * 100) / 100);
+        });
+    }
+    let totals = {taxable: 0, tax: 0, nonTaxable: 0};
+    checkoutCart.forEach((item, index) => {
+        const split = splitInclusive(item.price * item.qty - (lineDiscounts[index] || 0), item.tax_category, item.tax_rate);
+        totals.taxable += split.taxable; totals.tax += split.tax; totals.nonTaxable += split.nonTaxable;
+    });
+    const shipping = splitInclusive(shippingFee, SHIPPING_TAX_CATEGORY, SHIPPING_TAX_RATE);
+    totals.taxable += shipping.taxable; totals.tax += shipping.tax; totals.nonTaxable += shipping.nonTaxable;
+    return totals;
+}
+
+function applySavedAddress(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option) return;
+    document.getElementById('fullName').value = option.dataset.name || '';
+    document.getElementById('phone').value = option.dataset.phone || '';
+    document.getElementById('address').value = option.dataset.address || '';
+    document.getElementById('province').value = option.dataset.province || '';
+    scheduleShippingQuote();
+}
+
+function scheduleShippingQuote() {
+    clearTimeout(shippingQuoteTimer);
+    shippingQuoteTimer = setTimeout(loadShippingQuotes, 250);
+}
+
+function loadShippingQuotes() {
+    const province = document.getElementById('province').value.trim();
+    if (!province || checkoutCart.length === 0) return;
+    fetch(BASE_URL + 'shipping/quote', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({province})})
+        .then(r => r.json()).then(data => {
+            if (!data.success) throw new Error(data.message || 'Không tính được cước');
+            shippingQuotes = data.quotes || [];
+            const select = document.getElementById('shippingCarrier');
+            select.innerHTML = shippingQuotes.map(q => `<option value="${q.carrier_code}">${q.carrier_name} — ${formatPrice(q.fee)} (${q.estimated_days})</option>`).join('');
+            selectShippingQuote();
+        }).catch(error => {
+            document.getElementById('shippingCarrier').innerHTML = '<option value="">Không tính được cước</option>';
+            document.getElementById('shippingQuoteNote').textContent = error.message;
+        });
+}
+
+function selectShippingQuote() {
+    const code = document.getElementById('shippingCarrier').value;
+    const quote = shippingQuotes.find(q => q.carrier_code === code);
+    selectedShippingFee = quote ? parseFloat(quote.fee) : 0;
+    if (quote) document.getElementById('shippingQuoteNote').textContent = `Khối lượng tính cước ${new Intl.NumberFormat('vi-VN').format(quote.chargeable_weight_grams)} g · dự kiến ${quote.estimated_days}.`;
+    updateTotals();
 }
 
 function applyCoupon() {
@@ -304,12 +477,13 @@ function applyCoupon() {
             appliedDiscount = data.discount;
             appliedCouponId = data.coupon_id;
             appliedCouponCode = data.code;
+            appliedCouponScope = {product_id: data.product_id || null, category_id: data.category_id || null};
             msg.innerHTML = '';
             document.getElementById('couponInputWrap').style.display = 'none';
             const applied = document.getElementById('couponApplied');
             applied.style.display = 'flex';
             document.getElementById('couponAppliedText').textContent =
-                '🎉 ' + data.code + ' (-' + data.discount_percent + '%, tiết kiệm ' + formatPrice(data.discount) + ')';
+                '✓ ' + data.code + ' (-' + data.discount_percent + '%, tiết kiệm ' + formatPrice(data.discount) + ')';
             updateTotals();
         } else {
             msg.innerHTML = '<span style="color:#D32F2F">' + data.message + '</span>';
@@ -324,6 +498,7 @@ function removeCoupon() {
     appliedDiscount = 0;
     appliedCouponId = null;
     appliedCouponCode = '';
+    appliedCouponScope = {product_id: null, category_id: null};
     document.getElementById('couponApplied').style.display = 'none';
     document.getElementById('couponInputWrap').style.display = 'flex';
     document.getElementById('couponCode').value = '';
@@ -333,6 +508,18 @@ function removeCoupon() {
 
 function handleCheckout(e) {
     e.preventDefault();
+    if (checkoutSubmitting) return;
+
+    const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'cod';
+    if (paymentMethod === 'paypal' && !PAYPAL_ENABLED) {
+        alert('PayPal chưa được cấu hình. Vui lòng chọn phương thức thanh toán khác.');
+        return;
+    }
+
+    checkoutSubmitting = true;
+    const submitButton = document.getElementById('checkoutSubmitButton');
+    submitButton.disabled = true;
+    submitButton.textContent = paymentMethod === 'paypal' ? 'Đang kết nối PayPal...' : 'Đang tạo đơn...';
 
     fetch(BASE_URL + 'checkout/place-order', {
         method: 'POST',
@@ -342,24 +529,32 @@ function handleCheckout(e) {
             shipping_phone: document.getElementById('phone').value.trim(),
             shipping_email: document.getElementById('email').value.trim(),
             shipping_address: document.getElementById('address').value.trim(),
+            shipping_province: document.getElementById('province').value.trim(),
+            shipping_carrier_code: document.getElementById('shippingCarrier').value,
             customer_note: document.getElementById('note').value.trim(),
             coupon_code: appliedCouponCode,
             terms_accepted: document.getElementById('termsAccepted').checked,
-            payment_method: document.querySelector('input[name="payment"]:checked')?.value || 'cod'
+            payment_method: paymentMethod
         })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) {
-            alert(data.message || 'Khong the dat hang. Vui long thu lai.');
-            return;
+    .then(async response => ({ok: response.ok, data: await response.json()}))
+    .then(({ok, data}) => {
+        if (!ok || !data.success) {
+            throw new Error(data.message || 'Không thể đặt hàng. Vui lòng thử lại.');
         }
 
-        localStorage.removeItem('paceup_cart');
+        if (data.redirect_url) {
+            window.location.assign(data.redirect_url);
+            return;
+        }
+        localStorage.removeItem('lienhoa_cart');
         window.location.href = BASE_URL + 'checkout-success?order_id=' + data.order_id;
     })
-    .catch(() => {
-        alert('Khong the dat hang. Vui long thu lai.');
+    .catch(error => {
+        alert(error.message || 'Không thể đặt hàng. Vui lòng thử lại.');
+        checkoutSubmitting = false;
+        submitButton.disabled = false;
+        updatePaymentUi();
     });
 }
 </script>

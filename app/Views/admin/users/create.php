@@ -1,6 +1,6 @@
 <?php include __DIR__ . '/../../partials/header.php'; ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
     .admin-form-panel {
         background: #fff;
         border: 1px solid #f0f0f0;
@@ -52,7 +52,6 @@
             <li><a href="<?= BASE_URL ?>admin?page=orders">Đơn hàng</a></li>
             <li><a href="<?= BASE_URL ?>admin/inventory">Kho hàng</a></li>
             <li><a href="<?= BASE_URL ?>admin?page=coupons">Mã giảm giá</a></li>
-            <li><a href="<?= BASE_URL ?>admin/reviews">Đánh giá</a></li>
             <li><a href="<?= BASE_URL ?>admin?page=users" class="active">Người dùng</a></li>
             <li><a href="<?= BASE_URL ?>admin?page=settings">Cài đặt</a></li>
         </ul>

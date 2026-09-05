@@ -43,8 +43,8 @@ class UserController {
                 $errors[] = 'Email is already in use.';
             }
 
-            if ($password === '') {
-                $errors[] = 'Password is required.';
+            if (strlen($password) < 8 || strlen($password) > 72) {
+                $errors[] = 'Password must be between 8 and 72 characters.';
             }
 
             if ($confirmPassword === '') {
@@ -69,7 +69,7 @@ class UserController {
                 ]);
 
                 $_SESSION['admin_success'] = 'Admin account created successfully.';
-                $this->redirect('admin?page=users');
+                $this->redirect('admin/products');
             }
         }
 

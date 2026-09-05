@@ -13,7 +13,7 @@ include __DIR__ . '/partials/header.php';
             <div class="client-avatar-wrapper">
                 <form id="avatarForm" action="?tab=account" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="update_avatar">
-                    <img src="<?= !empty($user['avatar']) ? BASE_URL . $user['avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($profileName).'&background=111&color=fff&size=200' ?>" alt="Avatar" class="client-avatar-img">
+                    <img src="<?= !empty($user['avatar']) ? BASE_URL . $user['avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($profileName).'&length=1&background=111&color=fff&size=200' ?>" alt="Avatar" class="client-avatar-img">
                     <div>
                         <label for="avatar_upload" class="client-avatar-label">Thay đổi ảnh</label>
                         <input type="file" id="avatar_upload" name="avatar" accept="image/*" style="display: none;" onchange="document.getElementById('avatarForm').submit();">

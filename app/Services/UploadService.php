@@ -22,6 +22,19 @@ class UploadService {
             throw new Exception('Dung lượng ảnh không được vượt quá 2MB.');
         }
 
+        if (!is_uploaded_file($file['tmp_name'])) {
+            throw new Exception('Tệp tải lên không hợp lệ.');
+        }
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = (string)$finfo->file($file['tmp_name']);
+        $allowedMimes = [
+            'jpg' => ['image/jpeg'], 'jpeg' => ['image/jpeg'], 'png' => ['image/png'],
+            'webp' => ['image/webp'], 'avif' => ['image/avif'],
+        ];
+        if (!in_array($mime, $allowedMimes[$extension], true) || @getimagesize($file['tmp_name']) === false) {
+            throw new Exception('Nội dung tệp không phải là ảnh hợp lệ.');
+        }
+
         $uploadDir = __DIR__ . '/../../public/uploads/' . trim($folder, '/') . '/';
         if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) {
             throw new Exception('Không thể tạo thư mục lưu ảnh.');

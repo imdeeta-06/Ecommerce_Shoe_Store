@@ -7,8 +7,11 @@ use RuntimeException;
 class MailService {
     public static function isConfigured(): bool {
         $config = self::config();
+        $username = trim((string)($config['username'] ?? ''));
         return !empty($config['enabled'])
             && trim((string)$config['host']) !== ''
+            && $username !== ''
+            && trim((string)($config['password'] ?? '')) !== ''
             && filter_var($config['from_email'], FILTER_VALIDATE_EMAIL) !== false;
     }
 
@@ -41,7 +44,7 @@ class MailService {
         stream_set_timeout($socket, 15);
         try {
             self::expect($socket, [220]);
-            self::command($socket, 'EHLO paceup.local', [250]);
+            self::command($socket, 'EHLO lienhoa.local', [250]);
 
             if ($encryption === 'tls') {
                 self::command($socket, 'STARTTLS', [220]);
@@ -49,7 +52,7 @@ class MailService {
                 if ($cryptoEnabled !== true) {
                     throw new RuntimeException('Không thể bật mã hóa TLS cho SMTP.');
                 }
-                self::command($socket, 'EHLO paceup.local', [250]);
+                self::command($socket, 'EHLO lienhoa.local', [250]);
             }
 
             $username = trim((string)($config['username'] ?? ''));

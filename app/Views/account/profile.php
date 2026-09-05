@@ -1,13 +1,15 @@
 <?php
 $flashMessages = \App\Helpers\SessionHelper::getAllFlash();
 $avatar = $user['avatar'] ?? '';
+$hasLocalPassword = isset($user['password']) && is_string($user['password']) && $user['password'] !== '';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tài khoản - PaceUp</title>
+    <title>Tài khoản - Liên Hoa</title>
+    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>assets/images/lien-hoa-favicon.svg?v=3">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
 <body>
@@ -69,6 +71,41 @@ $avatar = $user['avatar'] ?? '';
                     </div>
 
                     <button type="submit" class="client-btn">Lưu thông tin</button>
+                </form>
+            </section>
+
+            <section style="margin-bottom: 4rem;">
+                <h2 class="client-section-title"><?= $hasLocalPassword ? 'Đổi mật khẩu' : 'Tạo mật khẩu đăng nhập' ?></h2>
+                <p style="color:#666;line-height:1.6;margin:-.5rem 0 2rem;max-width:720px;">
+                    <?php if ($hasLocalPassword): ?>
+                        Để bảo vệ tài khoản, bạn cần xác nhận mật khẩu hiện tại trước khi đặt mật khẩu mới.
+                    <?php else: ?>
+                        Tài khoản của bạn chưa có mật khẩu riêng. Hãy tạo mật khẩu để có thể đăng nhập bằng email ngoài phương thức Google.
+                    <?php endif; ?>
+                </p>
+
+                <form action="<?= BASE_URL ?>change-password" method="POST" style="max-width:720px;">
+                    <?= \App\Helpers\SessionHelper::csrfField() ?>
+
+                    <?php if ($hasLocalPassword): ?>
+                        <div class="client-form-group">
+                            <label for="current_password" class="client-label">Mật khẩu hiện tại *</label>
+                            <input type="password" id="current_password" name="current_password" class="client-input" required autocomplete="current-password" maxlength="72">
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="client-form-group">
+                        <label for="new_password" class="client-label">Mật khẩu mới *</label>
+                        <input type="password" id="new_password" name="new_password" class="client-input" required minlength="8" maxlength="72" autocomplete="new-password" aria-describedby="password_help">
+                        <small id="password_help" style="display:block;color:#666;margin-top:.5rem;line-height:1.5;">Từ 8 đến 72 ký tự và không được trùng với mật khẩu hiện tại.</small>
+                    </div>
+
+                    <div class="client-form-group" style="margin-bottom:2rem;">
+                        <label for="confirm_new_password" class="client-label">Nhập lại mật khẩu mới *</label>
+                        <input type="password" id="confirm_new_password" name="confirm_new_password" class="client-input" required minlength="8" maxlength="72" autocomplete="new-password">
+                    </div>
+
+                    <button type="submit" class="client-btn"><?= $hasLocalPassword ? 'Cập nhật mật khẩu' : 'Tạo mật khẩu' ?></button>
                 </form>
             </section>
 
@@ -137,6 +174,14 @@ $avatar = $user['avatar'] ?? '';
                     <button type="submit" class="client-btn">Thêm địa chỉ</button>
                 </form>
             </section>
+            <section style="margin-top:4rem;">
+                <h2 class="client-section-title">Yêu cầu hỗ trợ của tôi</h2>
+                <?php $ticketStatusLabels=['pending'=>'Chờ tiếp nhận','in_progress'=>'Đang xử lý','resolved'=>'Đã giải quyết','closed'=>'Đã đóng']; ?>
+                <?php if (empty($supportTickets)): ?><p style="color:#666;">Bạn chưa gửi yêu cầu hỗ trợ. <a href="<?= BASE_URL ?>support">Gửi yêu cầu mới</a>.</p><?php else: ?>
+                    <div style="display:grid;gap:1rem;"><?php foreach($supportTickets as $ticket): ?><article style="border:1px solid #eee;padding:1rem 1.25rem;"><div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;"><strong><?= htmlspecialchars($ticket['ticket_code']) ?> — <?= htmlspecialchars($ticket['subject']) ?></strong><span><?= htmlspecialchars($ticketStatusLabels[$ticket['status']]??$ticket['status']) ?></span></div><p style="margin:.6rem 0;color:#555;"><?= nl2br(htmlspecialchars(mb_substr($ticket['message'],0,300))) ?></p><small>Cập nhật: <?= htmlspecialchars($ticket['updated_at']) ?></small></article><?php endforeach; ?></div>
+                <?php endif; ?>
+            </section>
+            <?php if (!empty($customerInvoices)): ?><section style="margin-top:4rem;"><h2 class="client-section-title">Hóa đơn GTGT mô phỏng</h2><?php foreach($customerInvoices as $invoice):?><p style="border-bottom:1px solid #eee;padding:.7rem 0;"><a target="_blank" rel="noopener" href="<?= BASE_URL ?>invoice/view?id=<?= (int)$invoice['id'] ?>"><?= htmlspecialchars($invoice['invoice_series'].'-'.str_pad($invoice['invoice_number'],7,'0',STR_PAD_LEFT)) ?></a> · Đơn <?= htmlspecialchars($invoice['order_code']) ?> · <?= htmlspecialchars($invoice['status']) ?> · <?= number_format($invoice['total_amount'],0,',','.') ?> ₫</p><?php endforeach;?></section><?php endif; ?>
 
             <section style="margin-top:4rem;">
                 <h2 class="client-section-title">Đơn hàng & hậu mãi</h2>
@@ -145,37 +190,95 @@ $avatar = $user['avatar'] ?? '';
                     <p style="color:#666;">Bạn chưa có đơn hàng.</p>
                 <?php else: ?>
                     <?php foreach ($orders as $order): ?>
-                        <article style="border:1px solid #eee;padding:1.25rem;margin-bottom:1rem;">
-                            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;"><strong><?= htmlspecialchars($order['order_code']) ?></strong><span><?= htmlspecialchars($profileStatusLabels[$order['status']] ?? $order['status']) ?> · <?= number_format((float)$order['final_amount'], 0, ',', '.') ?> ₫ <?php if ($order['status'] === 'pending'): ?><form action="<?= BASE_URL ?>account/orders/cancel" method="post" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này?')"><input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>"><button type="submit" style="border:0;background:none;text-decoration:underline;color:#b91c1c;cursor:pointer;">Hủy đơn</button></form><?php endif; ?></span></div>
-                            <div style="font-size:.85rem;color:#666;margin-bottom:.75rem;">Giao hàng: <?= htmlspecialchars($order['shipping_carrier'] ?: 'Chưa có đơn vị') ?> · Mã vận đơn: <?= htmlspecialchars($order['tracking_code'] ?: 'Chưa cập nhật') ?> · Phí ship: <?= number_format((float)($order['shipping_fee'] ?? 0), 0, ',', '.') ?> ₫</div>
-                            <?php foreach (($order['items'] ?? []) as $item): ?>
-                                <div style="border-top:1px solid #f0f0f0;padding:1rem 0;">
-                                    <div><strong><?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?></strong> · Size <?= htmlspecialchars($item['size'] ?? '') ?> · Màu <?= htmlspecialchars($item['color'] ?? '') ?> · SL <?= (int)$item['quantity'] ?></div>
-                                    <?php if (in_array($order['status'], ['delivered', 'completed'], true)): ?>
-                                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
-                                            <form action="<?= BASE_URL ?>review/store" method="post">
-                                                <input type="hidden" name="order_item_id" value="<?= (int)$item['id'] ?>">
-                                                <label class="client-label">Đánh giá sau khi nhận hàng</label>
-                                                <select name="rating" class="client-input"><option value="5">5 sao</option><option value="4">4 sao</option><option value="3">3 sao</option><option value="2">2 sao</option><option value="1">1 sao</option></select>
-                                                <textarea name="comment" class="client-input" rows="2" placeholder="Chia sẻ trải nghiệm..."></textarea>
-                                                <button class="client-btn client-btn-sm" type="submit">Gửi đánh giá</button>
-                                            </form>
-                                            <form action="<?= BASE_URL ?>after-sale/request" method="post" enctype="multipart/form-data">
-                                                <input type="hidden" name="MAX_FILE_SIZE" value="10485760">
-                                                <input type="hidden" name="order_item_id" value="<?= (int)$item['id'] ?>">
-                                                <label class="client-label">Đổi trả / hoàn tiền / bảo hành</label>
-                                                <select name="request_type" class="client-input"><option value="return">Đổi trả</option><option value="exchange">Đổi sản phẩm</option><option value="refund">Hoàn tiền</option><option value="warranty">Bảo hành</option></select>
-                                                <input type="number" name="requested_quantity" class="client-input" min="1" max="<?= (int)$item['quantity'] ?>" value="<?= (int)$item['quantity'] ?>" required>
-                                                <small style="display:block;color:#666;margin-bottom:.5rem;">Đổi trả/hoàn tiền trong 7 ngày từ khi giao hàng; bảo hành trong 180 ngày.</small>
-                                                <textarea name="reason" class="client-input" rows="2" required placeholder="Nêu lý do và tình trạng sản phẩm..."></textarea>
-                                                <label class="client-label" style="margin-top:.5rem;">Ảnh bằng chứng (tối đa 5 ảnh, mỗi ảnh 2MB)</label>
-                                                <input type="file" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.avif" multiple style="max-width:100%;" formnovalidate>
-                                                <button class="client-btn client-btn-sm" type="submit">Gửi yêu cầu</button>
-                                            </form>
-                                        </div>
-                                    <?php endif; ?>
+                        <article style="border: 1px solid var(--border-color, #e0e0e0); border-radius: 8px; margin-bottom: 2rem; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.02); overflow: hidden;">
+                            <!-- Order Header -->
+                            <div style="background: var(--primary-light, #fcfaf5); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border-color, #e0e0e0);">
+                                <div>
+                                    <strong style="font-size: 1.1rem; color: var(--primary-dark, #333); letter-spacing: 0.5px;"><?= htmlspecialchars($order['order_code']) ?></strong>
+                                    <div style="font-size: 0.85rem; color: #666; margin-top: 0.4rem; line-height: 1.5;">
+                                        Giao hàng: <?= htmlspecialchars($order['shipping_carrier'] ?: 'Chưa có đơn vị') ?> · Mã vận đơn: <?= htmlspecialchars($order['tracking_code'] ?: 'Chưa cập nhật') ?><br>
+                                        Phí ship: <?= number_format((float)($order['shipping_fee'] ?? 0), 0, ',', '.') ?> ₫ · <a href="<?= BASE_URL ?>order/receipt?order_id=<?= (int)$order['id'] ?>" target="_blank" rel="noopener" style="color: var(--primary-color); text-decoration: underline;">In biên lai</a>
+                                    </div>
                                 </div>
-                            <?php endforeach; ?>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary-dark, #333);"><?= number_format((float)$order['final_amount'], 0, ',', '.') ?> ₫</div>
+                                    <div style="margin-top: 0.3rem;">
+                                        <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; background: <?= $order['status'] === 'completed' ? '#e8f5e9; color: #2e7d32;' : '#f0f0f0; color: #555;' ?>"><?= htmlspecialchars($profileStatusLabels[$order['status']] ?? $order['status']) ?></span>
+                                        <?php if ($order['status'] === 'pending'): ?>
+                                            <form action="<?= BASE_URL ?>account/orders/cancel" method="post" style="display:inline; margin-left: 10px;" onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này?')">
+                                                <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                                                <button type="submit" style="border:0; background:none; text-decoration:underline; color:#b91c1c; cursor:pointer; font-size: 0.85rem;">Hủy đơn</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Order Items -->
+                            <div style="padding: 1.5rem;">
+                                <?php foreach (($order['items'] ?? []) as $item): ?>
+                                    <div style="border: 1px solid var(--border-color, #f0f0f0); border-radius: 6px; padding: 1.25rem; margin-bottom: 1.5rem; background: #faf9f7;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 1rem; margin-bottom: 1rem;">
+                                            <div>
+                                                <strong style="font-size: 1.05rem; color: var(--primary-dark, #333);"><?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?></strong>
+                                                <div style="color: #666; font-size: 0.9rem; margin-top: 0.2rem;">
+                                                    Phân loại: <?= htmlspecialchars($item['size'] ?? '') ?> - <?= htmlspecialchars($item['color'] ?? '') ?>
+                                                </div>
+                                            </div>
+                                            <div style="font-weight: 600; color: var(--primary-color);">x<?= (int)$item['quantity'] ?></div>
+                                        </div>
+
+                                        <?php if (in_array($order['status'], ['delivered', 'completed'], true)): ?>
+                                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                                <!-- Đánh giá -->
+                                                <form action="<?= BASE_URL ?>review/store" method="post" style="background: #fff; padding: 1.25rem; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                                    <input type="hidden" name="order_item_id" value="<?= (int)$item['id'] ?>">
+                                                    <h4 style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); margin-bottom: 1rem; border-bottom: 2px solid var(--primary-light); display: inline-block; padding-bottom: 0.3rem;">Đánh giá sản phẩm</h4>
+
+                                                    <div class="client-form-group star-rating-widget" style="margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; -webkit-tap-highlight-color: transparent;">
+                                                        <input type="hidden" name="rating" value="5" class="rating-value-input">
+                                                        <div class="stars-group" style="display: flex; cursor: pointer; color: #f59e0b;">
+                                                            <svg class="star-icon" data-val="1" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                            <svg class="star-icon" data-val="2" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                            <svg class="star-icon" data-val="3" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                            <svg class="star-icon" data-val="4" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                            <svg class="star-icon" data-val="5" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                        </div>
+                                                        <span class="rating-text" style="font-size: 0.85rem; color: #666; font-style: italic;">(Rất hài lòng)</span>
+                                                    </div>
+                                                    <div class="client-form-group" style="margin-bottom: 1rem;">
+                                                        <textarea name="comment" class="client-input" rows="2" placeholder="Chia sẻ trải nghiệm thanh tịnh của bạn..." style="padding: 0.6rem; font-size: 0.9rem; resize: vertical;"></textarea>
+                                                    </div>
+                                                    <button class="client-btn" type="submit" style="width: 100%; padding: 0.6rem; font-size: 0.85rem;">Gửi đánh giá</button>
+                                                </form>
+
+                                                <!-- Đổi trả -->
+                                                <form action="<?= BASE_URL ?>after-sale/request" method="post" enctype="multipart/form-data" style="background: #fff; padding: 1.25rem; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                                                    <input type="hidden" name="MAX_FILE_SIZE" value="10485760">
+                                                    <input type="hidden" name="order_item_id" value="<?= (int)$item['id'] ?>">
+                                                    <h4 style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-dark); margin-bottom: 1rem; border-bottom: 2px solid var(--primary-light); display: inline-block; padding-bottom: 0.3rem;">Hỗ trợ sau mua</h4>
+
+                                                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
+                                                        <select name="request_type" class="client-input" style="flex: 2; padding: 0.5rem; font-size: 0.9rem;">
+                                                            <option value="return">Đổi trả</option>
+                                                            <option value="exchange">Đổi sản phẩm</option>
+                                                            <option value="refund">Hoàn tiền</option>
+                                                            <option value="warranty">Bảo hành</option>
+                                                        </select>
+                                                        <input type="number" name="requested_quantity" class="client-input" min="1" max="<?= (int)$item['quantity'] ?>" value="<?= (int)$item['quantity'] ?>" required style="flex: 1; padding: 0.5rem; font-size: 0.9rem;" title="Số lượng">
+                                                    </div>
+                                                    <textarea name="reason" class="client-input" rows="2" required placeholder="Nêu rõ tình trạng sản phẩm..." style="margin-bottom: 0.8rem; padding: 0.6rem; font-size: 0.9rem; resize: vertical;"></textarea>
+                                                    <div style="margin-bottom: 1rem;">
+                                                        <label class="client-label" style="font-size: 0.8rem; color: #666; margin-bottom: 0.3rem;">Ảnh minh chứng (Tối đa 5 ảnh)</label>
+                                                        <input type="file" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.avif" multiple style="max-width:100%; font-size: 0.8rem;" formnovalidate>
+                                                    </div>
+                                                    <button class="client-btn" type="submit" style="width: 100%; padding: 0.6rem; font-size: 0.85rem; background: var(--text-muted, #555);">Gửi yêu cầu hỗ trợ</button>
+                                                </form>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </article>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -183,16 +286,60 @@ $avatar = $user['avatar'] ?? '';
                     <h3 class="client-section-title" style="font-size:1.1rem;">Yêu cầu sau bán hàng đã gửi</h3>
                     <?php
                     $afterSaleTypeLabels = ['return' => 'Đổi trả', 'exchange' => 'Đổi sản phẩm', 'refund' => 'Hoàn tiền', 'warranty' => 'Bảo hành'];
-                    $afterSaleStatusLabels = ['pending' => 'Chờ xử lý', 'approved' => 'Đã duyệt', 'rejected' => 'Từ chối', 'received' => 'Đã nhận hàng', 'refunded' => 'Đã hoàn tiền', 'completed' => 'Hoàn tất'];
+                    $afterSaleStatusLabels = ['pending' => 'Chờ xử lý', 'approved' => 'Đã duyệt', 'rejected' => 'Từ chối', 'received' => 'Đã nhận hàng', 'replacement_shipped' => 'Đã gửi hàng thay thế', 'refunded' => 'Đã hoàn tiền', 'completed' => 'Hoàn tất'];
                     $afterSaleRefundLabels = ['not_requested' => 'Không áp dụng', 'pending' => 'Chờ hoàn', 'completed' => 'Đã hoàn', 'failed' => 'Hoàn lỗi'];
                     foreach ($afterSaleRequests as $request):
                     ?>
-                        <p style="border-bottom:1px solid #eee;padding:.6rem 0;"><strong><?= htmlspecialchars($request['order_code']) ?></strong> · <?= htmlspecialchars($afterSaleTypeLabels[$request['request_type']] ?? $request['request_type']) ?> · SL <?= (int)($request['approved_quantity'] ?: $request['requested_quantity']) ?> · <?= htmlspecialchars($afterSaleStatusLabels[$request['status']] ?? $request['status']) ?><?php if (!empty($request['refund_status'])): ?> · Hoàn tiền: <?= htmlspecialchars($afterSaleRefundLabels[$request['refund_status']] ?? $request['refund_status']) ?><?php endif; ?></p>
+                        <p style="border-bottom:1px solid #eee;padding:.6rem 0;"><strong><?= htmlspecialchars($request['order_code']) ?></strong> · <?= htmlspecialchars($afterSaleTypeLabels[$request['request_type']] ?? $request['request_type']) ?> · SL <?= (int)($request['approved_quantity'] ?: $request['requested_quantity']) ?> · <?= htmlspecialchars($afterSaleStatusLabels[$request['status']] ?? $request['status']) ?><?php if (!empty($request['refund_status'])): ?> · Hoàn tiền: <?= htmlspecialchars($afterSaleRefundLabels[$request['refund_status']] ?? $request['refund_status']) ?><?php endif; ?><?php if (!empty($request['replacement_tracking_code']) || !empty($request['replacement_shipping_carrier'])): ?><br><small>Hàng thay thế: <?= htmlspecialchars($request['replacement_shipping_carrier'] ?: 'Đơn vị vận chuyển chưa cập nhật') ?><?= !empty($request['replacement_tracking_code']) ? ' · Mã vận đơn ' . htmlspecialchars($request['replacement_tracking_code']) : '' ?></small><?php endif; ?></p>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </section>
         </div>
     </div>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+document.addEventListener('DOMContentLoaded', function() {
+    const texts = { 1: '(Không tốt)', 2: '(Tạm được)', 3: '(Bình thường)', 4: '(Hài lòng)', 5: '(Rất hài lòng)' };
+    document.querySelectorAll('.star-rating-widget').forEach(widget => {
+        const input = widget.querySelector('.rating-value-input');
+        const textSpan = widget.querySelector('.rating-text');
+        const stars = widget.querySelectorAll('.star-icon');
+
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                const val = parseInt(this.getAttribute('data-val'));
+                input.value = val;
+                textSpan.textContent = texts[val] || '';
+
+                stars.forEach(s => {
+                    if (parseInt(s.getAttribute('data-val')) <= val) {
+                        s.setAttribute('fill', 'currentColor');
+                        s.style.color = '#f59e0b';
+                    } else {
+                        s.setAttribute('fill', 'none');
+                        s.style.color = '#cbd5e1';
+                    }
+                });
+            });
+
+            // Hover effect
+            star.addEventListener('mouseenter', function() {
+                const val = parseInt(this.getAttribute('data-val'));
+                stars.forEach(s => {
+                    if (parseInt(s.getAttribute('data-val')) <= val) {
+                        s.style.transform = 'scale(1.1)';
+                        s.style.transition = 'transform 0.1s';
+                    }
+                });
+            });
+            star.addEventListener('mouseleave', function() {
+                stars.forEach(s => {
+                    s.style.transform = 'scale(1)';
+                });
+            });
+        });
+    });
+});
+</script>
 </main>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

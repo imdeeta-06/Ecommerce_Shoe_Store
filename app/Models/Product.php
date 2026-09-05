@@ -27,12 +27,7 @@ class Product extends BaseModel {
     }
 
     public function setProductStatus($id, $status) {
-        $statusVal = $status;
-        if ($status === 1 || $status === '1') {
-            $statusVal = 'active';
-        } elseif ($status === 0 || $status === '0') {
-            $statusVal = 'inactive';
-        }
+        $statusVal = ($status == 1 || $status === '1' || $status === 'active') ? 1 : 0;
         return $this->updateProduct($id, ['status' => $statusVal]);
     }
 
@@ -62,7 +57,17 @@ class Product extends BaseModel {
     }
 
     public function getActiveProducts() {
-        $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 'active' ORDER BY id DESC");
+        $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 1 ORDER BY id DESC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getActiveProductsForInventory(): array {
+        $stmt = $this->db->prepare("SELECT p.id, p.name, c.name AS category_name
+                                    FROM product p
+                                    LEFT JOIN categories c ON c.id = p.category_id
+                                    WHERE p.status = 1
+                                    ORDER BY p.name ASC, p.id DESC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -90,12 +95,6 @@ class Product extends BaseModel {
             $params['status'] = $filters['status'];
         }
 
-        if (!empty($filters['gender']) && $filters['gender'] !== 'all') {
-            // Nam/Nữ must be an exact filter; unisex products only appear in “Tất cả”.
-            $sql .= " AND p.gender = :gender";
-            $params['gender'] = $filters['gender'];
-        }
-
         $sql .= " ORDER BY p.id DESC";
 
         $stmt = $this->db->prepare($sql);
@@ -103,45 +102,25 @@ class Product extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getProductsByFilter($filters = []) {
-        $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
+    public function getProductsByFilter($filters = [], ?int $limit = null, int $offset = 0) {
+        $this->ensureDefaultVariants();
+        $sql = "SELECT p.*, p.base_price AS price, p.old_price AS compare_at_price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
-                LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
+                LEFT JOIN categories c ON p.category_id = c.id";
         $params = [];
-
-        if (!empty($filters['category']) && $filters['category'] !== 'all') {
-            $sql .= " AND c.name = :category";
-            $params['category'] = $filters['category'];
-        }
-
-        if (!empty($filters['price']) && $filters['price'] !== 'all') {
-            if ($filters['price'] === 'lt500k') {
-                $sql .= " AND p.base_price < 500000";
-            } elseif ($filters['price'] === '500kto1m5') {
-                $sql .= " AND p.base_price >= 500000 AND p.base_price <= 1500000";
-            } elseif ($filters['price'] === 'gt1m5') {
-                $sql .= " AND p.base_price > 1500000";
-            }
-        }
-
-        if (!empty($filters['keyword'])) {
-            $sql .= " AND (p.name LIKE :keyword OR p.slug LIKE :keyword OR c.name LIKE :keyword)";
-            $params['keyword'] = '%' . $filters['keyword'] . '%';
-        }
+        $sql .= $this->catalogFilterWhere($filters, $params);
 
         if (!empty($filters['sort'])) {
             switch ($filters['sort']) {
                 case 'price-asc':
-                    $sql .= " ORDER BY p.base_price ASC";
+                    $sql .= " ORDER BY p.base_price ASC, p.id DESC";
                     break;
                 case 'price-desc':
-                    $sql .= " ORDER BY p.base_price DESC";
+                    $sql .= " ORDER BY p.base_price DESC, p.id DESC";
                     break;
                 case 'name-asc':
-                    $sql .= " ORDER BY p.name ASC";
+                    $sql .= " ORDER BY p.name ASC, p.id DESC";
                     break;
                 default:
                     $sql .= " ORDER BY p.id DESC";
@@ -151,24 +130,65 @@ class Product extends BaseModel {
             $sql .= " ORDER BY p.id DESC";
         }
 
+        if ($limit !== null) {
+            $sql .= ' LIMIT :catalog_limit OFFSET :catalog_offset';
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $name => $value) {
+            $stmt->bindValue(':' . $name, $value, PDO::PARAM_STR);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':catalog_limit', max(1, $limit), PDO::PARAM_INT);
+            $stmt->bindValue(':catalog_offset', max(0, $offset), PDO::PARAM_INT);
+        }
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getProductsCountByFilter(array $filters = []): int {
+        $this->ensureDefaultVariants();
+        $params = [];
+        $sql = "SELECT COUNT(*) FROM product p LEFT JOIN categories c ON p.category_id=c.id";
+        $sql .= $this->catalogFilterWhere($filters, $params);
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    }
+
+    private function catalogFilterWhere(array $filters, array &$params): string {
+        $where = " WHERE p.status=1 AND (p.category_id IS NULL OR c.status=1)
+            AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id=p.id AND pv_available.status=1)";
+        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+            $where .= ' AND c.name=:category';
+            $params['category'] = (string)$filters['category'];
+        }
+        if (!empty($filters['price']) && $filters['price'] !== 'all') {
+            if ($filters['price'] === 'lt500k') $where .= ' AND p.base_price<500000';
+            elseif ($filters['price'] === '500kto1m5') $where .= ' AND p.base_price>=500000 AND p.base_price<=1500000';
+            elseif ($filters['price'] === 'gt1m5') $where .= ' AND p.base_price>1500000';
+        }
+        if (!empty($filters['keyword'])) {
+            $where .= ' AND (p.name LIKE :keyword OR p.slug LIKE :keyword OR c.name LIKE :keyword)';
+            $params['keyword'] = '%' . (string)$filters['keyword'] . '%';
+        }
+        return $where;
+    }
+
     public function getProductWithImages($id) {
-        $sql = "SELECT p.*, p.base_price AS price, c.name AS category
+        $this->ensureDefaultVariant($id);
+        $sql = "SELECT p.*, p.base_price AS price, p.old_price AS compare_at_price, c.name AS category
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id = :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')";
+                WHERE p.id = :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1)";
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['id' => $id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($product) {
             $product['images'] = $this->getProductImages($id);
-            $product['variants'] = $this->getProductVariants($id);
+            $product['variants'] = $this->getProductVariants($id, true);
             $product['image'] = !empty($product['images']) ? $product['images'][0]['image_url'] : '';
         }
 
@@ -181,6 +201,13 @@ class Product extends BaseModel {
 
     public function getBestSellingProducts($limit = 8) {
         return $this->getMarketingProducts('p.sold_count DESC, p.id DESC', $limit, '1=1');
+    }
+
+    public function getDiscountedProducts($limit = 8) {
+        if (!$this->tableHasColumn('product', 'old_price')) {
+            return [];
+        }
+        return $this->getMarketingProducts('p.id DESC', $limit, 'p.old_price IS NOT NULL AND p.old_price > p.base_price');
     }
 
     public function getProductReviews($productId, $limit = 20) {
@@ -223,12 +250,12 @@ class Product extends BaseModel {
     }
 
     public function getRelatedProducts($productId, $categoryId, $limit = 4) {
-        $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
+        $sql = "SELECT p.*, p.base_price AS price, p.old_price AS compare_at_price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id != :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
+                WHERE p.id != :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1)
                 AND p.category_id = :category_id
                 ORDER BY p.is_featured DESC, p.id DESC
                 LIMIT " . (int)$limit;
@@ -268,20 +295,18 @@ class Product extends BaseModel {
     public function getCategoriesWithCounts() {
         $sql = "SELECT c.id, c.name, COUNT(p.id) AS product_count
                 FROM categories c
-                LEFT JOIN product p ON p.category_id = c.id AND p.status = 'active'
+                LEFT JOIN product p ON p.category_id = c.id AND p.status = 1
+                    AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id=p.id AND pv_available.status=1)
                 WHERE c.status = 1
                 GROUP BY c.id
-                ORDER BY c.sort_order ASC, c.name ASC";
+                ORDER BY c.name ASC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getActiveProductsCount() {
-        $sql = "SELECT COUNT(*) FROM product p WHERE p.status = 'active'";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute();
-        return (int)$stmt->fetchColumn();
+        return $this->getProductsCountByFilter();
     }
 
     public function getAllCategories() {
@@ -307,6 +332,27 @@ class Product extends BaseModel {
     }
 
     // --- PRODUCT_VARIANTS ---
+    public function ensureDefaultVariant($productId): void {
+        $productId = (int)$productId;
+        if ($productId <= 0) {
+            return;
+        }
+
+        $stmt = $this->db->prepare('SELECT 1 FROM product_variants WHERE product_id = :product_id LIMIT 1');
+        $stmt->execute(['product_id' => $productId]);
+        if (!$stmt->fetchColumn()) {
+            $insert = $this->db->prepare("INSERT INTO product_variants (product_id, size, color, stock_quantity, price_modifier) VALUES (:product_id, 'Mặc định', 'Mặc định', 0, 0)");
+            $insert->execute(['product_id' => $productId]);
+        }
+    }
+
+    private function ensureDefaultVariants(): void {
+        $products = $this->db->query('SELECT p.id FROM product p LEFT JOIN product_variants pv ON pv.product_id = p.id GROUP BY p.id HAVING COUNT(pv.id) = 0')->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($products as $productId) {
+            $this->ensureDefaultVariant($productId);
+        }
+    }
+
     public function createProductVariant($data) {
         return $this->insert('product_variants', $data);
     }
@@ -323,8 +369,29 @@ class Product extends BaseModel {
         return $this->delete('product_variants', $id);
     }
 
-    public function getProductVariants($productId) {
-        $stmt = $this->db->prepare("SELECT * FROM product_variants WHERE product_id = :product_id ORDER BY size ASC, color ASC");
+    public function getProductVariants($productId, bool $activeOnly = false) {
+        $select = $activeOnly
+            ? 'product_variants.*, product_variants.stock_quantity AS physical_stock_quantity, GREATEST(0, product_variants.stock_quantity-COALESCE(product_variants.reserved_quantity,0)) AS stock_quantity'
+            : 'product_variants.*';
+        $sql = "SELECT {$select} FROM product_variants WHERE product_id = :product_id";
+        if ($activeOnly) {
+            $sql .= " AND status = 1";
+        }
+        $sql .= " ORDER BY
+            CASE
+                WHEN UPPER(TRIM(size)) = 'S' THEN 10
+                WHEN UPPER(TRIM(size)) = 'M' THEN 20
+                WHEN UPPER(TRIM(size)) = 'L' THEN 30
+                WHEN UPPER(TRIM(size)) = 'XL' THEN 40
+                WHEN UPPER(TRIM(size)) = 'XXL' THEN 50
+                WHEN TRIM(size) REGEXP '^[0-9]+' THEN 60 + CAST(TRIM(size) AS UNSIGNED)
+                WHEN LOWER(TRIM(size)) IN ('free size', 'freesize') THEN 100
+                WHEN LOWER(TRIM(size)) = 'mặc định' THEN 110
+                ELSE 90
+            END,
+            color ASC,
+            id ASC";
+        $stmt = $this->db->prepare($sql);
         $stmt->execute(['product_id' => $productId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -431,26 +498,47 @@ class Product extends BaseModel {
     }
 
     public function updateStock($variantId, $quantityChanged, $reason) {
-        $stmt = $this->db->prepare('SELECT stock_quantity FROM product_variants WHERE id = :id FOR UPDATE');
-        $stmt->execute(['id' => (int)$variantId]);
-        $currentStock = $stmt->fetchColumn();
-        if ($currentStock === false) {
-            throw new \RuntimeException('Không tìm thấy phân loại sản phẩm.');
-        }
-        if ((int)$currentStock + (int)$quantityChanged < 0) {
-            throw new \RuntimeException('Không thể xuất kho vượt quá số lượng tồn hiện tại.');
-        }
+        $ownsTransaction = !$this->db->inTransaction();
+        try {
+            if ($ownsTransaction) {
+                $this->db->beginTransaction();
+            }
 
-        $result = $this->createInventoryLog([
-            'variant_id' => $variantId,
-            'quantity_changed' => $quantityChanged,
-            'reason' => $reason
-        ]);
-        if (!$this->triggerExists('trg_after_insert_inventory_log')) {
-            $stmt = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :id');
-            $stmt->execute(['quantity' => (int)$quantityChanged, 'id' => (int)$variantId]);
+            $stmt = $this->db->prepare('SELECT stock_quantity,reserved_quantity FROM product_variants WHERE id = :id FOR UPDATE');
+            $stmt->execute(['id' => (int)$variantId]);
+            $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$inventory) {
+                throw new \RuntimeException('Không tìm thấy phân loại sản phẩm.');
+            }
+
+            $resultingStock = (int)$inventory['stock_quantity'] + (int)$quantityChanged;
+            if ($resultingStock < 0) {
+                throw new \RuntimeException('Không thể xuất kho vượt quá số lượng tồn hiện tại.');
+            }
+            if ($resultingStock < (int)($inventory['reserved_quantity'] ?? 0)) {
+                throw new \RuntimeException('Không thể giảm tồn kho thấp hơn số lượng đang giữ cho các đơn chờ xử lý.');
+            }
+
+            $result = $this->createInventoryLog([
+                'variant_id' => (int)$variantId,
+                'quantity_changed' => (int)$quantityChanged,
+                'reason' => trim((string)$reason) !== '' ? trim((string)$reason) : 'Điều chỉnh tồn kho'
+            ]);
+            if (!$this->triggerExists('trg_after_insert_inventory_log')) {
+                $stmt = $this->db->prepare('UPDATE product_variants SET stock_quantity = stock_quantity + :quantity WHERE id = :id');
+                $stmt->execute(['quantity' => (int)$quantityChanged, 'id' => (int)$variantId]);
+            }
+
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+            return $result;
+        } catch (\Throwable $error) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $error;
         }
-        return $result;
     }
 
     public function getInventoryLogsByVariant($variantId) {
@@ -477,23 +565,25 @@ class Product extends BaseModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getInventoryOverview() {
+    public function getInventoryOverview($limit = 200) {
         $stmt = $this->db->prepare("SELECT pv.*, p.name AS product_name, p.base_price, c.name AS category_name
                                     FROM product_variants pv
                                     LEFT JOIN product p ON pv.product_id = p.id
                                     LEFT JOIN categories c ON p.category_id = c.id
-                                    ORDER BY pv.stock_quantity ASC, p.name ASC");
+                                    ORDER BY pv.stock_quantity ASC, p.name ASC
+                                    LIMIT :limit");
+        $stmt->bindValue(':limit', max(1, (int)$limit), PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function getMarketingProducts(string $orderBy, int $limit, string $extraWhere = '1=1'): array {
-        $stmt = $this->db->prepare("SELECT p.*, p.base_price AS price, c.name AS category,
+        $stmt = $this->db->prepare("SELECT p.*, p.base_price AS price, p.old_price AS compare_at_price, c.name AS category,
                 (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON c.id = p.category_id
-                WHERE p.status = 'active' AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
-                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 'active')
+                WHERE p.status = 1 AND ({$extraWhere}) AND (p.category_id IS NULL OR c.status = 1)
+                AND EXISTS (SELECT 1 FROM product_variants pv_available WHERE pv_available.product_id = p.id AND pv_available.status = 1)
                 ORDER BY {$orderBy}
                 LIMIT :limit");
         $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);

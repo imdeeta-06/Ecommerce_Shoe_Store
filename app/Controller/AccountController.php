@@ -2,44 +2,31 @@
 namespace App\Controller;
 
 use App\Models\Order;
-
+use App\Helpers\SessionHelper;
+use App\Middleware\AuthMiddleware;
+use App\Services\UploadService;
 class AccountController {
-    public function index() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: login');
-            exit;
-        }
+    public function index(): void {
+        AuthMiddleware::requireLogin();
 
         require_once __DIR__ . '/../../config/db.php';
-        
-        $user_id = $_SESSION['user_id'];
-        
-        // Đảm bảo có cột avatar
-        try {
-            $pdo->exec("ALTER TABLE user ADD COLUMN avatar VARCHAR(255) DEFAULT NULL");
-        } catch (\PDOException $e) { }
+
+        $user_id = (int)$_SESSION['user_id'];
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = $_POST['action'] ?? '';
+
+            // update avatar
             if ($action === 'update_avatar' && isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = __DIR__ . '/../../public/uploads/avatars/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-                
-                // Get extension
-                $ext = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
-                $fileName = time() . '_' . uniqid() . '.' . $ext;
-                $targetFile = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['avatar']['tmp_name'], $targetFile)) {
-                    $avatarPath = 'public/uploads/avatars/' . $fileName;
+                try {
+                    $avatarPath = UploadService::image($_FILES['avatar'], 'avatars');
                     $stmt = $pdo->prepare("UPDATE user SET avatar = ? WHERE id = ?");
                     $stmt->execute([$avatarPath, $user_id]);
                     $_SESSION['user_avatar'] = $avatarPath;
+                } catch (\Throwable $uploadError) {
+                    SessionHelper::setFlash('error', 'Không thể cập nhật ảnh đại diện.');
                 }
-                header('Location: account?tab=account&success=1');
+                SessionHelper::redirect('account?tab=account&success=1');
                 exit;
             } elseif ($action === 'update_address') {
                 $addressScope = $_POST['address_scope'] ?? '';
@@ -62,7 +49,7 @@ class AccountController {
                     }
                 }
 
-                header('Location: account?tab=address');
+                SessionHelper::redirect('account?tab=address');
                 exit;
             } elseif ($action === 'update_account') {
                 $fullName = trim($_POST['full_name'] ?? '');
@@ -79,16 +66,15 @@ class AccountController {
                     $currentUser = $stmtUser->fetch(\PDO::FETCH_ASSOC);
 
                     if (!$currentUser || !password_verify($oldPassword, $currentUser['password'])) {
-                        $_SESSION['account_error'] = 'Old password is incorrect';
-                        header('Location: account?tab=account');
-                        exit;
+                        SessionHelper::setFlash('error', 'Old password is incorrect');
+                        SessionHelper::redirect('account?tab=account');
                     }
 
                     if ($newPassword !== '' && $newPassword === $repeatPassword) {
                         $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
                         $stmtPassword = $pdo->prepare("UPDATE user SET password = ? WHERE id = ?");
                         $stmtPassword->execute([$passwordHash, $user_id]);
-                        $_SESSION['account_success'] = 'Password changed successfully';
+                        SessionHelper::setFlash('success', 'Password updated successfully');
                     }
                 }
 
@@ -98,8 +84,7 @@ class AccountController {
                     $_SESSION['user_name'] = $displayName !== '' ? $displayName : $fullName;
                 }
 
-                header('Location: account?tab=account&success=1');
-                exit;
+                SessionHelper::redirect('account?tab=account&success=1');
             }
         }
         

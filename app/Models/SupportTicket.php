@@ -32,6 +32,12 @@ class SupportTicket extends BaseModel {
         return $ticket ?: null;
     }
 
+    public function getUserTickets(int $userId): array {
+        $stmt = $this->db->prepare('SELECT ticket_code,subject,message,status,created_at,updated_at FROM support_tickets WHERE user_id=:user_id ORDER BY created_at DESC');
+        $stmt->execute(['user_id'=>$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getAdminTickets(string $status = '', int $limit = 100): array {
         $sql = 'SELECT * FROM support_tickets';
         $params = [];

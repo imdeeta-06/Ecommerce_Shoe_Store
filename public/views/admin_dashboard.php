@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - PaceUp</title>
+    <title>Admin Dashboard - Liên Hoa</title>
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -13,7 +13,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo" style="margin-bottom: 2rem;">
-            <a href="/admin" style="color: white;">PaceUp</a>
+            <a href="/admin" style="color: white;">Liên Hoa</a>
         </div>
         <ul class="sidebar-nav">
             <li><a href="/admin" class="active"><i class="fas fa-tachometer-alt" style="width: 25px;"></i> Dashboard</a></li>
@@ -47,30 +47,30 @@
                         <th>Name</th>
                         <th>Category</th>
                         <th>Price</th>
-                        <th>Actions</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>1</td>
-                        <td><img src="/assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" alt="Shoe" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
-                        <td>Air Zoom Pegasus 42</td>
-                        <td>Men's Running</td>
-                        <td>$120.00</td>
+                        <td><img src="/public/uploads/products/lam/lam-1025.jpg" alt="Áo Lam" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                        <td>Áo Lam Đi Chùa Cổ Tàu</td>
+                        <td>Đồ Lam Đi Chùa</td>
+                        <td>350.000 ₫</td>
                         <td>
-                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #e0e0e0; border-radius: 4px; margin-right: 0.5rem;"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #ff4d4d; color: white; border-radius: 4px;"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #e0e0e0; border-radius: 4px; margin-right: 0.5rem;"><i class="fas fa-edit"></i> Sửa</button>
+                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #ff4d4d; color: white; border-radius: 4px;"><i class="fas fa-trash"></i> Xóa</button>
                         </td>
                     </tr>
                     <tr>
                         <td>2</td>
-                        <td><img src="/assets/images/NIKE+SB+DUNK+LOW+PRO.avif" alt="Shoe" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
-                        <td>SB Dunk Low Pro</td>
-                        <td>Skateboarding</td>
-                        <td>$110.00</td>
+                        <td><img src="/public/uploads/products/lam/lam-1075.webp" alt="Túi Đi Chùa" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                        <td>Túi Đeo Đi Chùa Thêu Sen</td>
+                        <td>Túi Xách Đi Chùa</td>
+                        <td>220.000 ₫</td>
                         <td>
-                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #e0e0e0; border-radius: 4px; margin-right: 0.5rem;"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #ff4d4d; color: white; border-radius: 4px;"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #e0e0e0; border-radius: 4px; margin-right: 0.5rem;"><i class="fas fa-edit"></i> Sửa</button>
+                            <button class="btn" style="padding: 0.3rem 0.5rem; background: #ff4d4d; color: white; border-radius: 4px;"><i class="fas fa-trash"></i> Xóa</button>
                         </td>
                     </tr>
                 </tbody>

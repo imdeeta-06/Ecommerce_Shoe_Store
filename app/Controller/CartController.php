@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Middleware\AuthMiddleware;
 use App\Models\Cart;
+use App\Services\TaxService;
 
 class CartController {
     public function index() {
@@ -36,14 +37,14 @@ class CartController {
             $cartModel = new Cart();
 
             $db = \App\Models\Database::getInstance()->getConnection();
-            $stmt = $db->prepare("SELECT pv.id, pv.stock_quantity, p.name, p.status
+            $stmt = $db->prepare("SELECT pv.id, pv.stock_quantity, pv.status AS variant_status, p.name, p.status AS product_status
                                   FROM product_variants pv
                                   JOIN product p ON p.id = pv.product_id
                                   WHERE pv.id = :variant_id LIMIT 1");
             $stmt->execute(['variant_id' => $variantId]);
             $variant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-            if (!$variant || $variant['status'] !== 'active') {
+            if (!$variant || (int)$variant['product_status'] !== 1 || (int)$variant['variant_status'] !== 1) {
                 echo json_encode(['success' => false, 'message' => 'Phân loại sản phẩm không tồn tại hoặc đã ẩn.']);
                 return;
             }
@@ -150,6 +151,11 @@ class CartController {
         } else {
             $items = $cartModel->getCartBySessionId($sessionId);
         }
+        foreach ($items as &$item) {
+            $item['tax_category'] = TaxService::normalizeCategory((string)($item['tax_category'] ?? 'standard_reduced'));
+            $item['tax_rate'] = TaxService::rateFor($item['tax_category'], $item['tax_rate'] ?? null);
+        }
+        unset($item);
         
         $totalQuantity = $cartModel->countCartItems($userId, $sessionId);
 

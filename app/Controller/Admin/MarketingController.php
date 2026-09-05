@@ -8,6 +8,8 @@ use App\Models\Cart;
 use App\Models\Database;
 use App\Services\AbandonedCartReminderService;
 use App\Services\OrderNotificationService;
+use App\Models\Analytics;
+use App\Models\NewsletterCampaign;
 
 class MarketingController {
     public function index() {
@@ -16,6 +18,10 @@ class MarketingController {
         $banners = $db->query('SELECT * FROM banner ORDER BY id DESC')->fetchAll(\PDO::FETCH_ASSOC);
         $reminders = (new Cart())->getAbandonedReminders(100, false);
         $orderNotifications = (new OrderNotificationService())->getQueue(100);
+        $analyticsDays=max(1,min(365,(int)($_GET['days']??30)));
+        $analytics = (new Analytics())->summary($analyticsDays);
+        $newsletterSubscriptions = $db->query("SELECT email, status, consent_version, source, consented_at, confirmed_at, unsubscribed_at FROM newsletter_subscriptions ORDER BY consented_at DESC LIMIT 100")->fetchAll(\PDO::FETCH_ASSOC);
+        $newsletterCampaigns = (new NewsletterCampaign())->all();
         $flash = SessionHelper::getAllFlash();
         require __DIR__ . '/../../Views/admin/marketing/index.php';
     }
@@ -62,4 +68,9 @@ class MarketingController {
         SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
         SessionHelper::redirect('/admin/marketing');
     }
+
+    public function storeCampaign(){AuthMiddleware::requireAdmin();$result=(new NewsletterCampaign())->create($_POST,(int)$_SESSION['user_id']);$this->campaignDone($result);}
+    public function queueCampaign(){AuthMiddleware::requireAdmin();$result=(new NewsletterCampaign())->queue((int)($_POST['id']??0));$this->campaignDone($result);}
+    public function sendCampaign(){AuthMiddleware::requireAdmin();$result=(new NewsletterCampaign())->process((int)($_POST['id']??0),100);$this->campaignDone($result);}
+    private function campaignDone(array $result):void{SessionHelper::setFlash($result['success']?'success':'error',$result['message']);SessionHelper::redirect('/admin/marketing');}
 }

@@ -1,385 +1,145 @@
-# PaceUP Accessories
-
-`PaceUP Accessories` là một dự án web thương mại điện tử dùng `PHP` và `MySQL`, phục vụ bán giày và đồ thể thao.
-Dự án đã có xem sản phẩm, giỏ hàng, thanh toán, tài khoản người dùng, trang quản trị, mã giảm giá, đơn hàng, kho hàng và wishlist.
-
-Tuy nhiên, dự án vẫn chưa hoàn thiện. README này được viết để giúp các thành viên mới nhanh chóng hiểu:
-- dự án đang làm gì
-- hiện tại đã có những gì
-- còn bug nào cần sửa
-- business logic nào phải tuân thủ
-- chức năng nào còn thiếu hoặc chưa hợp lý
-- cần bắt đầu từ đâu khi tham gia dự án
-
-## Bối Cảnh Dự Án
-
-Dự án này mô phỏng một cửa hàng bán giày và đồ thể thao online.
-Luồng mong đợi của hệ thống là:
-1. Khách truy cập xem danh sách sản phẩm.
-2. Người dùng đăng ký hoặc đăng nhập.
-3. Người dùng thêm sản phẩm vào giỏ hàng và tiến hành thanh toán.
-4. Hệ thống tạo đơn hàng với thông tin giao hàng và áp dụng mã giảm giá nếu có.
-5. Quản trị viên duyệt đơn, cập nhật trạng thái, quản lý sản phẩm, kho hàng và mã giảm giá.
-
-Kiến trúc dự án đi theo mô hình đơn giản kiểu MVC:
-- `Controller` nhận request và xử lý logic
-- `Model` làm việc với dữ liệu trong database
-- `View` hiển thị giao diện
-- `Router` điều hướng URL tới đúng controller
-
-## Trạng Thái Hiện Tại
-
-Dự án đã có nhiều phần lõi quan trọng, nhưng vẫn còn nhiều chỗ cần sửa và hoàn thiện.
-Mục tiêu hiện tại không còn là chạy local trên XAMPP nữa, mà phải hướng tới deploy lên môi trường thật để mọi người truy cập qua internet.
-
-### Các Phần Đã Có
-- Danh sách sản phẩm và trang chi tiết sản phẩm
-- Giỏ hàng
-- Thanh toán
-- Đăng ký, đăng nhập, đăng xuất
-- Quên mật khẩu và đặt lại mật khẩu
-- Trang tài khoản, ảnh đại diện, địa chỉ nhận hàng
-- Wishlist
-- Quản lý sản phẩm ở admin
-- Quản lý mã giảm giá ở admin
-- Model đơn hàng có trạng thái và xử lý kho
-- Database có sẵn các bảng cho sản phẩm, đơn hàng, biến thể, coupon, user và log
-
-### Các Phần Còn Thiếu Hoặc Chưa Ổn
-- Một số luồng vẫn chưa đồng bộ giữa controller, model, view và database
-- Một số route đã có nhưng chưa được nối sạch sẽ
-- Có chỗ vẫn phụ thuộc quá nhiều vào dữ liệu do client gửi lên
-- Một số bảng trong database đã có sẵn nhưng chưa có feature hoàn chỉnh
-- Khu vực admin vẫn còn lẫn giữa code cũ và code mới
-
-## Business Logic Quan Trọng
-
-Đây là các quy tắc nghiệp vụ cần giữ đúng:
-
-- Một sản phẩm có thể có nhiều biến thể như size và màu
-- Mỗi item trong giỏ phải luôn gắn với sản phẩm hoặc biến thể hợp lệ
-- Khi thanh toán, tổng tiền phải được tính ở server, không được tin hoàn toàn vào dữ liệu từ trình duyệt
-- Mã giảm giá phải hợp lệ theo ngày áp dụng, số lượt dùng và giá trị đơn tối thiểu
-- Đơn hàng bắt đầu ở trạng thái `pending`
-- Chỉ được trừ kho khi đơn hàng được xác nhận
-- Nếu đơn bị hủy đúng điều kiện thì phải hoàn lại kho chính xác
-- Người dùng chỉ được sửa giỏ, địa chỉ, hồ sơ và đơn của chính mình
-- Admin chỉ được truy cập các chức năng quản trị khi đã đăng nhập đúng quyền
-
-## Bug Và Rủi Ro Đang Có
-
-### Bug Ưu Tiên Cao
-- Chức năng cập nhật và xóa giỏ hàng chưa kiểm tra thật chặt quyền sở hữu item
-- Checkout vẫn nhận `discount` và `coupon_id` từ client, nên nếu server không tính lại hoàn toàn thì có thể bị sửa request để giảm tiền sai
-- Một số luồng đơn hàng và kho còn phụ thuộc vào trigger hoặc logic local trong database
-- Phần quản lý đơn ở admin bị tách giữa controller mới và file legacy `public/views/admin.php`
-- Một số luồng tài khoản và địa chỉ đang dùng cách xử lý khác nhau, dễ gây hành vi không đồng nhất
-
-### Rủi Ro Logic
-- Trừ kho và hoàn kho có thể bị lệch nếu trigger không chạy hoặc schema thay đổi
-- Mã giảm giá phải tăng lượt dùng đúng thời điểm sau khi đặt hàng thành công
-- Cần đồng bộ giỏ hàng guest và giỏ hàng của user khi đăng nhập
-- Xử lý biến thể sản phẩm phải thống nhất giữa giỏ hàng, checkout, đơn hàng và admin
-
-### Rủi Ro Giao Diện
-- Một số trang còn thiếu trạng thái rỗng rõ ràng
-- Thông báo lỗi chưa thống nhất
-- Giao diện responsive đa thiết bị, đặc biệt mobile và tablet, cần kiểm tra lại lần cuối
-- Một số màn hình admin chạy được nhưng chưa đẹp hoặc chưa dễ dùng
-
-## Chức Năng Còn Thiếu Hoặc Chưa Hoàn Chỉnh
-
-### Phía Khách Hàng
-- Tìm kiếm và lọc sản phẩm nâng cao
-- Phân trang danh sách sản phẩm
-- Gợi ý sản phẩm liên quan tốt hơn
-- Sản phẩm đã xem gần đây
-- Flow đánh giá / chấm sao sau khi mua
-- Trang chi tiết đơn hàng cho khách
-- Chức năng hủy đơn từ phía khách theo điều kiện hợp lệ
-
-### Checkout
-- Tích hợp cổng thanh toán thật
-- Theo dõi trạng thái thanh toán rõ ràng
-- Tính phí ship
-- Chọn địa chỉ đã lưu ngay trong checkout
-- Kiểm tra và phản hồi coupon tốt hơn ở phía server
-
-### Admin
-- Bộ quản lý đơn hàng bằng controller riêng, rõ ràng hơn
-- Quản lý user, khóa/mở tài khoản, đổi role
-- Duyệt / ẩn review
-- Trang thống kê doanh thu, báo cáo
-- Tách sạch logic backend khỏi view
-
-### Nền Tảng
-- Chống CSRF cho các form quan trọng
-- Validate input chặt hơn ở mọi form
-- Bảo mật upload file tốt hơn
-- Có test cho các luồng quan trọng
-- Chuẩn hóa error handling và logging
-- Chuẩn bị cấu hình để deploy thật thay vì chỉ test local
-- Kiểm tra base URL, session, upload path và quyền file khi đưa lên internet
-
-## Sơ Đồ File Chính
-
-### Điểm Vào Và Router
-- `index.php` khai báo route và điều hướng chính
-- `app/Core/Router.php` xử lý match URL
-- `app/Core/App.php` khởi tạo ứng dụng
-
-### Controllers
-- `app/Controller/AuthController.php` xử lý đăng nhập, đăng ký, đăng xuất, quên mật khẩu
-- `app/Controller/CartController.php` xử lý giỏ hàng
-- `app/Controller/CheckoutController.php` xử lý checkout và coupon
-- `app/Controller/ShopController.php` xử lý danh sách sản phẩm
-- `app/Controller/ProductController.php` xử lý chi tiết sản phẩm
-- `app/Controller/WishlistController.php` xử lý wishlist
-- `app/Controller/User/ProfileController.php` xử lý hồ sơ và địa chỉ
-- `app/Controller/Admin/*` xử lý các chức năng admin
-
-### Models
-- `app/Models/Product.php` xử lý sản phẩm, danh mục, biến thể, ảnh và tồn kho
-- `app/Models/Cart.php` xử lý dữ liệu giỏ hàng và đồng bộ guest/user
-- `app/Models/Order.php` xử lý đơn hàng, item đơn, thanh toán và log trạng thái
-- `app/Models/Coupons.php` xử lý validate mã giảm giá
-- `app/Models/UserModel.php` xử lý user, địa chỉ và OTP reset
-- `app/Models/Wishlist.php` xử lý wishlist
-
-### Views
-- `app/Views/*` chứa giao diện public và admin
-- `public/views/*` chứa một số view legacy hoặc view phụ
-- `public/assets/css/style.css` chứa CSS chính
-
-### Database
-- `Database/paceup_lam_catalog_data.sql` chứa dữ liệu catalog đồ lam/phụ kiện để cập nhật vào database `paceup_db`; schema hiện tại được giữ nguyên
-- `Database/paceup_lam_reset_legacy_transactions.sql` là cleanup một lần cho order/report/cart mẫu của ngành giày cũ
-- `scripts/sync_dolam_product_images.php` tải ảnh tham khảo phù hợp theo từng nhóm sản phẩm, lưu cục bộ vào `public/uploads/products/lam/` và cập nhật bảng `product_images`
-- `Database/paceup_lam_product_images.sql` là file mapping ảnh đã sinh sẵn để import sau catalog nếu không chạy script tải ảnh
-- `Database/paceup_lam_product_image_sources.json` lưu URL nguồn tương ứng của 150 ảnh để kiểm tra lại khi cần
-
-Sau khi import `paceup_lam_catalog_data.sql`, chạy `php scripts/sync_dolam_product_images.php` để lấy ảnh về máy và gán lại ảnh sản phẩm. Script có thể chạy lại; ảnh đã tải sẽ được tái sử dụng, không tải trùng.
-
-## Cập Nhật P0 Nền Tảng
-
-Ngày cập nhật: 01/08/2026
-
-### Bug Nền Tảng Đã Xử Lý
-- `index.php` trước đây vừa start session, vừa autoload, vừa khai báo toàn bộ route và parse URL. Đã chuyển logic khởi tạo sang `app/Core/App.php`, còn `index.php` chỉ giữ vai trò entrypoint.
-- `app/Core/App.php` đang rỗng. Đã bổ sung bootstrap chung cho `BASE_URL`, session, autoload, route registry và xử lý lỗi khởi động.
-- `BASE_URL` trước đây dễ sai khi chạy ở root domain, subfolder, MAMP symlink hoặc URL có `index.php`. Đã chuẩn hóa cơ chế tự nhận diện base path và hỗ trợ override bằng biến môi trường `APP_BASE_URL`.
-- Route `/account` bị khai báo hai lần, làm `User/ProfileController@index` bị ghi đè bởi controller legacy. Đã giữ route mới `User/ProfileController` để đồng bộ với các route `/account/update`, `/account/avatar`, `/account/addresses/*`.
-- `Router` trước đây chỉ match exact string và silent overwrite khi route trùng. Đã normalize path, bỏ query/trailing slash, phát hiện route trùng, kiểm tra controller/action tồn tại và trả lỗi rõ hơn.
-- Session trước đây được start rải rác ở nhiều nơi. Bootstrap mới start session tập trung, cấu hình cookie `HttpOnly`, `SameSite=Lax` và path theo `BASE_URL`.
-- Login view trước đây tự require database và xử lý POST, tạo logic đăng nhập song song với `AuthController`. Đã đưa view về đúng vai trò hiển thị form/flash message.
-- Sau login đã regenerate session id và lưu avatar vào session; logout xóa dữ liệu session/cookie rõ ràng hơn.
-- Admin dashboard legacy trước đây redirect sai sang `login.php` và require DB bằng relative path. Đã đổi về route `/login` và require DB theo absolute path.
-- Một số view dùng `str_starts_with`, dễ lỗi nếu môi trường PHP cũ hơn 8. Đã thêm polyfill ở bootstrap.
-- `test_db.php` trước đây hardcode DB local và tự chạy `ALTER TABLE` khi mở file. Đã đổi sang đọc `config/database.php` và chỉ chạy migration khi truyền flag CLI rõ ràng.
-
-### File Đã Sửa
-- `index.php`
-- `app/Core/App.php`
-- `app/Core/Router.php`
-- `app/Helpers/SessionHelper.php`
-- `app/Controller/AuthController.php`
-- `app/Controller/AdminController.php`
-- `app/Views/login.php`
-- `app/Views/admin.php`
-- `test_db.php`
-- `README.md`
-
-### Ghi Chú Kiến Trúc
-- Route mới nên được thêm trong `App::registerRoutes()` để tránh `index.php` phình to trở lại.
-- View không nên tự xử lý POST, gọi database hoặc quyết định redirect nghiệp vụ. Việc đó thuộc controller/model.
-- `public/views/*` và `app/Views/admin.php` vẫn là vùng legacy. Không nên mở rộng thêm logic mới ở đây nếu có controller mới tương ứng.
-- Khi deploy vào subfolder, có thể set `APP_BASE_URL=/ten-thu-muc/` hoặc full URL như `https://domain.com/ten-thu-muc/`.
-- Các bug business như cart, checkout, order, inventory, coupon và admin product vẫn cần được xử lý trong task feature tương ứng sau khi nền tảng đã ổn.
-
-## Cập Nhật Admin Product Management
-
-Ngày cập nhật: 01/08/2026
-
-### Bug Và Logic Đã Sửa
-- `Product::destroyProduct()` không còn xóa cứng trực tiếp bản ghi `product`. Hàm mới kiểm tra sản phẩm đã phát sinh trong `order_items` hay chưa; nếu đã có đơn hàng thì chặn xóa vĩnh viễn và yêu cầu admin dùng chức năng ẩn sản phẩm.
-- Khi sản phẩm chưa có đơn hàng, xóa vĩnh viễn sẽ chạy theo transaction và xóa dữ liệu liên quan theo thứ tự an toàn: `inventory_logs`, `product_sales_reports`, `cart`, `wishlist`, `reviews`, `product_images`, `product_variants`, rồi mới xóa `product`.
-- Bổ sung kiểm tra schema linh hoạt cho `order_items.product_id` hoặc `order_items.variant_id`, vì một số máy có thể đang lệch schema giữa product và variant.
-- Chặn slug sản phẩm/danh mục bị trùng trước khi insert/update.
-- Chặn phân loại trùng cùng `size + màu` trong một sản phẩm.
-- Chặn sửa/xóa ảnh hoặc variant không thuộc sản phẩm đang thao tác.
-- Chuẩn hóa tồn kho và phần cộng giá không nhận số âm trong admin product.
-
-### UI/UX Đã Nâng Cấp
-- Việt hóa màn danh sách sản phẩm, form thêm/sửa sản phẩm và màn danh mục.
-- Nâng cấp giao diện admin theo tông trắng, đen, xám; panel rõ ràng, bảng dễ đọc, badge trạng thái đồng bộ.
-- Form sản phẩm được chia thành thông tin chung, nội dung/ảnh, thư viện ảnh và phân loại size/màu.
-- Variant có hiển thị chấm màu trực quan cho Đen, Đỏ, Trắng.
-
-### File Đã Sửa
-- `app/Models/Product.php`
-- `app/Controller/Admin/ProductController.php`
-- `app/Controller/Admin/CategoryController.php`
-- `app/Services/UploadService.php`
-- `app/Views/admin/_helpers.php`
-- `app/Views/admin/products/index.php`
-- `app/Views/admin/products/form.php`
-- `app/Views/admin/categories/index.php`
-- `README.md`
-
-### Checklist Kiểm Thử
-- Tạo sản phẩm mới, nhập tên tiếng Việt, kiểm tra slug tự sinh.
-- Upload ảnh sản phẩm, đặt ảnh đại diện, xóa ảnh.
-- Thêm, sửa, xóa variant size/màu; thử thêm trùng size/màu để kiểm tra báo lỗi.
-- Ẩn/hiện sản phẩm và danh mục.
-- Xóa vĩnh viễn sản phẩm chưa có đơn hàng.
-- Thử xóa sản phẩm đã có đơn hàng, hệ thống phải chặn và hiển thị thông báo yêu cầu ẩn sản phẩm.
-
-## Checklist Cho Thành Viên Mới
-
-### Trước Khi Bắt Đầu
-- [ ] Đọc hết README này
-- [ ] Mở `index.php` để hiểu cấu trúc route
-- [ ] Mở controller và model liên quan đến phần mình phụ trách
-- [ ] Xem `Database/paceup_lam_catalog_data.sql` để hiểu dữ liệu catalog hiện tại
-- [ ] Xác định đang làm theo flow controller mới hay code legacy trong `public/views/admin.php`
-- [ ] Kiểm tra giao diện trên desktop, tablet và mobile
-- [ ] Xác định sẵn môi trường deploy, không chỉ chạy local bằng XAMPP
-
-### Checklist Chất Lượng Code
-- [ ] Business logic phải được xử lý ở server
-- [ ] Không tin hoàn toàn vào tổng tiền hoặc discount do browser gửi lên
-- [ ] Phải kiểm tra quyền sở hữu trước khi sửa hoặc xóa dữ liệu của user
-- [ ] Luôn giữ đồng bộ giữa product, variant, cart, order và inventory
-- [ ] Dùng flash message hoặc JSON response rõ ràng
-- [ ] Tránh trộn code cũ và code mới nếu không cần thiết
-
-### Checklist Kiểm Thử
-- [ ] Đăng nhập và đăng ký vẫn hoạt động
-- [ ] Thêm, cập nhật, xóa giỏ hàng vẫn hoạt động
-- [ ] Checkout tạo đơn đúng
-- [ ] Coupon hoạt động đúng cho cả trường hợp hợp lệ và không hợp lệ
-- [ ] Admin cập nhật trạng thái đơn được
-- [ ] Kho thay đổi đúng khi đơn đổi trạng thái
-- [ ] Cập nhật profile và địa chỉ vẫn chạy
-- [ ] Giao diện responsive chạy ổn trên desktop, tablet và mobile
-- [ ] Dự án chạy đúng sau khi deploy lên internet
-
-## Phân Công 8 Thành Viên
-
-### 1. Nền Tảng Hệ Thống
-- Mục tiêu: làm cho project ổn định, ít lỗi nền tảng.
-- Việc cần làm: rà route, session, base URL, autoload, lỗi chạy chung, chuẩn hóa cách đặt tên và luồng xử lý cơ bản.
-- Deliverable: danh sách bug nền tảng + file đã sửa + ghi chú ngắn về kiến trúc.
-- Cần đọc trước: `index.php`, `app/Core/*`, `README.md`.
-
-### 2. Auth Và Tài Khoản
-- Mục tiêu: hoàn thiện đăng ký, đăng nhập, quên mật khẩu, hồ sơ cá nhân.
-- Việc cần làm: sửa login/register/logout, đổi mật khẩu, OTP reset, cập nhật profile, avatar, địa chỉ.
-- Deliverable: luồng tài khoản chạy ổn + checklist test.
-- Cần đọc trước: `app/Controller/AuthController.php`, `app/Controller/User/ProfileController.php`, `app/Models/UserModel.php`.
-
-### 3. Catalog Và Sản Phẩm
-- Mục tiêu: hiển thị sản phẩm rõ ràng, dễ tìm, dễ xem.
-- Việc cần làm: sửa shop list, filter, sort, search, trang chi tiết sản phẩm, sản phẩm liên quan, ảnh, size, màu, tồn kho.
-- Deliverable: trang shop và product hoàn chỉnh.
-- Cần đọc trước: `app/Controller/ShopController.php`, `app/Controller/ProductController.php`, `app/Models/Product.php`, `app/Views/shop.php`, `app/Views/product.php`.
-
-### 4. Cart Và Checkout
-- Mục tiêu: hoàn thiện luồng mua hàng từ giỏ đến đặt đơn.
-- Việc cần làm: sửa thêm/xóa/cập nhật giỏ, xử lý guest/user cart, checkout, áp coupon, kiểm tra tổng tiền, xác nhận đơn.
-- Deliverable: giỏ hàng và checkout end-to-end chạy đúng.
-- Cần đọc trước: `app/Controller/CartController.php`, `app/Controller/CheckoutController.php`, `app/Models/Cart.php`, `app/Models/Coupons.php`, `app/Views/cart.php`, `app/Views/checkout.php`.
-
-### 5. Order Và Inventory
-- Mục tiêu: đơn hàng và kho phải đồng bộ.
-- Việc cần làm: kiểm tra tạo đơn, trạng thái đơn, hủy đơn, trừ kho, hoàn kho, log trạng thái.
-- Deliverable: luồng order chuẩn + stock không lệch.
-- Cần đọc trước: `app/Models/Order.php`, `Database/paceup_lam_catalog_data.sql`.
-
-### 6. Admin Sản Phẩm
-- Mục tiêu: quản lý sản phẩm đầy đủ trong admin.
-- Việc cần làm: CRUD sản phẩm, ảnh, biến thể size/màu, cập nhật giá, ẩn/hiện sản phẩm, danh mục liên quan.
-- Deliverable: trang admin sản phẩm hoàn chỉnh.
-- Cần đọc trước: `app/Controller/Admin/ProductController.php`, `app/Controller/Admin/CategoryController.php`, `app/Views/admin/products/*`, `app/Models/Product.php`.
-
-### 7. Admin Đơn Hàng Và User
-- Mục tiêu: quản lý vận hành shop.
-- Việc cần làm: xem danh sách đơn, đổi trạng thái đơn, xem chi tiết đơn, quản lý user, khóa/mở tài khoản, theo dõi hoạt động.
-- Deliverable: bộ quản trị đơn hàng và người dùng.
-- Cần đọc trước: `app/Controller/Admin/UserController.php`, `app/Controller/Admin/OrderController.php`, `app/Models/UserModel.php`, `app/Models/Order.php`.
-
-### 8. UI/UX Và QA
-- Mục tiêu: giao diện dễ dùng, ổn định trên nhiều thiết bị.
-- Việc cần làm: sửa layout, responsive, thông báo lỗi, empty state, test flow chính, viết tài liệu hướng dẫn chạy project.
-- Deliverable: bộ test tay + tài liệu chạy project + chỉnh giao diện.
-- Cần đọc trước: `app/Views/*`, `public/assets/css/style.css`, `README.md`.
-
-## Thứ Tự Nên Làm
-
-Nếu nhóm đang sửa project theo hướng hoàn thiện dần, thứ tự an toàn nên là:
-1. Sửa nền tảng và route bị lỗi
-2. Ổn định auth và account
-3. Hoàn thiện catalog và tìm kiếm sản phẩm
-4. Sửa cart và checkout
-5. Sửa business logic của order, stock và coupon
-6. Hoàn thiện admin product và order
-7. Polish giao diện và kiểm thử cuối
-
-## Gợi Ý Chia Việc Theo Phụ Thuộc
-
-- Nên cho `Nền Tảng Hệ Thống` đi trước vì các bạn khác sẽ dựa vào route, session và cấu trúc chung.
-- `Auth Và Tài Khoản`, `Catalog Và Sản Phẩm`, và `UI/UX Và QA` có thể làm song song sau khi nền tảng ổn.
-- `Cart Và Checkout` nên bắt đầu sau khi catalog và product đã ổn định để dữ liệu hiển thị đúng.
-- `Order Và Inventory` phụ thuộc mạnh vào checkout vì đây là nơi tạo đơn và cập nhật tồn kho.
-- `Admin Sản Phẩm` và `Admin Đơn Hàng Và User` có thể làm song song, nhưng phải thống nhất schema và rule của `Order` trước.
-
-## Kết Luận Nhanh
-
-- Checklist hiện tại phù hợp cho một project chưa hoàn thiện.
-- Phân công nên tách theo feature/role để mỗi người có đầu việc rõ ràng và không chờ nhau quá nhiều.
-- Với project này, ưu tiên lớn nhất vẫn là: `responsive đa thiết bị`, `deploy internet`, `checkout đúng`, `order đúng`, và `inventory đúng`.
-
-## Hoàn Thiện Nghiệp Vụ Thương Mại Điện Tử
-
-Đã triển khai trục nghiệp vụ B2C: `PRODUCT → VARIANT → CART → ORDER → INVENTORY → SHIPPING → AFTER-SALE`.
-
-- Giỏ hàng và đơn hàng lưu `variant_id`; khách phải chọn đúng size/màu. Giá được đọc lại từ database khi đặt hàng.
-- Checkout kiểm tra tồn kho, tính phí ship ở server (miễn phí từ 1.000.000đ, dưới mức này 30.000đ), tính lại coupon và không tin tổng tiền từ trình duyệt.
-- Vòng đời đơn: `pending → confirmed → preparing → shipping → delivered → completed`; nhánh hủy có kiểm soát. Xác nhận đơn mới trừ kho, hủy đơn đã trừ kho mới hoàn kho, mọi thay đổi lưu `inventory_logs` và `order_status_logs`.
-- Bổ sung vận chuyển: đơn vị vận chuyển, mã vận đơn, phí ship, trạng thái giao, thời điểm giao.
-- Bổ sung đổi trả, đổi sản phẩm, hoàn tiền và bảo hành; chỉ áp dụng sau khi đơn giao thành công.
-- Review chỉ được tạo khi người dùng sở hữu `order_item` trong đơn `delivered/completed`.
-- Coupon có hạn dùng, đơn tối thiểu, lượt dùng toàn hệ thống, lượt dùng mỗi tài khoản, phạm vi theo sản phẩm/danh mục và bảng `coupon_usages`.
-- Marketing: banner động, sản phẩm nổi bật do admin bật `is_featured`, sản phẩm bán chạy theo số lượng đã giao thành công, SEO title/description/canonical và hàng đợi giỏ bỏ quên có retry, trạng thái gửi và link hủy nhận email.
-- Checkout lưu xác nhận thỏa thuận điện tử theo phiên bản điều khoản, thời điểm, IP và user-agent; đơn cũ không có dữ liệu sẽ được hiển thị là chưa ghi nhận.
-- Thông báo giao dịch cho đơn mới và từng lần đổi trạng thái được đưa vào `order_notifications`, có retry tối đa 3 lần và chạy qua SMTP.
-- CSKH có form tạo ticket, mã yêu cầu, trạng thái xử lý ở admin và email xác nhận tự động qua hàng đợi `support_tickets`.
-
-Ứng dụng tự chạy migration idempotent trong `app/Models/Database.php` để nâng CSDL cũ: thêm `variant_id`, snapshot giá/size/màu, trường vận chuyển, trạng thái giữ kho/bán/trả, bảng usage/review/hậu mãi/bằng chứng và giỏ bỏ quên. Hiện checkout chỉ hỗ trợ COD; chuyển khoản và ví điện tử sẽ tích hợp sau khi có gateway/callback/đối soát.
-
-Migration `ecommerce_business_v8` cũng đồng bộ các sản phẩm cũ chưa có `product_variants`, sửa bộ đếm bán/giữ/trả, trạng thái thanh toán, thỏa thuận điện tử, thông báo đơn hàng và hỗ trợ khách hàng; sản phẩm không có variant sẽ không được hiển thị ngoài shop cho đến khi admin thiết lập phân loại.
-
-Để bật email, cấu hình `PACEUP_SMTP_ENABLED=1` cùng các biến môi trường `PACEUP_SMTP_HOST`, `PACEUP_SMTP_PORT`, `PACEUP_SMTP_USERNAME`, `PACEUP_SMTP_PASSWORD`, `PACEUP_SMTP_ENCRYPTION`, `PACEUP_MAIL_FROM`, `PACEUP_MAIL_FROM_NAME` và `APP_BASE_URL` là URL đầy đủ. Có thể chạy các hàng đợi bằng cron: `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_abandoned_cart_reminders.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_order_notifications.php`; `*/15 * * * * /usr/bin/php /path/to/Ecommerce_Shoe_Store/scripts/send_customer_care_replies.php`.
-
-## Cấu Trúc Thư Mục
-
-```text
-/app
-  /Controller   Xử lý request cho public và admin
-  /Core         Khởi tạo app và router
-  /Helpers      Các hàm hỗ trợ session và tiện ích
-  /Middleware   Kiểm tra đăng nhập và phân quyền
-  /Models       Làm việc với database và business logic
-  /Services     Các dịch vụ dùng chung như upload và logging
-  /Views        Giao diện public và admin
-/config         Cấu hình database
-/Database       Schema SQL và dữ liệu mẫu
-/public         Tài nguyên public và file upload
+# Liên Hoa — đồ án website thương mại điện tử
+
+Liên Hoa là website PHP/MySQL mô phỏng cửa hàng đồ lam, pháp phục và vật dụng đi chùa. Toàn bộ tên pháp nhân, mã số thuế, nhà cung cấp, hóa đơn GTGT và giao dịch trong dự án đều là dữ liệu phục vụ học tập, không phải thông tin kinh doanh hoặc hóa đơn hợp pháp.
+
+## Chức năng chính
+
+- Danh mục, tìm kiếm, chi tiết sản phẩm, biến thể, SKU/barcode và tồn kho.
+- Giỏ hàng, mã giảm giá, checkout, địa chỉ đã lưu và phí giao hàng tính tại server theo tỉnh, khối lượng quy đổi và gói vận chuyển.
+- COD, chuyển khoản VietQR và PayPal Orders v2; admin xác minh chuyển khoản, PayPal có capture, webhook xác minh chữ ký và nút đối soát dự phòng.
+- Vòng đời đơn hàng, giữ/trả lượt coupon, giữ/trừ/hoàn kho, lịch sử trạng thái, thông báo và tra cứu đơn bằng mã đơn kèm thông tin liên hệ.
+- Đổi trả/hoàn tiền một phần, phân bổ giảm giá, hoàn tiền cộng dồn và luồng giao sản phẩm thay thế.
+- Đánh giá chỉ dành cho sản phẩm đã mua; wishlist, hồ sơ, sổ địa chỉ và ticket hỗ trợ của khách.
+- Nhà cung cấp, đơn nhập nhiều dòng, nhận hàng từng phần, giá vốn bình quân, lịch sử trả công nợ và lợi nhuận gộp đã trừ hàng hoàn.
+- VAT mô phỏng theo từng mặt hàng: giá đã gồm thuế, phân bổ giảm giá trước thuế, snapshot thuế suất, hóa đơn GTGT, điều chỉnh, hủy và sổ doanh thu/thuế theo tháng.
+- Newsletter có double opt-in, phân nhóm, chiến dịch, gửi mail, open rate và click rate.
+- CSRF cho request thay đổi dữ liệu, khóa tài khoản, security headers và chặn truy cập trực tiếp file nội bộ.
+
+## Yêu cầu môi trường
+
+- PHP 8.2 trở lên, có PDO MySQL và `mbstring`.
+- MySQL 8.0 hoặc MariaDB tương thích.
+- MAMP mẫu dùng MySQL port `8889`, user/password `root/root` và socket `/Applications/MAMP/tmp/mysql/mysql.sock`.
+
+Sao chép `.env.example` thành `.env` rồi sửa các biến `DB_*` theo máy đang chạy. `config/database.php` chỉ đọc biến môi trường; không ghi tài khoản database trực tiếp vào source.
+
+## Cài đặt và nâng cấp database
+
+Với cài đặt mới chưa có dữ liệu, import `Database/paceup_db.sql`.
+
+Với website/database đang hoạt động, **không Drop database và không import đè file đầy đủ**. Hãy xuất một bản sao lưu SQL, chọn đúng database hiện tại trong phpMyAdmin, rồi import riêng `Database/migrations/20260903_vat_sales.sql`. Migration này chỉ thêm trường VAT và tách số liệu thuế cho dữ liệu cũ; không xóa sản phẩm, tài khoản, đơn hàng hoặc giao dịch và không đổi tổng tiền khách đã trả.
+
+Quy trình an toàn:
+
+1. Bật Apache và MySQL trong MAMP, rồi mở `http://localhost:8888/phpMyAdmin5/` (local) hoặc phpMyAdmin của hosting.
+2. Chọn đúng database, vào **Export → Quick → SQL** và tải bản sao lưu về máy.
+3. Vẫn tại database đó, vào **Import**, chọn `Database/migrations/20260903_vat_sales.sql`, giữ charset `utf-8` rồi bấm **Import**.
+4. Chỉ sau khi migration báo thành công mới cập nhật các file PHP lên website.
+
+Các script cũ `seed.php`, `migrate_auth.php`, `check*.php`, `debug*.php`, `query_orders.php`, `patch.js` và `test_db.php` đã được loại khỏi bản nộp. Không chạy file PHP chẩn đoán trực tiếp qua trình duyệt.
+
+Database có sẵn 156 sản phẩm, 585 biến thể, biểu phí giao hàng, nhà cung cấp và dữ liệu minh họa. Không seed đơn hàng/giao dịch để tránh làm sai báo cáo.
+
+## Chạy local
+
+Có thể trỏ Apache document root vào thư mục dự án và mở `http://127.0.0.1:8888/` theo cấu hình MAMP mẫu. Hoặc đổi `APP_PUBLIC_URL` trong `.env` sang `http://127.0.0.1:18765` rồi chạy PHP development server:
+
+```bash
+/Applications/MAMP/bin/php/php8.3.9/bin/php -S 127.0.0.1:18765 router.php
 ```
 
-## Ghi Chú Cho Team
-- Khi sửa bug, cần kiểm tra cả PHP lẫn SQL vì nhiều vấn đề đến từ việc code và schema không khớp nhau.
-- Nếu thêm tính năng mới, hãy đảm bảo route, controller, model, view và database đều hỗ trợ đầy đủ.
-- Nếu refactor một feature, luôn để ý luồng cũ để không làm hỏng cart, checkout hoặc admin.
-- Giao diện phải ưu tiên responsive đa thiết bị, không chỉ đẹp trên màn hình máy tính.
-- Mục tiêu cuối là đưa project lên hosting hoặc server thật để truy cập được qua internet.
+Sau đó mở `http://127.0.0.1:18765/`.
+
+Tài khoản demo:
+
+- Admin: `admin@lienhoa.local` / `Admin@12345`
+- Khách hàng: `customer@lienhoa.local` / `Customer@12345`
+
+Đổi mật khẩu demo trước khi đưa dự án lên máy chủ có thể truy cập từ Internet.
+
+## Quy tắc nghiệp vụ đang áp dụng
+
+- Giá, giảm giá, phí ship và tổng thanh toán luôn được tính lại ở server.
+- Đơn mới giữ tồn kho ngay trong transaction tạo đơn; PayPal giữ 30 phút, chuyển khoản/COD giữ 24 giờ. Đơn chưa thanh toán quá hạn tự hủy và trả kho/coupon; admin xác nhận mới chuyển lượng giữ thành hàng đã bán.
+- Coupon được giữ theo đơn và được trả lượt khi đơn bị hủy; lượt sử dụng không được tin từ client.
+- Đơn chuyển khoản phải được admin ghi nhận mã giao dịch/đã nhận tiền trước khi chuyển sang giao hàng.
+- Mỗi dòng đơn lưu giá bán, phần giảm giá và giá vốn tại thời điểm mua để hoàn tiền và lợi nhuận không thay đổi khi giá hiện tại đổi.
+- Đơn nhập có nhiều dòng; mỗi lần nhận chỉ ghi số thực nhận, tăng kho, tính lại giá vốn và tăng công nợ tương ứng. Mỗi lần trả công nợ có một dòng lịch sử riêng.
+- Chỉ đơn đã giao/hoàn thành và đã thanh toán mới được phát hành hóa đơn GTGT mô phỏng.
+- Hủy chứng từ gốc sẽ hủy các chứng từ điều chỉnh liên quan; mọi phát hành, điều chỉnh và hủy đều lưu sự kiện.
+- Email newsletter chỉ được đưa vào chiến dịch sau khi chủ email bấm liên kết xác nhận.
+
+## Hóa đơn GTGT mô phỏng
+
+Cấu hình tại `config/store.php` mô hình hóa người bán theo phương pháp khấu trừ. Giá bán trên website là giá đã gồm VAT; hệ thống tách ngược tiền trước thuế và tiền thuế theo phân loại của từng sản phẩm, phân bổ giảm giá trước khi tính thuế và lưu snapshot trên từng dòng đơn. Mức `standard_reduced` là 8% đến hết 31/12/2026 rồi tự trở về 10%; quản trị viên vẫn phải kiểm tra hồ sơ hàng hóa và chọn 0%, 5%, 8%, 10% hoặc không chịu thuế cho đúng mặt hàng thực tế.
+
+Trang **Admin → Hóa đơn GTGT** cho phép phát hành mẫu số/ký hiệu/số hóa đơn, lập điều chỉnh, hủy và xem sổ doanh thu/thuế. Đây là mô hình nghiệp vụ cho đồ án; không ký số, không cấp mã cơ quan thuế và không thay thế phần mềm hóa đơn điện tử được pháp luật công nhận.
+
+## PayPal, email và newsletter
+
+Sao chép `.env.example` thành `.env`, sau đó điền khóa riêng vào `.env`; không ghi Client Secret hoặc mật khẩu SMTP trực tiếp vào source. PayPal Sandbox chỉ dùng tiền thử nghiệm. Khi triển khai thật, đổi sang `PAYPAL_MODE=live`, dùng bộ Live Client ID/Secret và đặt `APP_PUBLIC_URL` là địa chỉ HTTPS công khai.
+
+```text
+APP_ENV=local
+APP_PUBLIC_URL=http://127.0.0.1:18765
+FORCE_HTTPS=false
+PAYPAL_MODE=sandbox
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_WEBHOOK_ID=...
+PAYPAL_LIVE_CREDENTIALS_ROTATED=false
+PAYPAL_VND_PER_USD=26085.01
+APP_SECURITY_KEY=chuoi-ngau-nhien-dai
+
+SMTP_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+SMTP_ENCRYPTION=tls
+SMTP_FROM_EMAIL=...
+SMTP_FROM_NAME="Lien Hoa Shop"
+SMTP_CREDENTIALS_ROTATED=false
+```
+
+PayPal không hỗ trợ VND trực tiếp nên checkout quy đổi sang USD theo `PAYPAL_VND_PER_USD` và lưu cả số tiền USD lẫn tỷ giá cùng giao dịch để đối soát. Trong PayPal Developer Dashboard, tạo webhook trỏ đến `APP_PUBLIC_URL/paypal/webhook`, đăng ký ít nhất `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED` và `PAYMENT.CAPTURE.REFUNDED`, rồi điền Webhook ID vào `.env`. Chế độ Live chỉ được bật khi đồng thời có URL HTTPS công khai, `FORCE_HTTPS=true`, Webhook ID và `PAYPAL_LIVE_CREDENTIALS_ROTATED=true`.
+
+Nếu Client Secret PayPal hoặc Gmail App Password từng xuất hiện trong ảnh, chat, commit hay log: thu hồi khóa cũ trong trang quản trị nhà cung cấp, tạo khóa mới, thay giá trị trong `.env`, sau đó mới đặt cờ `*_CREDENTIALS_ROTATED=true`. Cờ xác nhận không tự thu hồi khóa; nó chỉ ngăn bản production vô tình dùng lại khóa đã lộ. Trước khi tự hủy đơn PayPal hết hạn, tác vụ nền sẽ đối soát lại PayPal để không hủy nhầm giao dịch đã thanh toán nhưng khách đóng tab/mất callback. SMTP mặc định tắt nếu thiếu biến môi trường; khi đó đăng ký tài khoản demo vẫn dùng được theo chính sách local và newsletter chỉ ở trạng thái chờ.
+
+Chạy `scripts/send_order_notifications.php` bằng cron mỗi 5 phút. Tác vụ tổng hợp này:
+
+- hủy đơn chưa thanh toán quá hạn và trả kho/coupon;
+- đối soát PayPal trước khi hủy;
+- gửi thông báo đơn, email nhắc giỏ hàng và xác nhận tiếp nhận CSKH;
+- xử lý các chiến dịch newsletter đã được admin xếp hàng.
+
+Ví dụ cron trên macOS/MAMP (đổi đường dẫn nếu dự án nằm nơi khác):
+
+```cron
+*/5 * * * * cd /Users/tanhiep/Desktop/Lam_do_store && /Applications/MAMP/bin/php/php8.3.9/bin/php scripts/send_order_notifications.php >> /tmp/lienhoa-cron.log 2>&1
+```
+
+Không chạy đồng thời ba script hàng đợi riêng nếu đã dùng tác vụ tổng hợp trên, tránh gửi trùng. Các script riêng chỉ phục vụ chạy thủ công khi cần chẩn đoán một hàng đợi cụ thể.
+
+## Cấu trúc chính
+
+- `index.php`, `router.php`: entrypoint và router cho môi trường local.
+- `app/Core/App.php`: route, session, CSRF và middleware.
+- `app/Controller`: xử lý request phía khách và admin.
+- `app/Models`: dữ liệu và quy tắc nghiệp vụ.
+- `app/Services`: email, vận chuyển, upload và thông báo.
+- `app/Views`: giao diện.
+- `Database/paceup_db.sql`: schema/dữ liệu import duy nhất.
+- `config/store.php`: thông tin cửa hàng, thuế và tài khoản ngân hàng mô phỏng.
+- `config/paypal.php`, `config/mail.php`: đọc cấu hình bí mật từ `.env` (không chứa khóa trực tiếp).
+
+## Giới hạn khi triển khai thật
+
+Dự án hoàn chỉnh ở mức mô phỏng nghiệp vụ môn học. PayPal có luồng kỹ thuật Sandbox/Live nhưng muốn nhận tiền thật vẫn phải dùng tài khoản doanh nghiệp đã được PayPal chấp thuận, bộ khóa Live mới, HTTPS công khai và quy trình đối soát/hoàn tiền. Catalog cũ được gắn nhãn nguồn nội bộ chưa xác minh thay vì bịa URL/quyền sử dụng; trước khi kinh doanh phải thay bằng ảnh tự sở hữu hoặc có văn bản cho phép. Ngoài ra phải thay dữ liệu pháp nhân và thông tin ngân hàng; tích hợp nhà vận chuyển/hóa đơn điện tử thật; cấu hình SMTP, backup, giám sát, chống spam và quy trình kế toán–thuế theo quy định hiện hành.
+# Chạy migration (chỉ từ Terminal, không chạy trong request web)
+
+Sau khi import database hoặc cập nhật source, chạy một lần lệnh sau tại thư mục dự án. Lệnh dừng ngay nếu migration lỗi:
+
+```bash
+RUN_SCHEMA_MIGRATIONS=1 /Applications/MAMP/bin/php/php8.3.9/bin/php -r "require 'app/Core/App.php'; App\\Core\\App::bootstrap(); App\\Models\\Database::getInstance();"
+```

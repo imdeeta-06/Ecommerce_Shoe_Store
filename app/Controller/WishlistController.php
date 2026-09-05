@@ -16,6 +16,12 @@ class WishlistController {
     }
 
     public function add() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            return;
+        }
+
         if (!isset($_SESSION['user_id'])) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 echo json_encode(['success' => false, 'message' => 'Bạn cần đăng nhập để thêm vào danh sách yêu thích.']);
@@ -26,12 +32,12 @@ class WishlistController {
         }
 
         $userId = $_SESSION['user_id'];
-        $productId = isset($_POST['product_id']) ? (int) $_POST['product_id'] : (isset($_GET['product_id']) ? (int) $_GET['product_id'] : 0);
+        $productId = (int)($_POST['product_id'] ?? 0);
 
         if ($productId > 0) {
             $wishlistModel = new Wishlist();
             $db = \App\Models\Database::getInstance()->getConnection();
-            $stmt = $db->prepare("SELECT p.id FROM product p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = :id AND p.status = 'active' AND (p.category_id IS NULL OR c.status = 1) LIMIT 1");
+            $stmt = $db->prepare('SELECT p.id FROM product p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = :id AND p.status = 1 AND (p.category_id IS NULL OR c.status = 1) AND EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.status = 1 AND pv.stock_quantity > 0) LIMIT 1');
             $stmt->execute(['id' => $productId]);
             if (!$stmt->fetchColumn()) {
                 $message = 'Sản phẩm không còn được bán hoặc danh mục đã ẩn.';
@@ -69,6 +75,12 @@ class WishlistController {
     }
 
     public function remove() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            return;
+        }
+
         if (!isset($_SESSION['user_id'])) {
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 echo json_encode(['success' => false, 'message' => 'Bạn cần đăng nhập.']);
@@ -79,7 +91,7 @@ class WishlistController {
         }
 
         $userId = $_SESSION['user_id'];
-        $productId = isset($_POST['product_id']) ? (int) $_POST['product_id'] : (isset($_GET['product_id']) ? (int) $_GET['product_id'] : 0);
+        $productId = (int)($_POST['product_id'] ?? 0);
 
         if ($productId > 0) {
             $wishlistModel = new Wishlist();

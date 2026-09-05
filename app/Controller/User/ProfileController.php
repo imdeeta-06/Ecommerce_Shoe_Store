@@ -7,7 +7,10 @@ use App\Middleware\AuthMiddleware;
 use App\Models\UserModel;
 use App\Models\Order;
 use App\Models\AfterSale;
+use App\Models\SupportTicket;
+use App\Models\ElectronicInvoice;
 use App\Services\LoggingService;
+use App\Services\UploadService;
 
 class ProfileController {
     public function index() {
@@ -17,12 +20,15 @@ class ProfileController {
         $user = $userModel->findById($_SESSION['user_id']);
         $addresses = $userModel->getAddresses($_SESSION['user_id']);
         $orderModel = new Order();
+        try { $orderModel->expirePendingOrders(50); } catch (\Throwable $ignored) {}
         $orders = $orderModel->getOrdersByUserId($_SESSION['user_id']);
         foreach ($orders as &$order) {
             $order['items'] = $orderModel->getOrderItems((int)$order['id']);
         }
         unset($order);
         $afterSaleRequests = (new AfterSale())->getByUser($_SESSION['user_id']);
+        $supportTickets = (new SupportTicket())->getUserTickets((int)$_SESSION['user_id']);
+        $customerInvoices = (new ElectronicInvoice())->listForUser((int)$_SESSION['user_id']);
 
         require __DIR__ . '/../../Views/account/profile.php';
     }
@@ -72,34 +78,10 @@ class ProfileController {
             SessionHelper::redirect('/account');
         }
 
-        $file = $_FILES['avatar'];
-        $maxSize = 2 * 1024 * 1024;
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $mimeType = mime_content_type($file['tmp_name']);
-
-        if (!in_array($ext, $allowedExtensions, true) || !in_array($mimeType, $allowedMimeTypes, true)) {
-            SessionHelper::setFlash('error', 'Ảnh đại diện chỉ chấp nhận jpg, jpeg, png, webp');
-            SessionHelper::redirect('/account');
-        }
-
-        if ($file['size'] > $maxSize) {
-            SessionHelper::setFlash('error', 'Ảnh đại diện tối đa 2MB');
-            SessionHelper::redirect('/account');
-        }
-
-        $uploadDir = __DIR__ . '/../../../public/uploads/avatars/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-
-        $fileName = uniqid('avatar_') . '.' . $ext;
-        $targetPath = $uploadDir . $fileName;
-        $dbPath = 'public/uploads/avatars/' . $fileName;
-
-        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-            SessionHelper::setFlash('error', 'Không thể lưu ảnh đại diện');
+        try {
+            $dbPath = UploadService::image($_FILES['avatar'], 'avatars');
+        } catch (\Throwable $uploadError) {
+            SessionHelper::setFlash('error', $uploadError->getMessage());
             SessionHelper::redirect('/account');
         }
 
@@ -129,10 +111,15 @@ class ProfileController {
             SessionHelper::redirect('/account');
         }
 
+        if (!preg_match('/^[0-9+\-\s()]{7,20}$/', $phone)) {
+            SessionHelper::setFlash('error', 'Số điện thoại người nhận không hợp lệ');
+            SessionHelper::redirect('/account');
+        }
+
         $userModel = new UserModel();
         $userModel->addAddress($_SESSION['user_id'], [
             'recipient_name' => $recipientName,
-            'phone' => $phone,
+            'recipient_phone' => $phone,
             'address' => $address,
             'city' => $city,
             'is_default' => $isDefault

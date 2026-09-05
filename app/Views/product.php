@@ -10,20 +10,12 @@ function productDetailAssetPath($image): string {
     return 'assets/images/' . $image;
 }
 
-function productDetailType($product): string {
-    $type = trim((string)($product['type'] ?? ''));
-    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
-        return trim((string)($product['category'] ?? 'Đồ Lam Đi Chùa'));
+function productDetailImageUrl($image): string {
+    $path = productDetailAssetPath($image);
+    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        return $path;
     }
-    return $type;
-}
-
-function productDetailGenderLabel($gender): string {
-    $gender = strtolower(trim((string)$gender));
-    if ($gender === 'men' || $gender === 'nam') return 'Nam';
-    if ($gender === 'women' || $gender === 'nữ') return 'Nữ';
-    if ($gender === 'unisex') return 'Nam / Nữ';
-    return 'Pháp phục';
+    return BASE_URL . ltrim($path, '/');
 }
 
 function productDetailColorHex($colorName): string {
@@ -39,8 +31,30 @@ function productDetailColorHex($colorName): string {
         'trắng' => '#ffffff', 'màu trắng' => '#ffffff',
         'xanh' => '#2563eb', 'xanh lá' => '#16a34a',
         'hồng' => '#ec4899', 'tím' => '#9333ea',
+        'xanh ngọc' => '#2a9d8f', 'tím ruốc' => '#8a5a83',
+        'tím môn' => '#76518f',
+        'nâu đen' => '#2f241f', 'nâu đất' => '#6f4e37',
+        'vàng đất' => '#b7791f', 'vàng cam' => '#dd6b20',
+        'vàng bò' => '#c08a3e', 'vàng nhạt' => '#f6e05e',
+        'trắng ngà' => '#fffaf0', 'be' => '#d6c3a5',
+        'theo ảnh' => '#cbd5e1',
     ];
     return $colorMap[$c] ?? '#94a3b8';
+}
+
+function productDetailSizeLabel($size): string {
+    $size = trim((string)$size);
+    return in_array(strtolower($size), ['mặc định', 'freesize', 'free size'], true) ? 'Free Size' : $size;
+}
+
+function productDetailColorLabel($color): string {
+    $labels = [
+        'black' => 'Đen', 'red' => 'Đỏ', 'white' => 'Trắng',
+        'brown' => 'Nâu', 'gray' => 'Xám', 'blue' => 'Lam',
+        'mặc định' => 'Tiêu chuẩn', 'tiêu chuẩn' => 'Tiêu chuẩn'
+    ];
+    $key = strtolower(trim((string)$color));
+    return $labels[$key] ?? trim((string)$color);
 }
 
 // Process images list
@@ -53,18 +67,24 @@ if (empty($imagesList) && !empty($product['image'])) {
 $variantsList = $product['variants'] ?? [];
 $availableColors = [];
 $availableSizes = [];
+$variantImageUrls = [];
 $totalStock = 0;
 $hasVariantsInDb = !empty($variantsList);
 
 if ($hasVariantsInDb) {
     foreach ($variantsList as $v) {
-        $color = trim($v['color'] ?? '');
-        $size = trim($v['size'] ?? '');
+        $color = productDetailColorLabel($v['color'] ?? '');
+        $size = productDetailSizeLabel($v['size'] ?? '');
         $stock = (int)($v['stock_quantity'] ?? 0);
         $totalStock += $stock;
 
-        if ($color !== '' && !in_array($color, $availableColors)) {
+        if ($color !== '' && !in_array($color, $availableColors, true)) {
             $availableColors[] = $color;
+        }
+
+        $variantImage = trim((string)($v['image_url'] ?? ''));
+        if ($variantImage !== '' && !isset($variantImageUrls[$color])) {
+            $variantImageUrls[$color] = productDetailImageUrl($variantImage);
         }
 
         if ($size !== '') {
@@ -73,13 +93,13 @@ if ($hasVariantsInDb) {
                 'size' => $size,
                 'color' => $color,
                 'stock' => $stock,
-                'price_modifier' => (float)($v['price_modifier'] ?? 0)
+                'price_modifier' => (float)($v['price_modifier'] ?? 0),
+                'image_url' => $variantImage !== '' ? productDetailImageUrl($variantImage) : ''
             ];
         }
     }
 } else {
-    // Default size fallback if database table product_variants has no records for this product
-    $defaultSizes = ['S', 'M', 'L', 'XL', 'Freesize'];
+    $defaultSizes = ['Free Size'];
     foreach ($defaultSizes as $ds) {
         $availableSizes[] = [
             'id' => 0,
@@ -89,7 +109,7 @@ if ($hasVariantsInDb) {
             'price_modifier' => 0
         ];
     }
-    $availableColors = ['Lam', 'Nâu', 'Xám'];
+    $availableColors = ['Tiêu chuẩn'];
     $totalStock = 99;
 }
 
@@ -98,9 +118,11 @@ $avgRating = $ratingStats['avg_rating'] ?? 0;
 $totalReviews = $ratingStats['total_reviews'] ?? 0;
 $compareAtPrice = !empty($product['compare_at_price']) ? (float)$product['compare_at_price'] : 0;
 $basePrice = (float)($product['base_price'] ?? 0);
+$displayTaxCategory = \App\Services\TaxService::normalizeCategory((string)($product['tax_category'] ?? 'standard_reduced'));
+$displayTaxRate = \App\Services\TaxService::rateFor($displayTaxCategory, $product['tax_rate'] ?? null);
 ?>
 
-<style>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 .product-detail-container {
     max-width: 1240px;
     margin: 2rem auto 4rem;
@@ -760,18 +782,17 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     <?php if ($soldCount > 0): ?>
                         <span class="pd-badge pd-badge-sold">Đã bán <?= $soldCount ?></span>
                     <?php endif; ?>
-                    <span class="pd-badge pd-badge-gender"><?= productDetailGenderLabel($product['gender'] ?? '') ?></span>
                 </div>
-                <?php $primaryImgUrl = !empty($imagesList[0]['image_url']) ? productDetailAssetPath($imagesList[0]['image_url']) : ''; ?>
-                <img id="mainProductImage" src="<?= BASE_URL . htmlspecialchars($primaryImgUrl) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
+                <?php $primaryImgUrl = !empty($imagesList[0]['image_url']) ? $imagesList[0]['image_url'] : ''; ?>
+                <img id="mainProductImage" src="<?= htmlspecialchars(productDetailImageUrl($primaryImgUrl), ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name']) ?>">
             </div>
 
             <?php if (count($imagesList) > 1): ?>
                 <div class="pd-thumbs">
                     <?php foreach ($imagesList as $idx => $imgObj): ?>
-                        <?php $thumbUrl = productDetailAssetPath($imgObj['image_url']); ?>
-                        <div class="pd-thumb <?= $idx === 0 ? 'active' : '' ?>" onclick="switchProductImage('<?= BASE_URL . htmlspecialchars($thumbUrl) ?>', this)">
-                            <img src="<?= BASE_URL . htmlspecialchars($thumbUrl) ?>" alt="Thumbnail <?= $idx + 1 ?>">
+                        <?php $thumbUrl = productDetailImageUrl($imgObj['image_url']); ?>
+                        <div class="pd-thumb <?= $idx === 0 ? 'active' : '' ?>" onclick='switchProductImage(<?= json_encode($thumbUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, this)'>
+                            <img src="<?= htmlspecialchars($thumbUrl, ENT_QUOTES, 'UTF-8') ?>" alt="Thumbnail <?= $idx + 1 ?>">
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -780,7 +801,6 @@ $basePrice = (float)($product['base_price'] ?? 0);
 
         <!-- Product Info -->
         <div class="pd-info-box">
-            <div class="pd-type-tag"><?= htmlspecialchars(productDetailType($product)) ?></div>
             <h1 class="pd-title-text"><?= htmlspecialchars($product['name']) ?></h1>
             
             <div class="pd-sub-meta">
@@ -811,6 +831,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     <?php endif; ?>
                 </div>
             </div>
+            <p style="margin:-.4rem 0 1rem;color:#64748b;font-size:.85rem;"><?= $displayTaxCategory === 'not_subject' ? 'Mặt hàng không chịu thuế GTGT' : 'Giá đã gồm thuế GTGT ' . number_format($displayTaxRate, 2, ',', '.') . '%' ?></p>
 
             <!-- Color Options -->
             <?php if (!empty($availableColors)): ?>
@@ -820,9 +841,9 @@ $basePrice = (float)($product['base_price'] ?? 0);
                 </div>
                 <div class="pd-color-options">
                     <?php foreach ($availableColors as $idx => $colorName): ?>
-                        <div class="pd-color-item <?= $idx === 0 ? 'active' : '' ?>" onclick="selectColor('<?= htmlspecialchars($colorName) ?>', this)">
+                        <div class="pd-color-item <?= $idx === 0 ? 'active' : '' ?>" onclick='selectColor(<?= json_encode($colorName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, this)'>
                             <span class="color-dot" style="background-color: <?= productDetailColorHex($colorName) ?>;"></span>
-                            <span><?= htmlspecialchars($colorName) ?></span>
+                            <span><?= htmlspecialchars(productDetailColorLabel($colorName)) ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -834,13 +855,22 @@ $basePrice = (float)($product['base_price'] ?? 0);
                 <span style="color: #2563eb; cursor: pointer; font-size: 0.85rem; font-weight: 500;" onclick="showSizeGuideModal()">Hướng dẫn chọn size</span>
             </div>
             <div class="pd-size-grid">
+                <?php $initialColor = $availableColors[0] ?? ''; $initialSizeAssigned = false; ?>
                 <?php foreach ($availableSizes as $idx => $sz): ?>
-                    <?php $isDisabled = ($sz['stock'] <= 0 && $hasVariantsInDb); ?>
-                    <button class="pd-size-item <?= ($idx === 0 && !$isDisabled) ? 'active' : '' ?> <?= $isDisabled ? 'disabled' : '' ?>" 
+                    <?php
+                    $isDisabled = ($sz['stock'] <= 0 && $hasVariantsInDb);
+                    $belongsToInitialColor = $sz['color'] === $initialColor;
+                    $isInitiallyActive = $belongsToInitialColor && !$isDisabled && !$initialSizeAssigned;
+                    if ($isInitiallyActive) $initialSizeAssigned = true;
+                    ?>
+                    <button type="button" class="pd-size-item <?= $isInitiallyActive ? 'active' : '' ?> <?= $isDisabled ? 'disabled' : '' ?>"
                             data-variant-id="<?= $sz['id'] ?>"
                             data-size="<?= htmlspecialchars($sz['size']) ?>"
+                            data-color="<?= htmlspecialchars($sz['color']) ?>"
+                            data-image-url="<?= htmlspecialchars($sz['image_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                             data-price-modifier="<?= $sz['price_modifier'] ?>"
                             data-stock="<?= $sz['stock'] ?>"
+                            <?= $belongsToInitialColor ? '' : 'hidden' ?>
                             <?= $isDisabled ? 'disabled' : '' ?>
                             onclick="selectSize(this)">
                         <?= htmlspecialchars($sz['size']) ?>
@@ -851,12 +881,12 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <!-- Quantity & Actions -->
             <div class="pd-actions-row">
                 <div class="pd-qty-picker">
-                    <button class="pd-qty-btn" onclick="changeQty(-1)">-</button>
+                    <button type="button" class="pd-qty-btn" onclick="changeQty(-1)">-</button>
                     <input type="number" id="pdQty" class="pd-qty-input" value="1" min="1" readonly>
-                    <button class="pd-qty-btn" onclick="changeQty(1)">+</button>
+                    <button type="button" class="pd-qty-btn" onclick="changeQty(1)">+</button>
                 </div>
 
-                <button class="btn-add-cart-main" onclick="submitAddToCart(<?= $product['id'] ?>)">
+                <button type="button" class="btn-add-cart-main" onclick="submitAddToCart(<?= $product['id'] ?>)">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
                     Thêm Vào Giỏ Hàng
                 </button>
@@ -868,7 +898,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     $isFav = $wishlistModel->checkExists($_SESSION['user_id'], $product['id']);
                 }
                 ?>
-                <button class="btn-fav-round <?= $isFav ? 'active' : '' ?>" title="Thêm vào yêu thích" onclick="toggleFavourite(this, <?= $product['id'] ?>)">
+                <button type="button" class="btn-fav-round <?= $isFav ? 'active' : '' ?>" title="Thêm vào yêu thích" onclick="toggleFavourite(this, <?= $product['id'] ?>)">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 </button>
             </div>
@@ -894,9 +924,9 @@ $basePrice = (float)($product['base_price'] ?? 0);
     <!-- Product Tabs: Description, Specs, Reviews -->
     <div class="pd-tabs-container">
         <div class="pd-tabs-header">
-            <button class="pd-tab-btn active" onclick="openTab('tabDesc', this)">Mô Tả Sản Phẩm</button>
-            <button class="pd-tab-btn" onclick="openTab('tabSpecs', this)">Thông Số Chi Tiết</button>
-            <button class="pd-tab-btn" onclick="openTab('tabReviews', this)">Đánh Giá (<?= $totalReviews ?>)</button>
+            <button type="button" class="pd-tab-btn active" onclick="openTab('tabDesc', this)">Mô Tả Sản Phẩm</button>
+            <button type="button" class="pd-tab-btn" onclick="openTab('tabSpecs', this)">Thông Số Chi Tiết</button>
+            <button type="button" class="pd-tab-btn" onclick="openTab('tabReviews', this)">Đánh Giá (<?= $totalReviews ?>)</button>
         </div>
 
         <!-- Description Tab -->
@@ -911,19 +941,11 @@ $basePrice = (float)($product['base_price'] ?? 0);
             <table class="pd-specs-table">
                 <tr>
                     <td class="spec-label">Thương Hiệu / Nguồn gốc</td>
-                    <td class="spec-val">Pháp Phục PaceUp</td>
+                    <td class="spec-val">Pháp Phục Liên Hoa</td>
                 </tr>
                 <tr>
                     <td class="spec-label">Danh Mục</td>
                     <td class="spec-val"><?= htmlspecialchars($product['category'] ?? 'Đồ Lam Đi Chùa') ?></td>
-                </tr>
-                <tr>
-                    <td class="spec-label">Loại Sản Phẩm</td>
-                    <td class="spec-val"><?= htmlspecialchars($product['type'] ?? 'Pháp phục') ?></td>
-                </tr>
-                <tr>
-                    <td class="spec-label">Dành Cho</td>
-                    <td class="spec-val"><?= productDetailGenderLabel($product['gender'] ?? '') ?></td>
                 </tr>
                 <tr>
                     <td class="spec-label">Đã Bán</td>
@@ -955,7 +977,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
 
                 <div style="flex: 1;">
                     <p style="font-size: 0.95rem; color: #475569; margin: 0;">
-                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại PaceUp.
+                        Tất cả đánh giá đến từ phật tử và khách hàng mua sản phẩm đồ lam, vật phẩm đi chùa tại Liên Hoa.
                     </p>
                 </div>
             </div>
@@ -969,9 +991,9 @@ $basePrice = (float)($product['base_price'] ?? 0);
                         <div class="pd-review-card">
                             <div class="pd-review-head">
                                 <div class="pd-reviewer-info">
-                                    <img class="pd-reviewer-avatar" src="<?= !empty($rev['avatar']) ? BASE_URL . htmlspecialchars($rev['avatar']) : 'https://ui-avatars.com/api/?name='.urlencode($rev['user_name'] ?? 'User').'&background=0F172A&color=fff' ?>" alt="Avatar">
+                                    <img class="pd-reviewer-avatar" src="<?= !empty($rev['avatar']) ? BASE_URL . htmlspecialchars($rev['avatar']) : 'https://ui-avatars.com/api/?name='.urlencode($rev['user_name'] ?? 'User').'&length=1&background=0F172A&color=fff' ?>" alt="Avatar">
                                     <div>
-                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử PaceUp') ?></div>
+                                        <div class="pd-reviewer-name"><?= htmlspecialchars($rev['user_name'] ?? 'Phật tử Liên Hoa') ?></div>
                                     </div>
                                 </div>
                                 <div class="pd-review-stars">
@@ -1021,13 +1043,23 @@ $basePrice = (float)($product['base_price'] ?? 0);
                 <?php foreach ($related as $r): ?>
                     <?php $rImg = productDetailAssetPath($r['image'] ?? ''); ?>
                     <a href="<?= BASE_URL ?>product?id=<?= $r['id'] ?>" class="related-card">
-                        <div class="related-img">
+                        <div class="related-img" style="position:relative;">
+                            <?php $rCPrice = (float)($r['compare_at_price'] ?? 0); $rPrice = (float)$r['price']; if ($rCPrice > $rPrice): ?>
+                                <span class="badge-tag tag-sale" style="position:absolute; top:10px; left:10px; background:#e11d48; color:white; font-size:0.75rem; padding:3px 8px; border-radius:4px; font-weight:bold; z-index:2;">-<?= round((($rCPrice - $rPrice) / $rCPrice) * 100) ?>%</span>
+                            <?php endif; ?>
                             <img src="<?= BASE_URL . htmlspecialchars($rImg) ?>" alt="<?= htmlspecialchars($r['name']) ?>">
                         </div>
                         <div class="related-info">
                             <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
-                            <span class="r-cat"><?= htmlspecialchars(productDetailType($r)) ?></span>
-                            <span class="r-price"><?= number_format($r['price'], 0, ',', '.') ?> ₫</span>
+                            <span class="r-cat"><?= htmlspecialchars($r['category'] ?? '') ?></span>
+                            <div style="margin-top:0.3rem;">
+                                <?php if ($rCPrice > $rPrice): ?>
+                                    <span style="color: #e11d48; font-weight: 700;"><?= number_format($rPrice, 0, ',', '.') ?> ₫</span>
+                                    <del style="color: #94a3b8; font-size: 0.85em; margin-left: 6px;"><?= number_format($rCPrice, 0, ',', '.') ?> ₫</del>
+                                <?php else: ?>
+                                    <span class="r-price"><?= number_format($rPrice, 0, ',', '.') ?> ₫</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </a>
                 <?php endforeach; ?>
@@ -1039,10 +1071,11 @@ $basePrice = (float)($product['base_price'] ?? 0);
 <!-- Toast Feedback -->
 <div class="toast" id="toast"></div>
 
-<script>
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
 let selectedSize = '';
 let selectedVariantId = 0;
-let selectedColor = '<?= !empty($availableColors) ? htmlspecialchars($availableColors[0]) : '' ?>';
+let selectedColor = <?= json_encode($availableColors[0] ?? '', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+const variantImageUrls = <?= json_encode($variantImageUrls, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 let currentRating = 5;
 
 // Dynamic Image Gallery Switcher
@@ -1065,6 +1098,32 @@ function selectColor(colorName, el) {
     if (el) el.classList.add('active');
     const colorDisplay = document.getElementById('selectedColorName');
     if (colorDisplay) colorDisplay.textContent = colorName;
+
+    if (variantImageUrls[colorName]) {
+        switchProductImage(variantImageUrls[colorName], null);
+    }
+
+    let firstAvailableSize = null;
+    document.querySelectorAll('.pd-size-item').forEach(sizeButton => {
+        const matchesColor = sizeButton.dataset.color === colorName;
+        sizeButton.hidden = !matchesColor;
+        sizeButton.classList.remove('active');
+        if (matchesColor && !sizeButton.disabled && !firstAvailableSize) {
+            firstAvailableSize = sizeButton;
+        }
+    });
+
+    selectedSize = '';
+    selectedVariantId = 0;
+    if (firstAvailableSize) {
+        selectSize(firstAvailableSize);
+    } else {
+        const priceEl = document.getElementById('displayedPrice');
+        if (priceEl) {
+            const basePrice = parseFloat(priceEl.dataset.basePrice || '0');
+            priceEl.textContent = new Intl.NumberFormat('vi-VN').format(basePrice) + ' ₫';
+        }
+    }
 }
 
 // Size Selection & Dynamic Price Update
@@ -1077,6 +1136,10 @@ function selectSize(el) {
     selectedSize = el.dataset.size || '';
     selectedVariantId = parseInt(el.dataset.variantId || '0');
     const priceModifier = parseFloat(el.dataset.priceModifier || '0');
+
+    if (el.dataset.imageUrl) {
+        switchProductImage(el.dataset.imageUrl, null);
+    }
 
     // Recalculate price display
     const priceEl = document.getElementById('displayedPrice');
@@ -1094,9 +1157,12 @@ function showSizeGuideModal() {
 
 // Initialize default active size selection
 document.addEventListener('DOMContentLoaded', () => {
-    const activeSizeEl = document.querySelector('.pd-size-item.active');
-    if (activeSizeEl) {
-        selectSize(activeSizeEl);
+    const activeColorEl = document.querySelector('.pd-color-item.active');
+    if (activeColorEl && selectedColor) {
+        selectColor(selectedColor, activeColorEl);
+    } else {
+        const activeSizeEl = document.querySelector('.pd-size-item.active');
+        if (activeSizeEl) selectSize(activeSizeEl);
     }
 });
 
@@ -1140,6 +1206,7 @@ function submitAddToCart(productId) {
     .then(data => {
         if (data.success) {
             showToast('Đã thêm vào giỏ hàng!');
+            if (typeof window.recordAnalyticsEvent === 'function') window.recordAnalyticsEvent('add_to_cart', {product_id: productId});
             if (typeof window.updateBadgeGlobal === 'function') {
                 window.updateBadgeGlobal(data.cart_count);
             }

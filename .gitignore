@@ -10,6 +10,7 @@ Thumbs.db
 # 2. Các thư mục cấu hình của Trình soạn thảo (IDE/Editor)
 .vscode/
 .idea/
+.vs/
 *.suo
 *.sw?
 
@@ -25,5 +26,10 @@ composer.phar
 *.log
 error_log
 
-database.php
-db.php
+# 6. Cấu hình cục bộ và khóa bí mật
+.env
+.env.*
+!.env.example
+
+# Legacy local database connection file
+/config/db.php

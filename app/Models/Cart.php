@@ -155,10 +155,6 @@ class Cart extends BaseModel {
     }
 
     public function getAbandonedReminders($limit = 100, bool $queueOnly = true) {
-        if (!$this->tableExists('cart_reminders')) {
-            return [];
-        }
-
         $sql = "SELECT cr.*, u.full_name, u.email
             FROM cart_reminders cr
             JOIN user u ON u.id = cr.user_id
@@ -219,19 +215,22 @@ class Cart extends BaseModel {
     }
 
     private function cartSelectSql(string $where): string {
-        return "SELECT c.*, pv.product_id, p.category_id, pv.size, pv.color, pv.stock_quantity,
+        return "SELECT c.*, pv.product_id, p.category_id, pv.size, pv.color,
+                       GREATEST(0, pv.stock_quantity - COALESCE(pv.reserved_quantity, 0)) AS stock_quantity,
+                       pv.weight_grams, pv.length_cm, pv.width_cm, pv.height_cm,
                        p.name, p.slug, p.base_price, (p.base_price + COALESCE(pv.price_modifier, 0)) AS price,
+                       p.tax_category, p.tax_rate,
                        pi.image_url
                 FROM cart c
                 JOIN product_variants pv ON pv.id = c.variant_id
                 JOIN product p ON p.id = pv.product_id
                 LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
-                WHERE {$where}
+                WHERE {$where} AND p.status = 1 AND pv.status = 1
                 ORDER BY c.id ASC";
     }
 
     private function touchReminder(int $userId, bool $hasItems): void {
-        if (!$hasItems || !$this->tableExists('cart_reminders')) {
+        if (!$hasItems) {
             return;
         }
 
@@ -250,17 +249,7 @@ class Cart extends BaseModel {
     }
 
     public function markReminderConverted(int $userId): void {
-        if (!$this->tableExists('cart_reminders')) {
-            return;
-        }
-
         $stmt = $this->db->prepare("UPDATE cart_reminders SET status = 'converted', converted_at = NOW() WHERE user_id = :user_id");
         $stmt->execute(['user_id' => $userId]);
-    }
-
-    private function tableExists(string $table): bool {
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name');
-        $stmt->execute(['table_name' => $table]);
-        return (int)$stmt->fetchColumn() > 0;
     }
 }

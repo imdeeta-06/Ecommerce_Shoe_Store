@@ -71,6 +71,25 @@ class Coupons extends BaseModel {
         return true;
     }
 
+    public function releaseUsageForOrder(int $orderId): bool {
+        $stmt = $this->db->prepare('SELECT id, coupon_id FROM coupon_usages WHERE order_id = :order_id LIMIT 1 FOR UPDATE');
+        $stmt->execute(['order_id' => $orderId]);
+        $usage = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$usage) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare('DELETE FROM coupon_usages WHERE id = :id');
+        $stmt->execute(['id' => (int)$usage['id']]);
+        if ($stmt->rowCount() !== 1) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare('UPDATE coupons SET used_count = GREATEST(0, used_count - 1) WHERE id = :coupon_id');
+        $stmt->execute(['coupon_id' => (int)$usage['coupon_id']]);
+        return true;
+    }
+
     private function validateCouponData($coupon, $orderTotal, $userId, array $items) {
         
         if (!$coupon) {

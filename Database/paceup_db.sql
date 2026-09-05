@@ -1,32 +1,30 @@
 -- ============================================================================
--- PACEUP DATABASE - ĐỒ LAM, PHÁP PHỤC VÀ VẬT DỤNG ĐI CHÙA
+-- LIÊN HOA DATABASE - ĐỒ LAM, PHÁP PHỤC VÀ VẬT DỤNG ĐI CHÙA
 -- ============================================================================
 -- FILE IMPORT DUY NHẤT CỦA DỰ ÁN.
 --
 -- Cách import: trong phpMyAdmin, Drop database `paceup_db` cũ, sau đó import
 -- toàn bộ file này. Không import bất kỳ file seed/reset/mapping nào khác.
 --
--- Dữ liệu có sẵn: 6 danh mục, 150 sản phẩm, 525 biến thể có tồn kho, 150 ảnh
+-- Dữ liệu có sẵn: 6 danh mục, 156 sản phẩm, 585 biến thể và 179 ảnh
 -- local, 4 banner, 2 mã giảm giá và 2 tài khoản test.
 --
--- Tài khoản quản trị: admin@paceup.local / Admin@12345
--- Tài khoản khách:    customer@paceup.local / Customer@12345
+-- Tài khoản quản trị: admin@lienhoa.local / Admin@12345
+-- Tài khoản khách:    customer@lienhoa.local / Customer@12345
 -- ============================================================================
 
-CREATE DATABASE IF NOT EXISTS `paceup_db`
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-
-USE `paceup_db`;
+-- Đã bỏ CREATE DATABASE & USE để tương thích với InfinityFree
 SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `schema_migrations`;
 CREATE TABLE `schema_migrations` (
   `version` varchar(100) NOT NULL,
   `applied_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(100) NOT NULL,
@@ -34,16 +32,45 @@ CREATE TABLE `user` (
   `email` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `avatar` varchar(255) DEFAULT NULL,
-  `password` varchar(255) NOT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `email_verified` tinyint(1) NOT NULL DEFAULT 1,
+  `google_id` varchar(255) DEFAULT NULL,
   `role` enum('admin','user','guest') NOT NULL DEFAULT 'user',
   `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1: hoạt động, 0: khóa',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_email_unique` (`email`),
+  UNIQUE KEY `user_google_id_unique` (`google_id`),
   KEY `user_role_status_idx` (`role`,`status`)
-  ,CONSTRAINT `user_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `auth_otps`;
+CREATE TABLE `auth_otps` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `purpose` enum('email_verification','password_reset') NOT NULL,
+  `otp_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `attempts` tinyint unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `auth_otps_user_purpose_unique` (`user_id`,`purpose`),
+  CONSTRAINT `auth_otps_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `login_attempts`;
+CREATE TABLE `login_attempts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `email_hash` char(64) NOT NULL,
+  `ip_hash` char(64) NOT NULL,
+  `was_successful` tinyint(1) NOT NULL DEFAULT 0,
+  `attempted_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `login_attempt_lookup_idx` (`email_hash`,`ip_hash`,`attempted_at`),
+  KEY `login_attempt_cleanup_idx` (`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `user_addresses`;
 CREATE TABLE `user_addresses` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -58,6 +85,7 @@ CREATE TABLE `user_addresses` (
   CONSTRAINT `user_addresses_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `password_reset_otp`;
 CREATE TABLE `password_reset_otp` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(100) NOT NULL,
@@ -68,6 +96,7 @@ CREATE TABLE `password_reset_otp` (
   KEY `password_reset_lookup_idx` (`email`,`otp_code`,`is_used`,`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
@@ -79,6 +108,7 @@ CREATE TABLE `categories` (
   CONSTRAINT `categories_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product`;
 CREATE TABLE `product` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `category_id` int unsigned DEFAULT NULL,
@@ -93,6 +123,9 @@ CREATE TABLE `product` (
   `status` tinyint(1) NOT NULL DEFAULT 1,
   `is_featured` tinyint(1) NOT NULL DEFAULT 0,
   `product_type` enum('apparel','bag','beads','accessory') NOT NULL,
+  `unit_name` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_slug_unique` (`slug`),
   KEY `product_catalog_idx` (`category_id`,`status`,`is_featured`),
@@ -104,15 +137,27 @@ CREATE TABLE `product` (
   CONSTRAINT `product_category_fk` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_variants`;
 CREATE TABLE `product_variants` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
+  `sku` varchar(80) DEFAULT NULL,
+  `barcode` varchar(80) DEFAULT NULL,
   `size` varchar(50) NOT NULL DEFAULT 'Mặc định',
   `color` varchar(50) NOT NULL DEFAULT 'Mặc định',
+  `image_url` varchar(500) DEFAULT NULL COMMENT 'Ảnh tương ứng với màu của biến thể',
   `stock_quantity` int unsigned NOT NULL DEFAULT 0 COMMENT 'Tồn kho thực tế của biến thể',
+  `reserved_quantity` int unsigned NOT NULL DEFAULT 0 COMMENT 'Số lượng đang giữ cho đơn chưa xác nhận',
   `price_modifier` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `cost_price` decimal(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Giá vốn bình quân của biến thể',
+  `weight_grams` int unsigned NOT NULL DEFAULT 500,
+  `length_cm` decimal(8,2) NOT NULL DEFAULT 25.00,
+  `width_cm` decimal(8,2) NOT NULL DEFAULT 20.00,
+  `height_cm` decimal(8,2) NOT NULL DEFAULT 5.00,
   `status` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `product_variant_sku_unique` (`sku`),
+  UNIQUE KEY `product_variant_barcode_unique` (`barcode`),
   UNIQUE KEY `product_variant_unique` (`product_id`,`size`,`color`),
   KEY `product_variants_stock_idx` (`product_id`,`status`,`stock_quantity`),
   CONSTRAINT `product_variant_price_modifier_check` CHECK (`price_modifier` >= 0),
@@ -120,6 +165,7 @@ CREATE TABLE `product_variants` (
   CONSTRAINT `product_variants_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_images`;
 CREATE TABLE `product_images` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
@@ -132,17 +178,22 @@ CREATE TABLE `product_images` (
   CONSTRAINT `product_images_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_sources`;
 CREATE TABLE `product_sources` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
-  `source_site` varchar(255) NOT NULL,
+  `source_site` varchar(120) NOT NULL,
   `source_product_url` varchar(1000) NOT NULL,
-  `source_image_url` varchar(1000) NOT NULL,
   `source_name` varchar(500) NOT NULL,
-  `synced_at` datetime NOT NULL,
-  PRIMARY KEY (`product_id`),
+  `usage_note` varchar(500) DEFAULT NULL,
+  `imported_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `product_source_url_unique` (`product_id`,`source_product_url`(191)),
+  KEY `product_sources_product_idx` (`product_id`),
   CONSTRAINT `product_sources_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `inventory_logs`;
 CREATE TABLE `inventory_logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `variant_id` int unsigned NOT NULL,
@@ -154,6 +205,7 @@ CREATE TABLE `inventory_logs` (
   CONSTRAINT `inventory_logs_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `cart`;
 CREATE TABLE `cart` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -172,6 +224,7 @@ CREATE TABLE `cart` (
   CONSTRAINT `cart_owner_check` CHECK ((`user_id` IS NOT NULL AND `session_id` IS NULL) OR (`user_id` IS NULL AND `session_id` IS NOT NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `wishlist`;
 CREATE TABLE `wishlist` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -182,6 +235,7 @@ CREATE TABLE `wishlist` (
   CONSTRAINT `wishlist_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `coupons`;
 CREATE TABLE `coupons` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `code` varchar(50) NOT NULL,
@@ -203,6 +257,7 @@ CREATE TABLE `coupons` (
   CONSTRAINT `coupons_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_code` varchar(50) NOT NULL,
@@ -211,18 +266,32 @@ CREATE TABLE `orders` (
   `coupon_id` int unsigned DEFAULT NULL,
   `final_amount` decimal(12,2) NOT NULL,
   `shipping_fee` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `non_taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `shipping_tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `shipping_tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `shipping_tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `prices_include_tax` tinyint(1) NOT NULL DEFAULT 1,
   `shipping_name` varchar(100) NOT NULL,
   `shipping_phone` varchar(20) NOT NULL,
   `shipping_address` varchar(255) NOT NULL,
+  `shipping_province` varchar(100) DEFAULT NULL,
+  `shipping_carrier_code` varchar(50) DEFAULT NULL,
+  `shipping_weight_grams` int unsigned NOT NULL DEFAULT 0,
   `shipping_carrier` varchar(100) DEFAULT NULL,
   `tracking_code` varchar(100) DEFAULT NULL,
   `shipping_status` varchar(30) NOT NULL DEFAULT 'not_shipped',
   `status` enum('pending','confirmed','preparing','shipping','delivered','completed','canceled') NOT NULL DEFAULT 'pending',
+  `reservation_status` varchar(20) NOT NULL DEFAULT 'none',
+  `reservation_expires_at` datetime DEFAULT NULL,
+  `stock_reserved_at` datetime DEFAULT NULL,
+  `stock_reservation_closed_at` datetime DEFAULT NULL,
   `shipping_email` varchar(100) DEFAULT NULL,
   `customer_note` text DEFAULT NULL,
   `terms_accepted` tinyint(1) NOT NULL DEFAULT 0,
   `terms_accepted_at` datetime DEFAULT NULL,
-  `contract_version` varchar(30) NOT NULL DEFAULT 'v1.0',
+  `contract_version` varchar(30) NOT NULL DEFAULT 'v2.0-2026-08-27',
   `terms_accepted_ip` varchar(45) DEFAULT NULL,
   `terms_accepted_user_agent` varchar(1000) DEFAULT NULL,
   `shipped_at` datetime DEFAULT NULL,
@@ -232,10 +301,12 @@ CREATE TABLE `orders` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `orders_code_unique` (`order_code`),
   KEY `orders_user_status_idx` (`user_id`,`status`,`created_at`),
+  KEY `orders_reservation_expiry_idx` (`status`,`reservation_status`,`reservation_expires_at`),
   CONSTRAINT `orders_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_coupon_fk` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_items`;
 CREATE TABLE `order_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -243,9 +314,16 @@ CREATE TABLE `order_items` (
   `variant_id` int unsigned DEFAULT NULL,
   `quantity` int unsigned NOT NULL,
   `price_at_time` decimal(12,2) NOT NULL,
+  `unit_cost_snapshot` decimal(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Giá vốn tại thời điểm phát sinh đơn hàng',
+  `discount_amount` decimal(12,2) DEFAULT NULL COMMENT 'NULL: đơn cũ chưa phân bổ; >=0: giảm giá của dòng hàng',
   `product_name_snapshot` varchar(255) NOT NULL,
   `variant_size_snapshot` varchar(50) DEFAULT NULL,
   `variant_color_snapshot` varchar(50) DEFAULT NULL,
+  `unit_name_snapshot` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category_snapshot` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate_snapshot` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`id`),
   KEY `order_items_order_idx` (`order_id`),
   KEY `order_items_product_idx` (`product_id`),
@@ -256,6 +334,7 @@ CREATE TABLE `order_items` (
   CONSTRAINT `order_items_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_status_logs`;
 CREATE TABLE `order_status_logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -269,6 +348,7 @@ CREATE TABLE `order_status_logs` (
   CONSTRAINT `order_status_logs_user_fk` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `payments`;
 CREATE TABLE `payments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -276,6 +356,11 @@ CREATE TABLE `payments` (
   `payment_status` tinyint(1) NOT NULL DEFAULT 0,
   `payment_state` varchar(30) NOT NULL DEFAULT 'pending',
   `transaction_code` varchar(120) DEFAULT NULL,
+  `provider_order_id` varchar(64) DEFAULT NULL,
+  `provider_capture_id` varchar(64) DEFAULT NULL,
+  `provider_currency` char(3) DEFAULT NULL,
+  `provider_amount` decimal(12,2) DEFAULT NULL,
+  `provider_exchange_rate` decimal(14,4) DEFAULT NULL,
   `paid_at` datetime DEFAULT NULL,
   `failed_at` datetime DEFAULT NULL,
   `refund_status` varchar(30) NOT NULL DEFAULT 'not_requested',
@@ -284,9 +369,12 @@ CREATE TABLE `payments` (
   `refunded_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `payments_order_idx` (`order_id`),
+  UNIQUE KEY `payments_provider_order_unique` (`provider_order_id`),
+  UNIQUE KEY `payments_provider_capture_unique` (`provider_capture_id`),
   CONSTRAINT `payments_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `coupon_usages`;
 CREATE TABLE `coupon_usages` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `coupon_id` int unsigned NOT NULL,
@@ -301,6 +389,7 @@ CREATE TABLE `coupon_usages` (
   CONSTRAINT `coupon_usages_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `reviews`;
 CREATE TABLE `reviews` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -321,6 +410,7 @@ CREATE TABLE `reviews` (
   CONSTRAINT `reviews_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `daily_revenue_reports`;
 CREATE TABLE `daily_revenue_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `report_date` date NOT NULL,
@@ -334,6 +424,7 @@ CREATE TABLE `daily_revenue_reports` (
   UNIQUE KEY `daily_revenue_date_unique` (`report_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_sales_reports`;
 CREATE TABLE `product_sales_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `report_date` date NOT NULL,
@@ -347,6 +438,7 @@ CREATE TABLE `product_sales_reports` (
   CONSTRAINT `product_sales_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_sales_recognition`;
 CREATE TABLE `order_sales_recognition` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -356,6 +448,7 @@ CREATE TABLE `order_sales_recognition` (
   CONSTRAINT `order_sales_recognition_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `after_sale_requests`;
 CREATE TABLE `after_sale_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -369,6 +462,12 @@ CREATE TABLE `after_sale_requests` (
   `restockable` tinyint(1) NOT NULL DEFAULT 1,
   `inventory_processed_quantity` int unsigned NOT NULL DEFAULT 0,
   `sales_reversed_quantity` int unsigned NOT NULL DEFAULT 0,
+  `replacement_variant_id` int unsigned DEFAULT NULL,
+  `replacement_quantity` int unsigned NOT NULL DEFAULT 0,
+  `replacement_processed_quantity` int unsigned NOT NULL DEFAULT 0,
+  `replacement_shipping_carrier` varchar(100) DEFAULT NULL,
+  `replacement_tracking_code` varchar(120) DEFAULT NULL,
+  `replacement_shipped_at` datetime DEFAULT NULL,
   `status` varchar(30) NOT NULL DEFAULT 'pending',
   `refund_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
   `refund_status` varchar(30) NOT NULL DEFAULT 'not_requested',
@@ -382,11 +481,15 @@ CREATE TABLE `after_sale_requests` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `after_sale_order_item_idx` (`order_id`,`order_item_id`),
+  KEY `after_sale_replacement_variant_idx` (`replacement_variant_id`),
+  UNIQUE KEY `after_sale_refund_reference_unique` (`refund_transaction_code`),
   CONSTRAINT `after_sale_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
   CONSTRAINT `after_sale_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `after_sale_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE
+  CONSTRAINT `after_sale_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `after_sale_replacement_variant_fk` FOREIGN KEY (`replacement_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `after_sale_evidence`;
 CREATE TABLE `after_sale_evidence` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `request_id` int unsigned NOT NULL,
@@ -397,6 +500,49 @@ CREATE TABLE `after_sale_evidence` (
   CONSTRAINT `after_sale_evidence_request_fk` FOREIGN KEY (`request_id`) REFERENCES `after_sale_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `payment_refunds`;
+CREATE TABLE `payment_refunds` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `payment_id` int unsigned NOT NULL,
+  `after_sale_request_id` int unsigned DEFAULT NULL,
+  `provider` varchar(30) NOT NULL DEFAULT 'manual',
+  `provider_refund_id` varchar(120) DEFAULT NULL,
+  `merchant_reference` varchar(120) NOT NULL,
+  `amount_vnd` decimal(14,2) NOT NULL,
+  `provider_amount` decimal(12,2) DEFAULT NULL,
+  `provider_currency` char(3) DEFAULT NULL,
+  `status` enum('pending','completed','failed') NOT NULL DEFAULT 'completed',
+  `failure_reason` varchar(500) DEFAULT NULL,
+  `refunded_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `payment_refund_reference_unique` (`merchant_reference`),
+  UNIQUE KEY `payment_refund_provider_unique` (`provider_refund_id`),
+  KEY `payment_refund_order_idx` (`order_id`,`created_at`),
+  CONSTRAINT `payment_refund_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `payment_refund_payment_fk` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `payment_refund_after_sale_fk` FOREIGN KEY (`after_sale_request_id`) REFERENCES `after_sale_requests` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `paypal_webhook_events`;
+CREATE TABLE `paypal_webhook_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `event_id` varchar(100) NOT NULL,
+  `event_type` varchar(100) NOT NULL,
+  `resource_id` varchar(120) DEFAULT NULL,
+  `verification_status` varchar(20) NOT NULL,
+  `processing_status` varchar(20) NOT NULL DEFAULT 'received',
+  `payload_json` longtext NOT NULL,
+  `error_message` varchar(500) DEFAULT NULL,
+  `processed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `paypal_webhook_event_unique` (`event_id`),
+  KEY `paypal_webhook_status_idx` (`processing_status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `banner`;
 CREATE TABLE `banner` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `image_url` varchar(500) NOT NULL,
@@ -405,6 +551,89 @@ CREATE TABLE `banner` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `newsletter_subscriptions`;
+CREATE TABLE `newsletter_subscriptions` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `status` enum('pending','subscribed','unsubscribed') NOT NULL DEFAULT 'pending',
+  `consent_version` varchar(50) NOT NULL,
+  `consent_text` varchar(500) NOT NULL,
+  `source` varchar(100) NOT NULL DEFAULT 'footer',
+  `consent_ip` varchar(45) DEFAULT NULL,
+  `consented_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `unsubscribed_at` datetime DEFAULT NULL,
+  `unsubscribe_token` varchar(100) NOT NULL,
+  `confirmation_token` varchar(100) DEFAULT NULL,
+  `confirmation_expires_at` datetime DEFAULT NULL,
+  `confirmed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `newsletter_email_unique` (`email`),
+  UNIQUE KEY `newsletter_token_unique` (`unsubscribe_token`),
+  UNIQUE KEY `newsletter_confirmation_token_unique` (`confirmation_token`),
+  KEY `newsletter_status_idx` (`status`,`consented_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `newsletter_campaigns`;
+CREATE TABLE `newsletter_campaigns` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(150) NOT NULL,
+  `subject` varchar(255) NOT NULL,
+  `body_html` longtext NOT NULL,
+  `target_url` varchar(500) DEFAULT NULL,
+  `segment` enum('all','customers','prospects') NOT NULL DEFAULT 'all',
+  `status` enum('draft','queued','sending','sent','failed') NOT NULL DEFAULT 'draft',
+  `created_by` int unsigned DEFAULT NULL,
+  `queued_at` datetime DEFAULT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `newsletter_campaign_status_idx` (`status`,`created_at`),
+  CONSTRAINT `newsletter_campaign_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `newsletter_campaign_recipients`;
+CREATE TABLE `newsletter_campaign_recipients` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `campaign_id` int unsigned NOT NULL,
+  `subscription_id` int unsigned NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `open_token` char(64) NOT NULL,
+  `click_token` char(64) NOT NULL,
+  `status` enum('pending','sent','failed') NOT NULL DEFAULT 'pending',
+  `sent_at` datetime DEFAULT NULL,
+  `opened_at` datetime DEFAULT NULL,
+  `clicked_at` datetime DEFAULT NULL,
+  `last_error` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `newsletter_recipient_unique` (`campaign_id`,`subscription_id`),
+  UNIQUE KEY `newsletter_open_token_unique` (`open_token`),
+  UNIQUE KEY `newsletter_click_token_unique` (`click_token`),
+  KEY `newsletter_recipient_status_idx` (`campaign_id`,`status`),
+  CONSTRAINT `newsletter_recipient_campaign_fk` FOREIGN KEY (`campaign_id`) REFERENCES `newsletter_campaigns` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `newsletter_recipient_subscription_fk` FOREIGN KEY (`subscription_id`) REFERENCES `newsletter_subscriptions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `analytics_events`;
+CREATE TABLE `analytics_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `anonymous_session` char(64) NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `event_type` varchar(40) NOT NULL,
+  `page_path` varchar(500) DEFAULT NULL,
+  `product_id` int unsigned DEFAULT NULL,
+  `order_id` int unsigned DEFAULT NULL,
+  `source` varchar(100) DEFAULT NULL,
+  `medium` varchar(100) DEFAULT NULL,
+  `campaign` varchar(150) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `analytics_event_date_idx` (`event_type`,`created_at`),
+  KEY `analytics_campaign_idx` (`campaign`,`created_at`),
+  KEY `analytics_user_idx` (`user_id`),
+  UNIQUE KEY `analytics_purchase_order_unique` (`event_type`,`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `setting`;
 CREATE TABLE `setting` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `key_name` varchar(50) NOT NULL,
@@ -413,6 +642,7 @@ CREATE TABLE `setting` (
   UNIQUE KEY `setting_key_unique` (`key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `logs`;
 CREATE TABLE `logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -423,6 +653,7 @@ CREATE TABLE `logs` (
   CONSTRAINT `logs_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `custom_notes`;
 CREATE TABLE `custom_notes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `entity_type` varchar(50) NOT NULL,
@@ -432,6 +663,7 @@ CREATE TABLE `custom_notes` (
   KEY `custom_notes_entity_idx` (`entity_type`,`entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `cart_reminders`;
 CREATE TABLE `cart_reminders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -451,6 +683,7 @@ CREATE TABLE `cart_reminders` (
   CONSTRAINT `cart_reminder_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_notifications`;
 CREATE TABLE `order_notifications` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -472,6 +705,7 @@ CREATE TABLE `order_notifications` (
   CONSTRAINT `order_notifications_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `support_tickets`;
 CREATE TABLE `support_tickets` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `ticket_code` varchar(40) NOT NULL,
@@ -495,12 +729,193 @@ CREATE TABLE `support_tickets` (
   CONSTRAINT `support_tickets_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `shipping_rates`;
+CREATE TABLE `shipping_rates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `carrier_code` varchar(50) NOT NULL,
+  `carrier_name` varchar(120) NOT NULL,
+  `region_code` enum('hcm','major_city','nationwide') NOT NULL,
+  `base_fee` decimal(12,2) NOT NULL,
+  `base_weight_grams` int unsigned NOT NULL DEFAULT 1000,
+  `extra_fee_per_500g` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `volumetric_divisor` int unsigned NOT NULL DEFAULT 5000,
+  `free_shipping_threshold` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `estimated_days` varchar(50) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `shipping_rate_unique` (`carrier_code`,`region_code`),
+  KEY `shipping_rate_active_idx` (`status`,`region_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `suppliers`;
+CREATE TABLE `suppliers` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_code` varchar(50) NOT NULL,
+  `name` varchar(180) NOT NULL,
+  `tax_code` varchar(30) DEFAULT NULL,
+  `contact_name` varchar(120) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `address` varchar(500) DEFAULT NULL,
+  `payment_terms_days` int unsigned NOT NULL DEFAULT 0,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `supplier_code_unique` (`supplier_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `purchase_orders`;
+CREATE TABLE `purchase_orders` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `po_code` varchar(50) NOT NULL,
+  `supplier_id` int unsigned NOT NULL,
+  `status` enum('draft','ordered','partially_received','received','canceled') NOT NULL DEFAULT 'draft',
+  `ordered_at` datetime DEFAULT NULL,
+  `received_at` datetime DEFAULT NULL,
+  `expected_at` date DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `subtotal` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `total_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `created_by` int unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `purchase_order_code_unique` (`po_code`),
+  KEY `purchase_order_supplier_idx` (`supplier_id`,`status`,`created_at`),
+  CONSTRAINT `purchase_order_supplier_fk` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `purchase_order_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `purchase_order_items`;
+CREATE TABLE `purchase_order_items` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `purchase_order_id` int unsigned NOT NULL,
+  `variant_id` int unsigned NOT NULL,
+  `quantity_ordered` int unsigned NOT NULL,
+  `quantity_received` int unsigned NOT NULL DEFAULT 0,
+  `unit_cost` decimal(12,2) NOT NULL,
+  `tax_rate` decimal(5,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `purchase_order_variant_unique` (`purchase_order_id`,`variant_id`),
+  CONSTRAINT `purchase_item_order_fk` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `purchase_item_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `supplier_payables`;
+CREATE TABLE `supplier_payables` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `supplier_id` int unsigned NOT NULL,
+  `purchase_order_id` int unsigned NOT NULL,
+  `amount_due` decimal(14,2) NOT NULL,
+  `amount_paid` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `due_date` date DEFAULT NULL,
+  `status` enum('unpaid','partial','paid','void') NOT NULL DEFAULT 'unpaid',
+  `last_payment_reference` varchar(120) DEFAULT NULL,
+  `paid_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `supplier_payable_order_unique` (`purchase_order_id`),
+  KEY `supplier_payable_supplier_idx` (`supplier_id`,`status`,`due_date`),
+  CONSTRAINT `supplier_payable_supplier_fk` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `supplier_payable_order_fk` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `supplier_payments`;
+CREATE TABLE `supplier_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `payable_id` int unsigned NOT NULL,
+  `amount` decimal(14,2) NOT NULL,
+  `reference` varchar(120) NOT NULL,
+  `paid_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `supplier_payment_reference_unique` (`reference`),
+  KEY `supplier_payment_payable_idx` (`payable_id`,`paid_at`),
+  CONSTRAINT `supplier_payment_payable_fk` FOREIGN KEY (`payable_id`) REFERENCES `supplier_payables` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `supplier_payment_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `electronic_invoices`;
+CREATE TABLE `electronic_invoices` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `order_id` int unsigned NOT NULL,
+  `original_invoice_id` int unsigned DEFAULT NULL,
+  `invoice_type` enum('original','adjustment') NOT NULL DEFAULT 'original',
+  `invoice_series` varchar(30) NOT NULL,
+  `invoice_number` int unsigned NOT NULL,
+  `status` enum('issued','adjusted','canceled') NOT NULL DEFAULT 'issued',
+  `buyer_name` varchar(180) NOT NULL,
+  `buyer_tax_code` varchar(30) DEFAULT NULL,
+  `buyer_address` varchar(500) DEFAULT NULL,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `non_taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `total_amount` decimal(14,2) NOT NULL,
+  `adjustment_reason` varchar(500) DEFAULT NULL,
+  `issued_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `canceled_at` datetime DEFAULT NULL,
+  `created_by` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `electronic_invoice_number_unique` (`invoice_series`,`invoice_number`),
+  KEY `electronic_invoice_order_type_idx` (`order_id`,`invoice_type`),
+  KEY `electronic_invoice_period_idx` (`status`,`issued_at`),
+  CONSTRAINT `electronic_invoice_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `electronic_invoice_original_fk` FOREIGN KEY (`original_invoice_id`) REFERENCES `electronic_invoices` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `electronic_invoice_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `electronic_invoice_items`;
+CREATE TABLE `electronic_invoice_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` int unsigned NOT NULL,
+  `order_item_id` int unsigned DEFAULT NULL,
+  `item_name` varchar(255) NOT NULL,
+  `variant_description` varchar(255) DEFAULT NULL,
+  `unit_name` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `quantity` decimal(12,2) NOT NULL,
+  `unit_price` decimal(14,2) NOT NULL,
+  `discount_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `total_amount` decimal(14,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `electronic_invoice_item_idx` (`invoice_id`,`id`),
+  CONSTRAINT `electronic_invoice_item_invoice_fk` FOREIGN KEY (`invoice_id`) REFERENCES `electronic_invoices` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `electronic_invoice_item_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `document_sequences`;
+CREATE TABLE `document_sequences` (
+  `series` varchar(30) NOT NULL,
+  `current_number` int unsigned NOT NULL DEFAULT 0,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`series`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `electronic_invoice_events`;
+CREATE TABLE `electronic_invoice_events` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` int unsigned NOT NULL,
+  `event_type` enum('issued','adjusted','canceled') NOT NULL,
+  `reason` varchar(500) DEFAULT NULL,
+  `changed_by` int unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `electronic_invoice_event_idx` (`invoice_id`,`created_at`),
+  CONSTRAINT `electronic_invoice_event_invoice_fk` FOREIGN KEY (`invoice_id`) REFERENCES `electronic_invoices` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `electronic_invoice_event_user_fk` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `post_categories`;
 CREATE TABLE `post_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `posts`;
 CREATE TABLE `posts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `category_id` int unsigned DEFAULT NULL,
@@ -513,8 +928,8 @@ CREATE TABLE `posts` (
 
 -- TÀI KHOẢN DEMO
 INSERT INTO `user` (`id`,`full_name`,`display_name`,`email`,`phone`,`password`,`role`,`status`) VALUES
-(1,'Quản trị viên PaceUp','Admin','admin@paceup.local','0900000001','$2y$12$LkN2NQeZXS0RR3BOFATEYOPsMzw1tDNlFbYoPAI6.La.M9VZ1NhAq','admin',1),
-(2,'Khách hàng thử nghiệm','Khách demo','customer@paceup.local','0900000002','$2y$12$37vL39EFj.OhI09soBV65eugRZdKX7Iv4yMHQTCJ/LZXQ52ewqxH2','user',1);
+(1,'Quản trị viên Liên Hoa','Admin','admin@lienhoa.local','0900000001','$2y$12$LkN2NQeZXS0RR3BOFATEYOPsMzw1tDNlFbYoPAI6.La.M9VZ1NhAq','admin',1),
+(2,'Khách hàng thử nghiệm','Khách demo','customer@lienhoa.local','0900000002','$2y$12$37vL39EFj.OhI09soBV65eugRZdKX7Iv4yMHQTCJ/LZXQ52ewqxH2','user',1);
 
 -- DANH MỤC VÀ SẢN PHẨM ĐỒ LAM
 INSERT INTO `categories` (`id`,`name`,`slug`,`status`) VALUES
@@ -528,159 +943,164 @@ INSERT INTO `categories` (`id`,`name`,`slug`,`status`) VALUES
 INSERT INTO `product` (`id`,`category_id`,`name`,`slug`,`description`,`base_price`,`sold_count`,`reserved_quantity`,`returned_count`,`status`,`is_featured`,`product_type`) VALUES
 (1000,111,'Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất','lam-ao-trang-hai-thanh-phap-phuc-y-hau-quy-thay-mau-vang-dat-1000','Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',540000,0,0,0,1,1,'apparel'),
 (1001,111,'Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất','lam-ao-trang-truong-sam-7-vat-mau-vang-dat-1001','Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,1,'apparel'),
-(1002,111,'Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen, Nữ','lam-ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co-1002','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,1,'apparel'),
-(1003,111,'Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam','lam-ao-hai-thanh-ong-tay-rong-ao-hau-quy-thay-mau-vang-cam-phap-phuc-dai-duc-hoa-thuong-quy-thay-tang-ni-xuat-gia-1003','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,0,'apparel'),
-(1004,111,'Áo Hải Thanh Ống Tay, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia','lam-ao-hai-thanh-ao-hau-quy-thay-1004','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',540000,0,0,0,1,0,'apparel'),
+(1002,111,'Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ','lam-ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co-1002','Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,1,'apparel'),
+(1003,111,'Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size','lam-ao-hai-thanh-ong-tay-rong-ao-hau-quy-thay-mau-vang-cam-phap-phuc-dai-duc-hoa-thuong-quy-thay-tang-ni-xuat-gia-1003','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',600000,0,0,0,1,0,'apparel'),
+(1004,111,'Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia','lam-ao-hai-thanh-ao-hau-quy-thay-1004','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',540000,0,0,0,1,0,'apparel'),
 (1005,111,'Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia','lam-ao-trang-truong-sam-7-vat-mau-vang-1005','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
 (1006,111,'Áo Tràng Trường Sam 7 Vạt Màu Xám','lam-ao-trang-truong-sam-7-vat-mau-xam-2-1006','Áo Tràng Trường Sam 7 Vạt Màu Xám. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
-(1007,111,'Áo Trường Sam, Màu Nâu Đất','lam-ao-viet-hai-mau-nau-size-40-41-42-1007','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',800000,0,0,0,1,0,'apparel'),
+(1007,111,'Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size','lam-ao-viet-hai-mau-nau-size-40-41-42-1007','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',800000,0,0,0,1,0,'apparel'),
 (1008,111,'Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni','lam-ao-trang-lot-long-mua-dong-nhieu-size-1008','Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
 (1009,111,'Áo Tràng Lót Lông Màu Xám','lam-ao-trang-lot-long-mau-xam-size-37-cao-155cm-1009','Áo Tràng Lót Lông Màu Xám. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
-(1010,111,'Áo Tràng Lót Lông Màu Nâu','lam-ao-trang-lot-long-mau-nau-nhieu-size-1010','Áo Tràng Lót Lông Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
-(1011,111,'Áo Tuỳ Y Màu Vàng','lam-ao-tuy-y-mau-vang-size-3536373839-1011','Áo Tuỳ Y Màu Vàng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
-(1012,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe','lam-ao-tu-y-nau-25-dieu-1012','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel')
-(1013,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ','lam-ao-tu-y-do-25-dieu-1013','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
-(1014,111,'Áo Tràng Hải Thanh Đài Loan','lam-ao-trang-hai-thanh-dai-loan-cao-cap-1014','Áo Tràng Hải Thanh Đài Loan Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
-(1015,111,'Áo Tràng Đài Loan Chất Silk','lam-ao-trang-dai-loan-chat-silk-cao-cap-1015','Áo Tràng Đài Loan Chất Silk Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'apparel'),
+(1010,111,'Áo Tràng Lót Lông Màu Nâu, Nhiều Size','lam-ao-trang-lot-long-mau-nau-nhieu-size-1010','Áo Tràng Lót Lông Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1990000,0,0,0,1,0,'apparel'),
+(1011,111,'Áo Tuỳ Y Màu Vàng, Nhiều Size','lam-ao-tuy-y-mau-vang-size-3536373839-1011','Áo Tuỳ Y Màu Vàng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
+(1012,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size','lam-ao-tu-y-nau-25-dieu-1012','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
+(1013,111,'Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size','lam-ao-tu-y-do-25-dieu-1013','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',980000,0,0,0,1,0,'apparel'),
+(1014,111,'Áo Tràng Hải Thanh Đài Loan Cao Cấp','lam-ao-trang-hai-thanh-dai-loan-cao-cap-1014','Áo Tràng Hải Thanh Đài Loan Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
+(1015,111,'Áo Tràng Đài Loan Chất Silk Cao Cấp','lam-ao-trang-dai-loan-chat-silk-cao-cap-1015','Áo Tràng Đài Loan Chất Silk Cao Cấp. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'apparel'),
 (1016,111,'Áo Tràng Đài Loan Màu Lam','lam-ao-trang-dai-loan-mau-lam-1016','Áo Tràng Đài Loan Màu Lam. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'apparel'),
-(1017,111,'Áo Tràng Đài Loan','lam-ao-trang-dai-loan-cao-cap-mau-bo-1017','Áo Tràng Đài Loan Cao Cấp – Màu Bò. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
-(1018,111,'Áo Tràng','lam-ao-trang-cao-cap-silk-dai-loan-nam-nu-1018','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',345000,0,0,0,1,0,'apparel'),
+(1017,111,'Áo Tràng Đài Loan Cao Cấp – Màu Bò','lam-ao-trang-dai-loan-cao-cap-mau-bo-1017','Áo Tràng Đài Loan Cao Cấp – Màu Bò. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
+(1018,111,'Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ','lam-ao-trang-cao-cap-silk-dai-loan-nam-nu-1018','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',345000,0,0,0,1,0,'apparel'),
 (1019,111,'Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ','lam-ao-trang-ao-di-duong-nha-su-tu-si-1019','Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'apparel'),
-(1020,111,'Áo Tràng Đài Loan','lam-ao-trang-dai-loan-cao-cap-mau-trang-1020','Áo Tràng Đài Loan Cao Cấp màu Trắng. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',755000,0,0,0,1,0,'apparel'),
+(1020,111,'Áo Tràng Đài Loan Cao Cấp màu Trắng','lam-ao-trang-dai-loan-cao-cap-mau-trang-1020','Áo Tràng Đài Loan Cao Cấp màu Trắng. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',755000,0,0,0,1,0,'apparel'),
 (1021,111,'Áo Tràng Hải Thanh Nam/Nữ','lam-ao-trang-hai-thanh-cho-tu-si-phat-tu-1021','Áo Tràng Hải Thanh Nam/Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'apparel'),
 (1022,111,'Áo Tràng Đài Loan Nam/Nữ','lam-ao-trang-dai-loan-cho-tu-si-phat-tu-1022','Áo Tràng Đài Loan Nam/Nữ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'apparel'),
 (1023,111,'Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ','lam-ao-khoac-gile-phat-tu-hien-dai-cao-cap-mau-xam-1023','Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ. Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',255000,0,0,0,1,0,'apparel'),
 (1024,111,'Áo Tràng Kate Lam (không thêu)','lam-ao-trang-phat-tu-kate-khong-theu-mau-lam-1024','Áo Tràng Kate Lam (không thêu). Sản phẩm thuộc nhóm Quần áo Tăng - Ni, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',175000,0,0,0,1,0,'apparel'),
-(1025,112,'Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột –','lam-bo-quan-ao-nu-thanh-van-vai-linen-bot-size-s-m-l-1025','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,1,'apparel'),
-(1026,112,'Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be','lam-bo-nu-thanh-lieu-vai-lanh-bang-mau-be-size-s-m-l-1026','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',580000,0,0,0,1,1,'apparel'),
-(1027,112,'Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-trang-size-l-1027','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,1,'apparel'),
-(1028,112,'Bộ Quần Áo Nữ Vải Linen, Cổ Tròn Màu Be','lam-bo-quan-ao-nu-vai-linen-cao-cap-co-tron-mau-be-size-xl-1028','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1160000,0,0,0,1,0,'apparel'),
-(1029,112,'Bộ Pháp Phục Đi Chùa Nữ Vải Linen','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-xam-size-xl-1029','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,0,'apparel'),
+(1025,112,'Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L','lam-bo-quan-ao-nu-thanh-van-vai-linen-bot-size-s-m-l-1025','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,1,'apparel'),
+(1026,112,'Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L','lam-bo-nu-thanh-lieu-vai-lanh-bang-mau-be-size-s-m-l-1026','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',580000,0,0,0,1,1,'apparel'),
+(1027,112,'Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-trang-size-l-1027','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,1,'apparel'),
+(1028,112,'Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be','lam-bo-quan-ao-nu-vai-linen-cao-cap-co-tron-mau-be-size-xl-1028','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1160000,0,0,0,1,0,'apparel'),
+(1029,112,'Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám','lam-bo-quan-ao-nu-vai-linen-cao-cap-mau-xam-size-xl-1029','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1800000,0,0,0,1,0,'apparel'),
 (1030,112,'Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm','lam-bo-phap-phuc-nu-tam-bo-de-vai-dui-tam-quan-ao-di-chua-trang-nghiem-1030','Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',460000,0,0,0,1,0,'apparel'),
-(1031,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-mau-nau-size-smlxlxxl-1031','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel'),
-(1032,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi, Quần Nâu','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-ao-be-quan-nau-size-smlxlxxl-1032','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel')
-(1033,112,'Bộ Quần Áo Nữ Linen','lam-ao-nu-linen-cao-cap-ke-xam-size-m-1033','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1490000,0,0,0,1,0,'apparel'),
+(1031,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-mau-nau-size-smlxlxxl-1031','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel'),
+(1032,112,'Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL','lam-bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-ao-be-quan-nau-size-smlxlxxl-1032','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',860000,0,0,0,1,0,'apparel'),
+(1033,112,'Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám','lam-ao-nu-linen-cao-cap-ke-xam-size-m-1033','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1490000,0,0,0,1,0,'apparel'),
 (1034,112,'Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen','lam-bo-quan-ao-di-chua-nu-an-nhien-mau-trang-nga-vai-linen-1034','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
 (1035,112,'Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen','lam-bo-quan-ao-di-chua-nu-an-nhien-ao-be-quan-nau-1035','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'apparel'),
-(1036,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1036','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1036,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1036','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
 (1037,112,'Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-den-1037','Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
-(1038,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xs-1038','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
-(1039,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1039','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel')
+(1038,112,'Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS','lam-bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xs-1038','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1039,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-xam-size-s-m-l-xs-1039','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
 (1040,112,'Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen','lam-bo-quan-ao-phap-phuc-le-chua-nu-theu-hoa-sen-mau-nau-den-1040','Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
-(1041,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-sam-maunau-size-s-m-l-xs-1041','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
-(1042,112,'Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu','lam-bo-quan-ao-phat-tu-nu-co-chu-y-theu-nhu-y-mau-nau-size-xs-s-m-l-1042','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',400000,0,0,0,1,0,'apparel')
-(1043,112,'Áo','lam-ao-dai-cach-tan-di-chua-hoa-sen-mau-nau-size-s-m-l-1043','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',270000,0,0,0,1,0,'apparel'),
-(1044,112,'Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu','lam-bo-vat-ho-tho-dui-size-27-28-1044','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel')
-(1045,112,'Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay','lam-bo-quan-ao-nu-vai-cotton-mau-nau-tay-lung-size-s-m-l-xl-1045','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
-(1046,112,'Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay','lam-bo-quan-ao-nu-cu-si-mau-vang-nhat-vai-cotton-nhieu-kich-co-1046','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1047,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-xam-nhieu-size-1047','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1048,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1048','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
+(1041,112,'Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size','lam-bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-sam-maunau-size-s-m-l-xs-1041','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',490000,0,0,0,1,0,'apparel'),
+(1042,112,'Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L','lam-bo-quan-ao-phat-tu-nu-co-chu-y-theu-nhu-y-mau-nau-size-xs-s-m-l-1042','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',400000,0,0,0,1,0,'apparel'),
+(1043,112,'Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L','lam-ao-dai-cach-tan-di-chua-hoa-sen-mau-nau-size-s-m-l-1043','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',270000,0,0,0,1,0,'apparel'),
+(1044,112,'Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size','lam-bo-vat-ho-tho-dui-size-27-28-1044','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel'),
+(1045,112,'Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL','lam-bo-quan-ao-nu-vai-cotton-mau-nau-tay-lung-size-s-m-l-xl-1045','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1046,112,'Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL','lam-bo-quan-ao-nu-cu-si-mau-vang-nhat-vai-cotton-nhieu-kich-co-1046','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1047,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-xam-nhieu-size-1047','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1048,112,'Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size','lam-bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1048','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
 (1049,112,'Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ','lam-bo-quan-ao-phat-tu-cu-si-nu-ao-chu-y-mau-xam-1049','Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ. Sản phẩm thuộc nhóm Đồ lam đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',400000,0,0,0,1,0,'apparel'),
-(1050,113,'Bộ Pháp Phục Nam Tuệ Quang','lam-bo-phap-phuc-nam-tue-quang-dai-tay-vai-tho-dui-1050','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,1,'apparel'),
-(1051,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-nau-den-size-s-m-l-xl-1051','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel')
-(1052,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xl-1052','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel')
-(1053,113,'Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều','lam-bo-ba-lai-vai-linen-han-quoc-mau-xam-size-s-m-l-xl-1053','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,0,'apparel')
-(1054,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1054','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1055,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-nut-nhua-size-s-m-l-xl-1055','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1056,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều','lam-ma-ten-hang-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-xam-nau-nau-den-size-s-m-l-xl-1056','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1057,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-nam-co-tru-ngan-tay-vai-linen-han-quoc-mau-nau-den-size-s-m-l-xl-1057','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1058,113,'Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều','lam-bo-phat-tu-nam-co-tru-vai-linen-tay-ngan-mau-trang-nhieu-size-1058','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1059,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, M, L, XL','lam-bo-nam-co-tru-vai-line-han-quoc-mau-xanh-duong-nhieu-size-1059','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1060,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều','lam-bo-nam-co-tru-vai-line-han-quoc-xanh-duong-nhieu-loai-1060','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel')
-(1061,113,'Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám, Nhiều','lam-bo-nam-thien-minh-tho-dui-cao-cap-mau-xam-1061','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,0,'apparel')
-(1062,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay, Màu Nâu Đen, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-1062','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1063,113,'Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-xl-1063','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1064,113,'Bộ Nam Cổ Trụ, Nhiều','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-xam-size-s-m-1064','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1065,113,'Bộ Cư Sĩ Nam Nút Nhựa Tay, Màu Nâu Đen, Nhiều','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1065','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1066,113,'Bộ Quần Áo Cư Sĩ Nam, Vải Linen Màu Nâu Nút Nhựa, M, L, XL','lam-bo-quan-ao-cu-sy-nam-dai-tay-bang-vai-linen-han-quoc-mau-nau-mau-ghi-size-s-m-l-xl-1066','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1067,113,'Bộ Quần Áo Phật Tử Nam Màu Trắng, Nhiều','lam-bo-quan-ao-phat-tu-nam-co-tru-mau-trang-dai-tay-vai-linen-1067','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1068,113,'Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay, Màu Xám Nút Nhựa, Nhiều','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-sam-nut-nhua-size-s-m-l-xl-1068','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel')
-(1069,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1069','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1070,113,'Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều','lam-bo-phap-phuc-le-chua-vat-ho-tho-dui-phat-tu-nam-di-le-chua-mau-nau-nhieu-size-1070','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel')
-(1071,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-xam-nhieu-size-1071','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1072,113,'Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều','lam-bo-nam-la-han-nut-tau-mau-nau-mau-sam-size-s-m-l-1072','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1073,113,'Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều','lam-bo-nam-la-han-nut-tau-mau-nau-mau-nau-den-size-s-m-l-1073','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1074,113,'Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều','lam-bo-nam-la-han-nut-tau-mau-xam-nhieu-size-1074','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel')
-(1075,114,'Túi Nải Đi Chùa','lam-tui-nai-di-chua-cao-cap-3-mau-kich-thuoc-37-47cm-1075','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',295000,0,0,0,1,1,'bag')
+(1050,113,'Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi','lam-bo-phap-phuc-nam-tue-quang-dai-tay-vai-tho-dui-1050','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,1,'apparel'),
+(1051,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-nau-den-size-s-m-l-xl-1051','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel'),
+(1052,113,'Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size','lam-bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xl-1052','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,1,'apparel'),
+(1053,113,'Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size','lam-bo-ba-lai-vai-linen-han-quoc-mau-xam-size-s-m-l-xl-1053','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',470000,0,0,0,1,0,'apparel'),
+(1054,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1054','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1055,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','lam-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-nut-nhua-size-s-m-l-xl-1055','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1056,113,'Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size','lam-ma-ten-hang-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-xam-nau-nau-den-size-s-m-l-xl-1056','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1057,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','lam-bo-nam-co-tru-ngan-tay-vai-linen-han-quoc-mau-nau-den-size-s-m-l-xl-1057','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1058,113,'Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size','lam-bo-phat-tu-nam-co-tru-vai-linen-tay-ngan-mau-trang-nhieu-size-1058','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1059,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL','lam-bo-nam-co-tru-vai-line-han-quoc-mau-xanh-duong-nhieu-size-1059','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1060,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','lam-bo-nam-co-tru-vai-line-han-quoc-xanh-duong-nhieu-loai-1060','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',450000,0,0,0,1,0,'apparel'),
+(1061,113,'Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size','lam-bo-nam-thien-minh-tho-dui-cao-cap-mau-xam-1061','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',720000,0,0,0,1,0,'apparel'),
+(1062,113,'Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-1062','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1063,113,'Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-xl-1063','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1064,113,'Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size','lam-bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-xam-size-s-m-1064','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1065,113,'Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl-1065','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1066,113,'Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL','lam-bo-quan-ao-cu-sy-nam-dai-tay-bang-vai-linen-han-quoc-mau-nau-mau-ghi-size-s-m-l-xl-1066','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1067,113,'Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size','lam-bo-quan-ao-phat-tu-nam-co-tru-mau-trang-dai-tay-vai-linen-1067','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1068,113,'Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size','lam-bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-sam-nut-nhua-size-s-m-l-xl-1068','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',480000,0,0,0,1,0,'apparel'),
+(1069,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-nau-den-nhieu-size-1069','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1070,113,'Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size','lam-bo-phap-phuc-le-chua-vat-ho-tho-dui-phat-tu-nam-di-le-chua-mau-nau-nhieu-size-1070','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',750000,0,0,0,1,0,'apparel'),
+(1071,113,'Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size','lam-bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-xam-nhieu-size-1071','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1072,113,'Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size','lam-bo-nam-la-han-nut-tau-mau-nau-mau-sam-size-s-m-l-1072','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1073,113,'Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size','lam-bo-nam-la-han-nut-tau-mau-nau-mau-nau-den-size-s-m-l-1073','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1074,113,'Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size','lam-bo-nam-la-han-nut-tau-mau-xam-nhieu-size-1074','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size. Sản phẩm thuộc nhóm Quần áo ngồi thiền, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',650000,0,0,0,1,0,'apparel'),
+(1075,114,'Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm','lam-tui-nai-di-chua-cao-cap-3-mau-kich-thuoc-37-47cm-1075','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',295000,0,0,0,1,1,'bag'),
 (1076,114,'Túi Đi Chùa Đài Loan – 3 Màu','lam-tui-di-chua-dai-loan-3-mau-1076','Túi Đi Chùa Đài Loan – 3 Màu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',195000,0,0,0,1,1,'bag'),
 (1077,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang-1077','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,1,'bag'),
 (1078,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-nau-1078','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'bag'),
 (1079,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','lam-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang-1079','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'bag'),
-(1080,114,'Túi Xách Đi Chùa','lam-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-cao-cap-cho-phat-tu-cu-si-1080','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',545000,0,0,0,1,0,'bag'),
+(1080,114,'Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ','lam-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-cao-cap-cho-phat-tu-cu-si-1080','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',545000,0,0,0,1,0,'bag'),
 (1081,114,'Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn','lam-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-kem-nha-nhan-1081','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',565000,0,0,0,1,0,'bag'),
-(1082,114,'Túi Đi Chùa','lam-tui-di-chua-cao-cap-hoa-sen-dai-loan-1082','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',325000,0,0,0,1,0,'bag'),
-(1083,114,'Túi Xách Đi Chùa','lam-tui-xach-di-chua-theu-hoa-sen-1083','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',275000,0,0,0,1,0,'bag'),
+(1082,114,'Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan','lam-tui-di-chua-cao-cap-hoa-sen-dai-loan-1082','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',325000,0,0,0,1,0,'bag'),
+(1083,114,'Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu','lam-tui-xach-di-chua-theu-hoa-sen-1083','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',275000,0,0,0,1,0,'bag'),
 (1084,114,'Túi Tây Tạng “OM”','lam-tui-tay-tang-theu-chu-om-1084','Túi Tây Tạng “OM”. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',125000,0,0,0,1,0,'bag'),
 (1085,114,'Túi Xách Sen Vàng','lam-tui-xach-di-chua-theu-sen-1085','Túi Xách Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',325000,0,0,0,1,0,'bag'),
 (1086,114,'Túi Sen Cách Điệu Lam','lam-tui-di-chua-tu-si-phat-tu-lam-1086','Túi Sen Cách Điệu Lam. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'bag'),
 (1087,114,'Túi Sen Cách Điệu Nâu','lam-tui-di-chua-tu-si-phat-tu-nau-1087','Túi Sen Cách Điệu Nâu. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',395000,0,0,0,1,0,'bag'),
 (1088,114,'Túi Đeo Vai Hiện Đại','lam-tui-deo-cheo-di-chua-1088','Túi Đeo Vai Hiện Đại. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'bag'),
-(1089,114,'Túi Đi Chùa Họa Tiết Tròn','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-2-1089','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',215000,0,0,0,1,0,'bag')
-(1090,114,'Túi Đi Chùa Họa Tiết Tròn','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-1090','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',145000,0,0,0,1,0,'bag')
+(1089,114,'Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-2-1089','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',215000,0,0,0,1,0,'bag'),
+(1090,114,'Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm','lam-tui-xach-di-chua-dai-loan-cao-cap-phat-tu-1090','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',145000,0,0,0,1,0,'bag'),
 (1091,114,'Túi Xách La Hán','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-4-1091','Túi Xách La Hán. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',225000,0,0,0,1,0,'bag'),
-(1092,114,'Túi Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-3-1092','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',425000,0,0,0,1,0,'bag'),
-(1093,114,'Túi Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-2-1093','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',365000,0,0,0,1,0,'bag'),
+(1092,114,'Túi Sen Cao Cấp','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-3-1092','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',425000,0,0,0,1,0,'bag'),
+(1093,114,'Túi Sen Cao Cấp','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-2-1093','Túi Sen Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',365000,0,0,0,1,0,'bag'),
 (1094,114,'Túi Đeo Vai Sen Vàng','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-3-1094','Túi Đeo Vai Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',175000,0,0,0,1,0,'bag'),
 (1095,114,'Túi Đeo Chéo Sen Vàng','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-1095','Túi Đeo Chéo Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',295000,0,0,0,1,0,'bag'),
-(1096,114,'Ba Lô Vải','lam-tui-di-chua-dai-loan-cao-cap-du-lich-dung-y-phat-tu-1096','Ba Lô Vải Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',305000,0,0,0,1,0,'bag'),
+(1096,114,'Ba Lô Vải Cao Cấp','lam-tui-di-chua-dai-loan-cao-cap-du-lich-dung-y-phat-tu-1096','Ba Lô Vải Cao Cấp. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',305000,0,0,0,1,0,'bag'),
 (1097,114,'Ba Lô Rút Nhỏ Gọn','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-2-1097','Ba Lô Rút Nhỏ Gọn. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',245000,0,0,0,1,0,'bag'),
 (1098,114,'Túi Du Lịch Thêu Sen','lam-tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-1098','Túi Du Lịch Thêu Sen. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',475000,0,0,0,1,0,'bag'),
 (1099,114,'Túi Du Lịch Sen Vàng','lam-tui-di-chua-dai-loan-cao-cap-mau-moi-nam-2023-1099','Túi Du Lịch Sen Vàng. Sản phẩm thuộc nhóm Túi đeo đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',525000,0,0,0,1,0,'bag'),
-(1100,115,'Vòng Đeo Tay Trầm Xí','lam-vong-deo-tay-tram-xi-cao-cap-10mm-x-18-hat-1100','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads')
+(1100,115,'Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt','lam-vong-deo-tay-tram-xi-cao-cap-10mm-x-18-hat-1100','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads'),
 (1101,115,'Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam','lam-chuoi-vong-tay-go-sua-do-viet-nam-1101','Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',5489000,0,0,0,1,1,'beads'),
-(1102,115,'Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí','lam-chuoi-vong-tay-tram-huong-toc-viet-nam-tram-xi-cao-cap-10mm-13mm-18mm-1102','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads')
+(1102,115,'Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm','lam-chuoi-vong-tay-tram-huong-toc-viet-nam-tram-xi-cao-cap-10mm-13mm-18mm-1102','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1419000,0,0,0,1,1,'beads'),
 (1103,115,'Chuỗi Vòng Tay Gỗ Sưa Quảng Bình','lam-chuoi-vong-tay-go-sua-quang-binh-1103','Chuỗi Vòng Tay Gỗ Sưa Quảng Bình. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads'),
-(1104,115,'Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt','lam-chuoi-vong-tay-tram-xi-viet-nam-dot-truc-7-dot-20mm-x-8mm-1104','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads')
-(1105,115,'Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc','lam-chuoi-vong-tay-tram-huong-xi-dau-xanh-de-moc-kich-thuoc-18mm-20mm-1105','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2079000,0,0,0,1,0,'beads')
+(1104,115,'Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm','lam-chuoi-vong-tay-tram-xi-viet-nam-dot-truc-7-dot-20mm-x-8mm-1104','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads'),
+(1105,115,'Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm','lam-chuoi-vong-tay-tram-huong-xi-dau-xanh-de-moc-kich-thuoc-18mm-20mm-1105','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2079000,0,0,0,1,0,'beads'),
 (1106,115,'Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt','lam-chuoi-vong-tram-huong-viet-nam-dot-truc-30-dot-1106','Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1089000,0,0,0,1,0,'beads'),
 (1107,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc)','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-2-1107','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc). Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads'),
 (1108,115,'Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam','lam-chuoi-vong-108-hat-tram-huong-toc-viet-nam-1108','Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2079000,0,0,0,1,0,'beads'),
-(1109,115,'Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục','lam-chuoi-vong-tay-go-dan-huong-xanh-10mm-20mm-1109','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',176000,0,0,0,1,0,'beads')
-(1110,115,'Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều','lam-chuoi-vong-tay-deo-tay-bang-go-chien-dan-kich-thuoc-10mm-12mm-14mm-16mm-1110','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1320000,0,0,0,1,0,'beads')
+(1109,115,'Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm','lam-chuoi-vong-tay-go-dan-huong-xanh-10mm-20mm-1109','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',176000,0,0,0,1,0,'beads'),
+(1110,115,'Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước','lam-chuoi-vong-tay-deo-tay-bang-go-chien-dan-kich-thuoc-10mm-12mm-14mm-16mm-1110','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1320000,0,0,0,1,0,'beads'),
 (1111,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-10-dot-1111','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1639000,0,0,0,1,0,'beads'),
-(1112,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-1112','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads')
-(1113,115,'Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo','lam-chuoi-vong-108-hat-tram-huong-banh-indo-5mm-6mm-8mm-1113','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2739000,0,0,0,1,0,'beads')
-(1114,115,'Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần','lam-chuoi-vong-tay-go-tram-huong-indo-toc-quan-15mm-2-1114','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1639000,0,0,0,1,0,'beads')
-(1115,115,'Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo)','lam-chuoi-vong-tay-tram-huong-nguyen-chat-tram-banh-indo-13-hat-14-hat-1115','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm). Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1529000,0,0,0,1,0,'beads')
+(1112,115,'Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm','lam-chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-1112','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2189000,0,0,0,1,0,'beads'),
+(1113,115,'Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm','lam-chuoi-vong-108-hat-tram-huong-banh-indo-5mm-6mm-8mm-1113','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',2739000,0,0,0,1,0,'beads'),
+(1114,115,'Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm','lam-chuoi-vong-tay-go-tram-huong-indo-toc-quan-15mm-2-1114','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1639000,0,0,0,1,0,'beads'),
+(1115,115,'Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm)','lam-chuoi-vong-tay-tram-huong-nguyen-chat-tram-banh-indo-13-hat-14-hat-1115','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm). Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1529000,0,0,0,1,0,'beads'),
 (1116,115,'Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k','lam-day-chuyen-mat-hinh-hu-khong-tang-bo-tat-kham-vang-1116','Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',3069000,0,0,0,1,0,'beads'),
 (1117,115,'Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k','lam-day-chuyen-mat-hinh-dai-nhat-nhu-lai-kham-vang-1117','Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',3069000,0,0,0,1,0,'beads'),
-(1118,115,'Vòng Thạch Anh Tóc Mầu Vàng, Nhiều','lam-vong-thach-anh-toc-mau-vang-11mm-1118','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1859000,0,0,0,1,0,'beads')
-(1119,115,'Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều','lam-chuoi-vong-tay-go-dan-huong-ngu-sac-cvt-014-1119','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',429000,0,0,0,1,0,'beads')
-(1120,115,'Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều','lam-chuoi-vong-tay-go-tung-bach-cvt-013-1120','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads')
-(1121,115,'Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều','lam-chuoi-vong-tay-go-hong-lao-nhieu-kich-co-1121','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads')
-(1122,115,'Vòng Thạch Anh Tóc Mầu Tím','lam-vong-thach-anh-toc-mau-tim-kich-thuoc-6mm-10mm-1122','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',979000,0,0,0,1,0,'beads')
-(1123,115,'Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật','lam-chuoi-vong-deo-tay-da-luu-ly-vang-khac-chu-nam-mo-a-di-da-phat-kich-thuoc-12mm-14mm-1123','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads')
-(1124,115,'Chuỗi Vòng Tay Pha Lê Hồng Tím','lam-chuoi-vong-tay-pha-le-hong-tim-10mm-1124','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',130000,0,0,0,1,0,'beads')
-(1125,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Nâu','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-nau-kich-thuoc-60cmx60cm-70cmx70cm-80cmx80cm-1125','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
-(1126,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Vàng','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-vang-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1126','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
-(1127,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen, Mầu Xám','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-xam-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1127','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory')
-(1128,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám','lam-bo-dem-doc-xo-dua-ngoi-thien-tinh-toa-niem-phat-theu-hoa-sen-mau-xam-kich-thuoc-60x60cm-70x70cm-80x80cm-1128','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory')
-(1129,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu','lam-bo-dem-doc-ngoi-thien-ruot-dua-lot-theu-hoa-sen-70x70cm-1129','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory')
-(1130,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám','lam-93982-1130','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
-(1131,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-xam-kich-thuoc-60cm-x-60cm-1131','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory')
-(1132,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-nau-kich-thuoc-60cm-x-60cm-1132','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory')
-(1133,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-nau-kich-thuoc-60cm-x-60cm-1133','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
-(1134,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Vàngx70','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-vang-kich-thuoc-60cm-x-60cm-1134','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory')
-(1135,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-xam-kich-thuoc-23cm-x-45cm-1135','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
-(1136,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-30cm-x-50cm-1136','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory')
-(1137,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-30cm-x-50cm-1137','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory')
-(1138,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu','lam-bo-doan-cat-tuong-theu-hoa-sen-vo-do-mau-nau-kich-thuoc-30cm-x-8cm-1138','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory')
-(1139,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ','lam-bo-doan-cat-tuong-theu-hoa-senvo-do-mau-do-kich-thuoc-30cm-x-8cm-1139','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory')
-(1140,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-xam-nhieu-co-60cm-70cm-1140','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory')
-(1141,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-nau-nhieu-co-60cm-70cm-1141','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory')
-(1142,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, 58x6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-40cm-x-6cm-1142','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
-(1143,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, 58*6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-49cm-x-6cm-1143','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
-(1144,116,'Đệm Lễ Phật Hoa Sen Vàng Viền Nâu','lam-dem-le-phat-hoa-sen-vang-vien-nau-kich-co-50x180cm-60x180cm-1144','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory')
-(1145,116,'Đệm Phẳng Lễ Phật','lam-dem-phang-le-phat-co-60x150-1145','Đệm Phẳng Lễ Phật, Cỡ 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',390000,0,0,0,1,0,'accessory')
-(1146,116,'Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu','lam-bo-dem-phang-le-phat-kich-thuoc-60x150cm-1146','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',550000,0,0,0,1,0,'accessory')
-(1147,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-23cm-x-45cm-1147','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
-(1148,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm-1148','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory')
-(1149,116,'Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen','lam-dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm-1149','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',830000,0,0,0,1,0,'accessory');
+(1118,115,'Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước','lam-vong-thach-anh-toc-mau-vang-11mm-1118','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1859000,0,0,0,1,0,'beads'),
+(1119,115,'Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ','lam-chuoi-vong-tay-go-dan-huong-ngu-sac-cvt-014-1119','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',429000,0,0,0,1,0,'beads'),
+(1120,115,'Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ','lam-chuoi-vong-tay-go-tung-bach-cvt-013-1120','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads'),
+(1121,115,'Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ','lam-chuoi-vong-tay-go-hong-lao-nhieu-kich-co-1121','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',209000,0,0,0,1,0,'beads'),
+(1122,115,'Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm','lam-vong-thach-anh-toc-mau-tim-kich-thuoc-6mm-10mm-1122','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',979000,0,0,0,1,0,'beads'),
+(1123,115,'Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm','lam-chuoi-vong-deo-tay-da-luu-ly-vang-khac-chu-nam-mo-a-di-da-phat-kich-thuoc-12mm-14mm-1123','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',1199000,0,0,0,1,0,'beads'),
+(1124,115,'Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm','lam-chuoi-vong-tay-pha-le-hong-tim-10mm-1124','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm. Sản phẩm thuộc nhóm Vòng tay - chuỗi hạt, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',130000,0,0,0,1,0,'beads'),
+(1125,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-nau-kich-thuoc-60cmx60cm-70cmx70cm-80cmx80cm-1125','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory'),
+(1126,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-vang-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1126','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory'),
+(1127,116,'Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm','lam-bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-xam-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm-1127','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',960000,0,0,0,1,1,'accessory'),
+(1128,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','lam-bo-dem-doc-xo-dua-ngoi-thien-tinh-toa-niem-phat-theu-hoa-sen-mau-xam-kich-thuoc-60x60cm-70x70cm-80x80cm-1128','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory'),
+(1129,116,'Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm','lam-bo-dem-doc-ngoi-thien-ruot-dua-lot-theu-hoa-sen-70x70cm-1129','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',825000,0,0,0,1,0,'accessory'),
+(1130,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm','lam-93982-1130','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory'),
+(1131,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-xam-kich-thuoc-60cm-x-60cm-1131','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory'),
+(1132,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-nau-kich-thuoc-60cm-x-60cm-1132','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',495000,0,0,0,1,0,'accessory'),
+(1133,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-nau-kich-thuoc-60cm-x-60cm-1133','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory'),
+(1134,116,'Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm','lam-dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-vang-kich-thuoc-60cm-x-60cm-1134','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',630000,0,0,0,1,0,'accessory'),
+(1135,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-xam-kich-thuoc-23cm-x-45cm-1135','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory'),
+(1136,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-30cm-x-50cm-1136','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory'),
+(1137,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-30cm-x-50cm-1137','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',385000,0,0,0,1,0,'accessory'),
+(1138,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm','lam-bo-doan-cat-tuong-theu-hoa-sen-vo-do-mau-nau-kich-thuoc-30cm-x-8cm-1138','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory'),
+(1139,116,'Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm','lam-bo-doan-cat-tuong-theu-hoa-senvo-do-mau-do-kich-thuoc-30cm-x-8cm-1139','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',310000,0,0,0,1,0,'accessory'),
+(1140,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-xam-nhieu-co-60cm-70cm-1140','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory'),
+(1141,116,'Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm','lam-bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-nau-nhieu-co-60cm-70cm-1141','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',250000,0,0,0,1,0,'accessory'),
+(1142,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-40cm-x-6cm-1142','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory'),
+(1143,116,'(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm','lam-bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-49cm-x-6cm-1143','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory'),
+(1144,116,'Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm','lam-dem-le-phat-hoa-sen-vang-vien-nau-kich-co-50x180cm-60x180cm-1144','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',530000,0,0,0,1,0,'accessory'),
+(1145,116,'Đệm Phẳng Lễ Phật, Cỡ 60x150cm','lam-dem-phang-le-phat-co-60x150-1145','Đệm Phẳng Lễ Phật, Cỡ 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',390000,0,0,0,1,0,'accessory'),
+(1146,116,'Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm','lam-bo-dem-phang-le-phat-kich-thuoc-60x150cm-1146','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',550000,0,0,0,1,0,'accessory'),
+(1147,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-23cm-x-45cm-1147','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory'),
+(1148,116,'Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm','lam-dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm-1148','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',330000,0,0,0,1,0,'accessory'),
+(1149,116,'Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm','lam-dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm-1149','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm. Sản phẩm thuộc nhóm Phụ kiện đi chùa, phù hợp sử dụng khi đi chùa, lễ Phật hoặc thực hành thiền.',830000,0,0,0,1,0,'accessory');
 
--- Giá cũ được sinh từ giá bán hiện tại để dữ liệu mẫu thể hiện đúng nghiệp vụ khuyến mại.
--- Toàn bộ sản phẩm mẫu có giá niêm yết cao hơn giá bán hiện tại 15%.UPDATE `product`
-SET `old_price` = ROUND(`base_price` * 1.15, -3)
+-- Chỉ một nhóm sản phẩm mẫu được đưa vào chương trình khuyến mại.
+-- Quy tắc theo ID giúp dữ liệu ổn định giữa các lần import nhưng vẫn phân bổ đều trong catalog.
+UPDATE `product`
+SET `old_price` = CASE
+    WHEN MOD(`id`, 5) = 0 THEN ROUND(`base_price` * 1.15, -3)
+    ELSE NULL
+END
 WHERE `id` BETWEEN 1000 AND 1149;
+
 INSERT INTO `product_variants` (`id`,`product_id`,`size`,`color`,`stock_quantity`,`price_modifier`,`status`) VALUES
 (10001,1000,'S','Lam',20,0,1),
 (10002,1000,'M','Lam',20,0,1),
@@ -1360,158 +1780,6 @@ INSERT INTO `product_images` (`id`,`product_id`,`image_url`,`alt_text`,`is_prima
 (1148,1148,'public/uploads/products/lam/lam-1148.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm',1),
 (1149,1149,'public/uploads/products/lam/lam-1149.jpg','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm',1);
 
-INSERT INTO `product_sources` (`product_id`,`source_site`,`source_product_url`,`source_image_url`,`source_name`,`synced_at`) VALUES
-(1000,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-hai-thanh-phap-phuc-y-hau-quy-thay-mau-vang-dat/','https://phapduyen.com/wp-content/uploads/2024/05/Hai-Thanh-vang-dat-0-2.jpg','Áo Tràng Hải Thanh, Pháp Phục Y Hậu Quý Thầy màu vàng đất','2026-08-11 00:00:00'),
-(1001,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-vang-dat/','https://phapduyen.com/wp-content/uploads/2023/12/7-vat-vang-dat-0.jpg','Áo Tràng Trường Sam 7 Vạt (Y Quý Thầy đi đường) – Màu Vàng Đất','2026-08-11 00:00:00'),
-(1002,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2023/10/00-48.jpg','Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ','2026-08-11 00:00:00'),
-(1003,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-hai-thanh-ong-tay-rong-ao-hau-quy-thay-mau-vang-cam-phap-phuc-dai-duc-hoa-thuong-quy-thay-tang-ni-xuat-gia/','https://phapduyen.com/wp-content/uploads/2019/11/00-3.jpg','Áo Hải Thanh (Áo Hậu) Quý Thầy Màu Vàng Cam Cao Cấp, Nhiều Size','2026-08-11 00:00:00'),
-(1004,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-hai-thanh-ao-hau-quy-thay/','https://phapduyen.com/wp-content/uploads/2018/07/Hai-Thanh-Vang_001-1.jpg','Áo Hải Thanh Ống Tay Rộng (Áo Hậu) Quý Thầy Mầu Vàng Bò, Pháp Phục Đại Đức Hoà Thượng Quý Thầy Tăng Ni Xuất Gia','2026-08-11 00:00:00'),
-(1005,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-vang/','https://phapduyen.com/wp-content/uploads/2017/07/ATTS-7VB.jpg','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò, Pháp Phục Cho Quý Đại Đức Hoà Thượng Tăng Ni Xuất Gia','2026-08-11 00:00:00'),
-(1006,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-xam-2/','https://phapduyen.com/wp-content/uploads/2023/07/Ao-Trang-7-vat-xam-0.jpg','Áo Tràng Trường Sam 7 Vạt Màu Xám','2026-08-11 00:00:00'),
-(1007,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-viet-hai-mau-nau-size-40-41-42/','https://phapduyen.com/wp-content/uploads/2023/02/00.jpg','Áo Trường Sam Cao Cấp, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1008,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mua-dong-nhieu-size/','https://phapduyen.com/wp-content/uploads/2018/11/ATLL01-V44-00.jpg','Áo Tràng Mùa Đông Dày 2 Lớp Dùng Cho Tăng Ni, Áo Tràng Áo Hậu Pháp Phục Mùa Đông Cho Quý Thầy Tăng Ni','2026-08-11 00:00:00'),
-(1009,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mau-xam-size-37-cao-155cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-53.jpg','Áo Tràng Lót Lông Màu Xám','2026-08-11 00:00:00'),
-(1010,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-trang-lot-long-mau-nau-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/01/00-5.jpg','Áo Tràng Lót Lông Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
-(1011,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tuy-y-mau-vang-size-3536373839/','https://phapduyen.com/wp-content/uploads/2023/02/00-25.jpg','Áo Tuỳ Y Màu Vàng, Nhiều Size','2026-08-11 00:00:00'),
-(1012,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tu-y-nau-25-dieu/','https://phapduyen.com/wp-content/uploads/2021/11/00-2.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Nâu Cafe. Nhiều Size','2026-08-11 00:00:00'),
-(1013,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-tu-y-do-25-dieu/','https://phapduyen.com/wp-content/uploads/2021/11/00-copy.jpg','Áo Cà Sa – Áo Tùy Y 25 Điều Màu Đỏ, Nhiều Size','2026-08-11 00:00:00'),
-(1014,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-hai-thanh-dai-loan-cao-cap/','https://dolamdichua.vn/wp-content/uploads/2026/08/ao-trang-dai-loan-hai-thanh-5-2.webp','Áo Tràng Hải Thanh Đài Loan Cao Cấp','2026-08-11 00:00:00'),
-(1015,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-chat-silk-cao-cap/','https://dolamdichua.vn/wp-content/uploads/2026/08/ao-trang-dai-loan-17-1.webp','Áo Tràng Đài Loan Chất Silk Cao Cấp','2026-08-11 00:00:00'),
-(1016,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-mau-lam/','https://dolamdichua.vn/wp-content/uploads/2026/04/ao-trang-lam-dai-loan-1.webp','Áo Tràng Đài Loan Màu Lam','2026-08-11 00:00:00'),
-(1017,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cao-cap-mau-bo/','https://dolamdichua.vn/wp-content/uploads/2025/07/ao-trang-dai-loan-mau-vang.webp','Áo Tràng Đài Loan Cao Cấp – Màu Bò','2026-08-11 00:00:00'),
-(1018,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-cao-cap-silk-dai-loan-nam-nu/','https://dolamdichua.vn/wp-content/uploads/2025/05/ao-trang-cao-cap.webp','Áo Tràng Cao Cấp Silk Đài Loan Nam Nữ','2026-08-11 00:00:00'),
-(1019,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-ao-di-duong-nha-su-tu-si/','https://dolamdichua.vn/wp-content/uploads/2025/05/ao-trang-la-han.webp','Áo Tràng, Áo Đi Đường Nhà Sư/Tu Sĩ','2026-08-11 00:00:00'),
-(1020,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cao-cap-mau-trang/','https://dolamdichua.vn/wp-content/uploads/2025/04/ao-trang-dai-loan5.webp','Áo Tràng Đài Loan Cao Cấp màu Trắng','2026-08-11 00:00:00'),
-(1021,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-hai-thanh-cho-tu-si-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2024/09/ao_trang_hai_thanh.jpg','Áo Tràng Hải Thanh Nam/Nữ','2026-08-11 00:00:00'),
-(1022,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-dai-loan-cho-tu-si-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2024/09/ao_trang_Dai_Loan_Nam.jpg','Áo Tràng Đài Loan Nam/Nữ','2026-08-11 00:00:00'),
-(1023,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-khoac-gile-phat-tu-hien-dai-cao-cap-mau-xam/','https://dolamdichua.vn/wp-content/uploads/2021/12/ao-khoac-di-chua-gi-le.webp','Áo Khoác Đi Chùa, Áo Ghi Lê Vải Linen Ấn Độ','2026-08-11 00:00:00'),
-(1024,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/ao-trang-phat-tu-kate-khong-theu-mau-lam/','https://dolamdichua.vn/wp-content/uploads/2021/12/ao_trang_phat_tu_mau_lam_2.jpg','Áo Tràng Kate Lam (không thêu)','2026-08-11 00:00:00'),
-(1025,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-thanh-van-vai-linen-bot-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2026/06/00-3.jpg','Bộ Pháp Phục Lễ Chùa Nữ Thanh Vân, Vải Linen Bột – Size S, M, L','2026-08-11 00:00:00'),
-(1026,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-thanh-lieu-vai-lanh-bang-mau-be-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2026/06/00-2.jpg','Bộ Quần Áo Đi Chùa Nữ Thanh Liễu, Vải Lanh Băng, Màu Be Size S, M, L','2026-08-11 00:00:00'),
-(1027,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-mau-trang-size-l/','https://phapduyen.com/wp-content/uploads/2025/08/00-3.jpg','Pháp Phục Nữ, Bộ Đồ Đi Chùa Vải Linen Cao Cấp Màu Trắng','2026-08-11 00:00:00'),
-(1028,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-co-tron-mau-be-size-xl/','https://phapduyen.com/wp-content/uploads/2025/08/CE0A4076-2.jpg','Bộ Quần Áo Nữ Vải Linen Cao Cấp, Cổ Tròn Màu Be','2026-08-11 00:00:00'),
-(1029,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-linen-cao-cap-mau-xam-size-xl/','https://phapduyen.com/wp-content/uploads/2025/08/00-2.jpg','Bộ Pháp Phục Đi Chùa Nữ Vải Linen Cao Cấp Màu Xám','2026-08-11 00:00:00'),
-(1030,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-nu-tam-bo-de-vai-dui-tam-quan-ao-di-chua-trang-nghiem/','https://phapduyen.com/wp-content/uploads/2024/12/Tam-Bo-De-1000-1.jpg','Bộ Pháp Phục Nữ Tâm Bồ Đề, Vải Đũi Tằm – Quần Áo Đi Chùa Trang Nghiêm','2026-08-11 00:00:00'),
-(1031,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-mau-nau-size-smlxlxxl/','https://phapduyen.com/wp-content/uploads/2024/11/5-BNAH-MN-1.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Màu Nâu, Size S,M,L,XL,XXL','2026-08-11 00:00:00'),
-(1032,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-an-ha-tho-dui-cao-cap-vat-cheo-ao-be-quan-nau-size-smlxlxxl/','https://phapduyen.com/wp-content/uploads/2024/11/BNAH-MB-1.jpg','Bộ Quần Áo Nữ An Hạ Thô Đũi Cao Cấp Vạt Chéo Áo Be, Quần Nâu, Size S,M,L,XL,XXL','2026-08-11 00:00:00'),
-(1033,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-nu-linen-cao-cap-ke-xam-size-m/','https://phapduyen.com/wp-content/uploads/2025/08/00-4.jpg','Bộ Quần Áo Nữ Linen Cao Cấp Kẻ Xám','2026-08-11 00:00:00'),
-(1034,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-di-chua-nu-an-nhien-mau-trang-nga-vai-linen/','https://phapduyen.com/wp-content/uploads/2024/05/00a-1.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Màu Trắng Ngà, Vải Linen','2026-08-11 00:00:00'),
-(1035,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-di-chua-nu-an-nhien-ao-be-quan-nau/','https://phapduyen.com/wp-content/uploads/2024/05/00a-2.jpg','Bộ Quần Áo Đi Chùa Nữ An Nhiên, Áo Be Quần Nâu, Vải Linen','2026-08-11 00:00:00'),
-(1036,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-xam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-52.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen, Màu Xám, Size XS, S, M, L, XL','2026-08-11 00:00:00'),
-(1037,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-den/','https://phapduyen.com/wp-content/uploads/2023/10/00-51.jpg','Bộ Pháp Phục Nữ, Quần Áo Đi Chùa Vải Linen, Màu Nâu Đen','2026-08-11 00:00:00'),
-(1038,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-xe-giua-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-53.jpg','Bộ Nữ Cổ Liền Xẻ Giữa Vải Linen Hàn Quốc, Màu Nâu, Size S, M, L, XS','2026-08-11 00:00:00'),
-(1039,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-xam-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/04-44.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
-(1040,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phap-phuc-le-chua-nu-theu-hoa-sen-mau-nau-den/','https://phapduyen.com/wp-content/uploads/2023/10/00-61.jpg','Bộ Quần Áo Pháp Phục Lễ Chùa Nữ Thêu Hoa Sen, Màu Nâu Đen','2026-08-11 00:00:00'),
-(1041,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nu-co-lien-1-nut-vai-linen-han-quoc-mau-sam-maunau-size-s-m-l-xs/','https://phapduyen.com/wp-content/uploads/2023/10/00-62.jpg','Bộ Nữ Cổ Liền 1 Nút Vải Linen Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
-(1042,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-nu-co-chu-y-theu-nhu-y-mau-nau-size-xs-s-m-l/','https://phapduyen.com/wp-content/uploads/2022/10/00-44.jpg','Bộ Quần Áo Phật Tử Nữ Cổ Chữ Y Thêu Như Ý Màu Nâu, Size: XS, S, M, L','2026-08-11 00:00:00'),
-(1043,'https://phapduyen.com','https://phapduyen.com/san-pham/ao-dai-cach-tan-di-chua-hoa-sen-mau-nau-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/06/00-27.jpg','Áo Dài Cách Tân Đi Chùa Hoa Sen Màu Nâu, Size S, M,  L','2026-08-11 00:00:00'),
-(1044,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-tho-dui-size-27-28/','https://phapduyen.com/wp-content/uploads/2023/07/00-37.jpg','Bộ Vạt Hò Thô Đũi Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
-(1045,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-vai-cotton-mau-nau-tay-lung-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/05/00a-2.jpg','Bộ Quần Áo Nữ Vải Cotton Màu Nâu Tay Lửng, Tay Dài, Size S, M, L, XL','2026-08-11 00:00:00'),
-(1046,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-nu-cu-si-mau-vang-nhat-vai-cotton-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2019/10/00-8.jpg','Bộ Pháp Phục Nữ Vải Cotton Màu Vàng Nhạt Tay Lửng, Tay Dài, Size S, M, L, XL','2026-08-11 00:00:00'),
-(1047,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-ho-xam-0.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
-(1048,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-vat-ho-danh-cho-phat-tu-nu-di-le-chua-vai-linen-mau-nau-den-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-ho-nau-0.jpg','Bộ Vạt Hò Dành Cho Phật Tử Nam Nữ Đi Lễ Chùa, Vải Linen Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1049,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-cu-si-nu-ao-chu-y-mau-xam/','https://phapduyen.com/wp-content/uploads/2017/06/IMG_0903.jpg','Bộ Quần Áo Phật Tử Cư Sĩ Nữ, Áo chữ Y Màu Xám, Đồ Phật Tử Đi Chùa, Áo Lam Áo Nâu Đi Lễ Chùa Cho Nữ','2026-08-11 00:00:00'),
-(1050,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-nam-tue-quang-dai-tay-vai-tho-dui/','https://phapduyen.com/wp-content/uploads/2025/11/IMG_5590.jpg','Bộ Pháp Phục Nam Tuệ Quang Dài Tay Vải Thô Đũi','2026-08-11 00:00:00'),
-(1051,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Ba-Lai-nau-den-0.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1052,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-nau-mau-sam-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2021/05/00-79.jpg','Bộ Nam Bà Lai Vải Linen Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1053,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-ba-lai-vai-linen-han-quoc-mau-xam-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-44.jpg','Bộ Pháp Phục Đi Chùa Nam Bà Lai Vải Linen Màu Xám, Vải Linen, Nhiều Size','2026-08-11 00:00:00'),
-(1054,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-nau-den-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1055,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-nau-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-nau-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Nút Nhựa Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1056,'https://phapduyen.com','https://phapduyen.com/san-pham/ma-ten-hang-bo-quan-ao-cu-sy-nam-tay-ngan-vai-linen-han-quoc-mau-xam-nau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-xam-0.jpg','Bộ Quần Áo Cư Sĩ/Phật Tử Nam Tay Ngắn Đi Chùa, Vải Linen Hàn Quốc Màu Xám Nút Nhựa, Nhiều Size','2026-08-11 00:00:00'),
-(1057,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-ngan-tay-vai-linen-han-quoc-mau-nau-den-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/09/00-6.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1058,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phat-tu-nam-co-tru-vai-linen-tay-ngan-mau-trang-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Co-tru-trang-0-1.jpg','Bộ Phật Tử Nam Cổ Trụ Tay Ngắn, Vải Linen, Màu Trắng, Nhiều Size','2026-08-11 00:00:00'),
-(1059,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-vai-line-han-quoc-mau-xanh-duong-nhieu-size/','https://phapduyen.com/wp-content/uploads/2019/06/00-6.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen Màu Xám, Size S, M, L, XL','2026-08-11 00:00:00'),
-(1060,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-vai-line-han-quoc-xanh-duong-nhieu-loai/','https://phapduyen.com/wp-content/uploads/2019/06/04-8.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Ngắn Vải Linen, Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1061,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-thien-minh-tho-dui-cao-cap-mau-xam/','https://phapduyen.com/wp-content/uploads/2024/01/00-4.jpg','Bộ Phật Tử Nam Đi Chùa Thiện Minh, Vải Thô Đũi Màu Xám Cao Cấp, Nhiều Size','2026-08-11 00:00:00'),
-(1062,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2021/12/00-64.jpg','Bộ Cư Sĩ Nam Cổ Trụ Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1063,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-nau-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/08/Co-tru-nam-dai-tay-nau-0.jpg','Bộ Quần Áo Phật Tử Nam Cổ Trụ Tay Dài Vải Linen Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1064,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-co-tru-dai-tay-vai-linen-han-quoc-mau-xam-size-s-m/','https://phapduyen.com/wp-content/uploads/2021/05/00-58.jpg','Bộ Nam Cổ Trụ Dài Tay Vải Linen Hàn Quốc Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
-(1065,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-nau-den-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-13.jpg','Bộ Cư Sĩ Nam Nút Nhựa Tay Dài Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1066,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-bang-vai-linen-han-quoc-mau-nau-mau-ghi-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/00-45.jpg','Bộ Quần Áo Cư Sĩ Nam Dài Tay, Vải Linen Màu Nâu Nút Nhựa, Size S, M, L, XL','2026-08-11 00:00:00'),
-(1067,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-phat-tu-nam-co-tru-mau-trang-dai-tay-vai-linen/','https://phapduyen.com/wp-content/uploads/2024/04/IMG_6654-scaled.jpg','Bộ Quần Áo Phật Tử Nam Màu Trắng Dài Tay Nút Nhựa Vải Linen, Nhiều Size','2026-08-11 00:00:00'),
-(1068,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-quan-ao-cu-sy-nam-dai-tay-vai-linen-han-quoc-mau-sam-nut-nhua-size-s-m-l-xl/','https://phapduyen.com/wp-content/uploads/2023/10/Bo-nam-nut-nhua-xam-dai-tay-0.jpg','Bộ Quần Áo Phật Tử Nam Nút Nhựa Tay Dài Vải Linen, Màu Xám Nút Nhựa, Nhiều Size','2026-08-11 00:00:00'),
-(1069,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-nau-den-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/vat-ho-nam-nau-linen-00.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1070,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-le-chua-vat-ho-tho-dui-phat-tu-nam-di-le-chua-mau-nau-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/04/Vat-Ho-Nam-dui-0.jpg','Bộ Pháp Phục Lễ Chùa Vạt Hò Thô Đũi Phật Tử Nam Đi Lễ Chùa, Màu Nâu, Nhiều Size','2026-08-11 00:00:00'),
-(1071,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-phap-phuc-vat-ho-phat-tu-nam-di-le-chua-vai-linen-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2024/05/00-23.jpg','Bộ Pháp Phục Vạt Hò Phật Tử Nam Đi Lễ Chùa Vải Linen, Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
-(1072,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-nau-mau-sam-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/08/La-Han-nau-0.jpg','Bộ Pháp Phục Nam La Hán Nút Tàu Màu Nâu Đất, Nhiều Size','2026-08-11 00:00:00'),
-(1073,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-nau-mau-nau-den-size-s-m-l/','https://phapduyen.com/wp-content/uploads/2023/08/01-36-1.jpg','Bộ Nam La Hán Nút Tàu Màu Nâu Đen, Nhiều Size','2026-08-11 00:00:00'),
-(1074,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-nam-la-han-nut-tau-mau-xam-nhieu-size/','https://phapduyen.com/wp-content/uploads/2023/08/La-Han-xam-0.jpg','Bộ Pháp Phục Đi Chùa Nam La Hán Nút Tàu, Màu Xám, Nhiều Size','2026-08-11 00:00:00'),
-(1075,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-nai-di-chua-cao-cap-3-mau-kich-thuoc-37-47cm/','https://dolamdichua.vn/wp-content/uploads/2026/07/tui-dai-di-chua-cho-nha-su.webp','Túi Nải Đi Chùa Cao Cấp 3 Màu, Kích thước 37 * 47cm','2026-08-11 00:00:00'),
-(1076,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-3-mau/','https://dolamdichua.vn/wp-content/uploads/2026/03/tui-di-chua-dai-loan-2.webp','Túi Đi Chùa Đài Loan – 3 Màu','2026-08-11 00:00:00'),
-(1077,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-19.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','2026-08-11 00:00:00'),
-(1078,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-nau/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-7.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Nâu','2026-08-11 00:00:00'),
-(1079,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-mau-vang-tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-vang/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-8.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Vàng','2026-08-11 00:00:00'),
-(1080,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-tui-xach-di-chua-cao-cap-cho-phat-tu-cu-si/','https://dolamdichua.vn/wp-content/uploads/2025/12/tui-di-chua-cao-cap-3.webp','Túi Xách Đi Chùa Cao Cấp Cho Phật Tử Cư Sĩ','2026-08-11 00:00:00'),
-(1081,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua-cho-phat-tu-cu-si-mau-kem-nha-nhan/','https://dolamdichua.vn/wp-content/uploads/2025/12/Tui-di-chua-cao-cap-15.webp','Túi Đeo Chéo Đi Chùa Cho Phật Tử Cư Sĩ Màu Kem Nhã Nhặn','2026-08-11 00:00:00'),
-(1082,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-cao-cap-hoa-sen-dai-loan/','https://dolamdichua.vn/wp-content/uploads/2025/07/tui-di-chua-dai-loan-cao-cap.webp','Túi Đi Chùa Cao Cấp – Hoa Sen Đài Loan','2026-08-11 00:00:00'),
-(1083,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-theu-hoa-sen/','https://dolamdichua.vn/wp-content/uploads/2025/03/tui-xach-di-chua.webp','Túi Xách Đi Chùa Cao Cấp Đài Loan – Thêu Hoa Sen Cách Điệu','2026-08-11 00:00:00'),
-(1084,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-tay-tang-theu-chu-om/','https://dolamdichua.vn/wp-content/uploads/2024/10/tui-di-chua.webp','Túi Tây Tạng “OM”','2026-08-11 00:00:00'),
-(1085,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-theu-sen/','https://dolamdichua.vn/wp-content/uploads/2024/10/tui_di_chua_sen_vang-4.webp','Túi Xách Sen Vàng','2026-08-11 00:00:00'),
-(1086,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-tu-si-phat-tu-lam/','https://dolamdichua.vn/wp-content/uploads/2024/09/tui_di_chua_cao_cap-1.jpg','Túi Sen Cách Điệu Lam','2026-08-11 00:00:00'),
-(1087,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-tu-si-phat-tu-nau/','https://dolamdichua.vn/wp-content/uploads/2024/09/tui_di_chua_Dai_Loan.jpg','Túi Sen Cách Điệu Nâu','2026-08-11 00:00:00'),
-(1088,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-deo-cheo-di-chua/','https://dolamdichua.vn/wp-content/uploads/2023/11/tui-di-chua-02.jpg','Túi Đeo Vai Hiện Đại','2026-08-11 00:00:00'),
-(1089,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-14.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích Thước 30 * 27cm','2026-08-11 00:00:00'),
-(1090,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-4-1-1.jpg','Túi Đi Chùa Họa Tiết Tròn, Kích thước 28*22cm','2026-08-11 00:00:00'),
-(1091,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-4/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-11.jpg','Túi Xách La Hán','2026-08-11 00:00:00'),
-(1092,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-3/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-6.jpg','Túi Sen Cao Cấp','2026-08-11 00:00:00'),
-(1093,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-5.jpg','Túi Sen Cao Cấp','2026-08-11 00:00:00'),
-(1094,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-3/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-8.jpg','Túi Đeo Vai Sen Vàng','2026-08-11 00:00:00'),
-(1095,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-3.jpg','Túi Đeo Chéo Sen Vàng','2026-08-11 00:00:00'),
-(1096,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-cao-cap-du-lich-dung-y-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-2.jpg','Ba Lô Vải Cao Cấp','2026-08-11 00:00:00'),
-(1097,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu-2/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-1-1.jpg','Ba Lô Rút Nhỏ Gọn','2026-08-11 00:00:00'),
-(1098,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-xach-di-chua-dai-loan-cao-cap-theu-sen-du-lich-dung-y-phat-tu/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-dai-loan-nau.jpg','Túi Du Lịch Thêu Sen','2026-08-11 00:00:00'),
-(1099,'https://dolamdichua.vn','https://dolamdichua.vn/san-pham/tui-di-chua-dai-loan-cao-cap-mau-moi-nam-2023/','https://dolamdichua.vn/wp-content/uploads/2023/03/tui-di-chua-1.jpg','Túi Du Lịch Sen Vàng','2026-08-11 00:00:00'),
-(1100,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-deo-tay-tram-xi-cao-cap-10mm-x-18-hat/','https://phapduyen.com/wp-content/uploads/2026/04/00-2-scaled.jpg','Vòng Đeo Tay Trầm Xí Cao Cấp 10mm x 18 hạt','2026-08-11 00:00:00'),
-(1101,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-sua-do-viet-nam/','https://phapduyen.com/wp-content/uploads/2025/12/00-19-scaled.jpg','Chuỗi Vòng Tay Gỗ Sưa Đỏ Việt Nam','2026-08-11 00:00:00'),
-(1102,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-toc-viet-nam-tram-xi-cao-cap-10mm-13mm-18mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-18-scaled.jpg','Chuỗi Vòng Tay Trầm Hương Tóc Việt Nam (Trầm Xí Cao Cấp) 10mm, 13mm, 18mm','2026-08-11 00:00:00'),
-(1103,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-sua-quang-binh/','https://phapduyen.com/wp-content/uploads/2025/12/00-17-scaled.jpg','Chuỗi Vòng Tay Gỗ Sưa Quảng Bình','2026-08-11 00:00:00'),
-(1104,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-xi-viet-nam-dot-truc-7-dot-20mm-x-8mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-16-scaled.jpg','Chuỗi Vòng Tay Trầm Xí Việt Nam Đốt Trúc 7 Đốt, 20mm x 8mm','2026-08-11 00:00:00'),
-(1105,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-xi-dau-xanh-de-moc-kich-thuoc-18mm-20mm/','https://phapduyen.com/wp-content/uploads/2025/12/00-15-scaled.jpg','Chuỗi Vòng Tay Trầm Hương Xí Dầu Xanh Để Mộc, Kích Thước 18mm , 20mm','2026-08-11 00:00:00'),
-(1106,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-viet-nam-dot-truc-30-dot/','https://phapduyen.com/wp-content/uploads/2025/12/00-14-scaled.jpg','Chuỗi Vòng Trầm Hương Việt Nam Đốt Trúc 30 đốt','2026-08-11 00:00:00'),
-(1107,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot-2/','https://phapduyen.com/wp-content/uploads/2025/12/00-11-scaled.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 9 Đốt (Để Mộc)','2026-08-11 00:00:00'),
-(1108,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-108-hat-tram-huong-toc-viet-nam/','https://phapduyen.com/wp-content/uploads/2025/12/00-10-scaled.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Tóc Việt Nam','2026-08-11 00:00:00'),
-(1109,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-dan-huong-xanh-10mm-20mm/','https://phapduyen.com/wp-content/uploads/2023/04/bc4ace77d8dd4cbf96cd86e577c8a2ae.jpg','Chuỗi Vòng Tay Gỗ Đàn Hương Xanh Lục, 10mm – 20mm','2026-08-11 00:00:00'),
-(1110,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-deo-tay-bang-go-chien-dan-kich-thuoc-10mm-12mm-14mm-16mm/','https://phapduyen.com/wp-content/uploads/2023/02/00-15.jpg','Chuỗi Vòng Đeo Tay Bằng Gỗ Chiên Đàn Hương, Nhiều Kích Thước','2026-08-11 00:00:00'),
-(1111,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-10-dot/','https://phapduyen.com/wp-content/uploads/2022/11/00-27.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc, 10 đốt','2026-08-11 00:00:00'),
-(1112,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tram-huong-ma-lai-dot-truc-loai-8-dot/','https://phapduyen.com/wp-content/uploads/2022/11/00-17.jpg','Chuỗi Vòng Trầm Hương Mã Lai Đốt Trúc Loại 8 Đốt, 8mm','2026-08-11 00:00:00'),
-(1113,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-108-hat-tram-huong-banh-indo-5mm-6mm-8mm/','https://phapduyen.com/wp-content/uploads/2022/10/01-35a-scaled.jpg','Chuỗi Vòng 108 Hạt Trầm Hương Banh Indo, Kích Thước 8mm','2026-08-11 00:00:00'),
-(1114,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-tram-huong-indo-toc-quan-15mm-2/','https://phapduyen.com/wp-content/uploads/2022/10/00-32.jpg','Chuỗi Vòng Tay Gỗ Trầm Hương Indo Tóc Quần, 15mm','2026-08-11 00:00:00'),
-(1115,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-tram-huong-nguyen-chat-tram-banh-indo-13-hat-14-hat/','https://phapduyen.com/wp-content/uploads/2022/10/00-20.jpg','Chuỗi Vòng Tay Trầm Hương Nguyên Chất – Trầm Banh Indo 16mm, 18mm (cỡ vòng tay 17-20cm)','2026-08-11 00:00:00'),
-(1116,'https://phapduyen.com','https://phapduyen.com/san-pham/day-chuyen-mat-hinh-hu-khong-tang-bo-tat-kham-vang/','https://phapduyen.com/wp-content/uploads/2020/11/00-32.jpg','Dây Chuyền Mặt Hình Hư Không Tạng Bồ Tát Dát Vàng 24k','2026-08-11 00:00:00'),
-(1117,'https://phapduyen.com','https://phapduyen.com/san-pham/day-chuyen-mat-hinh-dai-nhat-nhu-lai-kham-vang/','https://phapduyen.com/wp-content/uploads/2020/11/00-30.jpg','Dây Chuyền Mặt Hình Đại Nhật Như Lai Dát Vàng 24k','2026-08-11 00:00:00'),
-(1118,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-thach-anh-toc-mau-vang-11mm/','https://phapduyen.com/wp-content/uploads/2020/04/00-28.jpg','Vòng Thạch Anh Tóc Mầu Vàng, Nhiều Kích Thước','2026-08-11 00:00:00'),
-(1119,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-dan-huong-ngu-sac-cvt-014/','https://phapduyen.com/wp-content/uploads/2016/06/CVT-014-15x15-00.jpg','Chuỗi Vòng Tay Gỗ Đa Bảo (Nhiều Loại Gỗ Quý), Nhiều Kích Cỡ','2026-08-11 00:00:00'),
-(1120,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-tung-bach-cvt-013/','https://phapduyen.com/wp-content/uploads/2016/06/CVT-013.jpg','Chuỗi Vòng Tay Gỗ Tùng Bách Ngàn Năm, Nhiều Cỡ','2026-08-11 00:00:00'),
-(1121,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-go-hong-lao-nhieu-kich-co/','https://phapduyen.com/wp-content/uploads/2017/06/CVT-GHL-15x15-001-1.jpg','Chuỗi Vòng Tay Gỗ Hồng Lào, Nhiều Kích Cỡ','2026-08-11 00:00:00'),
-(1122,'https://phapduyen.com','https://phapduyen.com/san-pham/vong-thach-anh-toc-mau-tim-kich-thuoc-6mm-10mm/','https://phapduyen.com/wp-content/uploads/2026/01/00-14-scaled.jpg','Vòng Thạch Anh Tóc Mầu Tím, Kích Thước 6mm, 10mm','2026-08-11 00:00:00'),
-(1123,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-deo-tay-da-luu-ly-vang-khac-chu-nam-mo-a-di-da-phat-kich-thuoc-12mm-14mm/','https://phapduyen.com/wp-content/uploads/2016/06/00-2-scaled.jpg','Chuỗi Vòng Đeo Tay Đá Lưu Ly Vàng Khắc Chữ Nam Mô A Di Đà Phật, Kích Thước 12mm, 14mm','2026-08-11 00:00:00'),
-(1124,'https://phapduyen.com','https://phapduyen.com/san-pham/chuoi-vong-tay-pha-le-hong-tim-10mm/','https://phapduyen.com/wp-content/uploads/2026/01/00-12-scaled.jpg','Chuỗi Vòng Tay Pha Lê Hồng Tím, 10mm','2026-08-11 00:00:00'),
-(1125,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-nau-kich-thuoc-60cmx60cm-70cmx70cm-80cmx80cm/','https://phapduyen.com/wp-content/uploads/2024/03/00.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','2026-08-11 00:00:00'),
-(1126,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-vang-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/02/00b-1.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Vàng, Kích Thước 70*70cm, 80x80cm','2026-08-11 00:00:00'),
-(1127,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-theu-hoa-sen-cao-cap-ngoi-thien-tinh-toa-niem-phat-mau-xam-kich-thuoc-60cmx60cm-70cmx70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/02/00.jpg','Bộ Đệm Dốc Xơ Dừa Thêu Hoa Sen Cao Cấp Ngồi Thiền Tĩnh Tọa Niệm Phật, Mầu Xám, Kích Thước 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
-(1128,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-xo-dua-ngoi-thien-tinh-toa-niem-phat-theu-hoa-sen-mau-xam-kich-thuoc-60x60cm-70x70cm-80x80cm/','https://phapduyen.com/wp-content/uploads/2024/01/00-50.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
-(1129,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-doc-ngoi-thien-ruot-dua-lot-theu-hoa-sen-70x70cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-105.jpg','Bộ Đệm Dốc Xơ Dừa Ngồi Thiền Tĩnh Tọa Niệm Phật Thêu Hoa Sen, Mầu Nâu, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
-(1130,'https://phapduyen.com','https://phapduyen.com/san-pham/93982/','https://phapduyen.com/wp-content/uploads/2022/10/00-4.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Xám, KT 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
-(1131,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-xam-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/11/03-Copy.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Xám, Kích Thước 60x60cm, 70x70cm, 80x80cm','2026-08-11 00:00:00'),
-(1132,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-mau-nau-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/11/02a-7.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen, Mầu Nâu, Kích Thước 60*60cm, 70*70cm, 80*80cm','2026-08-11 00:00:00'),
-(1133,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-nau-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-19.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Nâu, Kích Thước 60cmx60cm, 70cmx70cm, 80cmx80cm','2026-08-11 00:00:00'),
-(1134,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-lot-ngoi-thien-xo-dua-theu-hoa-sen-cao-cap-mau-vang-kich-thuoc-60cm-x-60cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-18.jpg','Đệm Lót Ngồi Thiền Xơ Dừa, Thêu Hoa Sen Cao Cấp, Mầu Vàng, Kích Thước 60cmx60cm, 70cmx70, 80cmx80cm','2026-08-11 00:00:00'),
-(1135,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-xam-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-31.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Xám, Kích Thước 23x45cm','2026-08-11 00:00:00'),
-(1136,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-30cm-x-50cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-28.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 30cm x 50cm','2026-08-11 00:00:00'),
-(1137,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-30cm-x-50cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-26.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 30x50cm','2026-08-11 00:00:00'),
-(1138,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-cat-tuong-theu-hoa-sen-vo-do-mau-nau-kich-thuoc-30cm-x-8cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-47.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen, Vỏ Đỗ, Màu Nâu, Kích thước 30*8cm','2026-08-11 00:00:00'),
-(1139,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-cat-tuong-theu-hoa-senvo-do-mau-do-kich-thuoc-30cm-x-8cm/','https://phapduyen.com/wp-content/uploads/2023/12/00-46.jpg','Bồ Đoàn Cát Tường Thêu Hoa Sen,Vỏ Đỗ, Màu Đỏ, Kích thước 30*8cm','2026-08-11 00:00:00'),
-(1140,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-xam-nhieu-co-60cm-70cm/','https://phapduyen.com/wp-content/uploads/2022/11/Dem-mong-hoa-sen-xam-0.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Xám, Kích Thước 60cmx60cm, 70cmx70cm','2026-08-11 00:00:00'),
-(1141,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-thien-le-phat-tung-kinh-in-hoa-sen-mau-nau-nhieu-co-60cm-70cm/','https://phapduyen.com/wp-content/uploads/2022/11/Dem-mong-hoa-sen-nau-0.jpg','Bộ Đệm Thiền Lễ Phật Tụng Kinh In Hoa Sen, Dày 2cm, Màu Nâu, Kích Thước 60cmx60cm, 70cmx70cm','2026-08-11 00:00:00'),
-(1142,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-40cm-x-6cm/','https://phapduyen.com/wp-content/uploads/2020/11/ada-2.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Xám, Kích Thước 49x6cm, 58x6cm','2026-08-11 00:00:00'),
-(1143,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-doan-theu-hoa-sen-mau-nau-kich-thuoc-49cm-x-6cm/','https://phapduyen.com/wp-content/uploads/2020/11/01-23-1.jpg','(Pre-order) Bồ Đoàn Thêu Hoa Sen Màu Nâu, Kích Thước 49*6cm, 58*6cm','2026-08-11 00:00:00'),
-(1144,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-le-phat-hoa-sen-vang-vien-nau-kich-co-50x180cm-60x180cm/','https://phapduyen.com/wp-content/uploads/2021/12/c6f30c2f-06ac-4409-961a-a5ee1c159e4b.jpg','Đệm Lễ Phật Hoa Sen Vàng Viền Nâu, Kích Cỡ 180x50cm, 180x60cm','2026-08-11 00:00:00'),
-(1145,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-phang-le-phat-co-60x150/','https://phapduyen.com/wp-content/uploads/2018/05/DTP-02.jpg','Đệm Phẳng Lễ Phật, Cỡ 60x150cm','2026-08-11 00:00:00'),
-(1146,'https://phapduyen.com','https://phapduyen.com/san-pham/bo-dem-phang-le-phat-kich-thuoc-60x150cm/','https://phapduyen.com/wp-content/uploads/2021/07/00-56.jpg','Bộ Đệm Phẳng Lễ Phật, Màu Xám, Màu Nâu, Kích Thước 60x150cm','2026-08-11 00:00:00'),
-(1147,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-nau-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-29.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Nâu, Kích Thước 23x45cm','2026-08-11 00:00:00'),
-(1148,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-doc-ngoi-thien-ruot-xo-dua-mau-vang-kich-thuoc-23cm-x-45cm/','https://phapduyen.com/wp-content/uploads/2021/12/00-30.jpg','Đệm Dốc Ngồi Thiền, Ruột Xơ Dừa, Mầu Vàng, Kích Thước 23cm x 45cm','2026-08-11 00:00:00'),
-(1149,'https://phapduyen.com','https://phapduyen.com/san-pham/dem-thien-le-phat-quy-thay-ruot-xo-dua-boc-gam-vang-hoa-sen-60x60cm/','https://phapduyen.com/wp-content/uploads/2017/09/SCP-G811.jpg','Bộ Đệm Thiền Lễ Phật, Ruột Xơ Dừa Bọc Gấm Vàng Hoa Sen 60x60cm','2026-08-11 00:00:00');
-
 INSERT INTO `inventory_logs` (`variant_id`,`quantity_changed`,`reason`) VALUES
 (10001,20,'Tồn kho khởi tạo catalog đồ lam'),
 (10002,20,'Tồn kho khởi tạo catalog đồ lam'),
@@ -2051,10 +2319,156 @@ INSERT INTO `banner` (`id`,`image_url`,`link_url`,`status`) VALUES
 (4,'assets/images/lam-hero-temple.jpg','shop?category=Đồ+lam+đi+chùa',1);
 
 INSERT INTO `setting` (`id`,`key_name`,`value`) VALUES
-(1,'store_name','PaceUp - Đồ lam & Pháp phục'),
-(2,'store_address','Hồ Chí Minh, Việt Nam'),
-(3,'store_phone','0900 000 001'),
-(4,'store_email','cskh@paceup.local');
+(1,'store_name','Liên Hoa - Đồ lam & Pháp phục'),
+(2,'store_address','123 Đường An Lạc, Phường Bến Thành, Thành phố Hồ Chí Minh (dữ liệu mô phỏng)'),
+(3,'store_phone','1800 2235'),
+(4,'store_email','lienhoashop.pg@gmail.com');
+
+-- Dữ liệu vận hành mô phỏng: cước được tính lại ở server theo tỉnh và
+-- trọng lượng tính cước = lớn hơn giữa trọng lượng thực và quy đổi thể tích.
+INSERT INTO `shipping_rates`
+(`carrier_code`,`carrier_name`,`region_code`,`base_fee`,`base_weight_grams`,`extra_fee_per_500g`,`volumetric_divisor`,`free_shipping_threshold`,`estimated_days`,`status`) VALUES
+('standard','Giao hàng tiêu chuẩn','hcm',22000,1000,4000,5000,500000,'1–2 ngày',1),
+('standard','Giao hàng tiêu chuẩn','major_city',30000,1000,5000,5000,700000,'2–4 ngày',1),
+('standard','Giao hàng tiêu chuẩn','nationwide',38000,1000,7000,5000,900000,'3–6 ngày',1),
+('express','Giao hàng nhanh','hcm',35000,1000,6000,5000,1000000,'Trong ngày–1 ngày',1),
+('express','Giao hàng nhanh','major_city',48000,1000,8000,5000,1200000,'1–2 ngày',1),
+('express','Giao hàng nhanh','nationwide',65000,1000,10000,5000,1500000,'2–4 ngày',1);
+
+INSERT INTO `suppliers`
+(`supplier_code`,`name`,`tax_code`,`contact_name`,`phone`,`email`,`address`,`payment_terms_days`,`status`) VALUES
+('NCC-LH-001','Xưởng may An Lạc (mô phỏng)','0311111111-DEMO','Nguyễn An','0901000001','xuongmay@example.test','Thành phố Hồ Chí Minh',30,1),
+('NCC-LH-002','Hợp tác xã Pháp Duyên (mô phỏng)','0312222222-DEMO','Trần Tâm','0901000002','phapduyen@example.test','Tỉnh Đồng Nai',15,1);
+
+-- Tạo mã quản trị và thông số logistics nhất quán cho toàn bộ catalog mẫu.
+UPDATE `product_variants` pv
+JOIN `product` p ON p.id = pv.product_id
+SET pv.sku = CONCAT('LH-', pv.product_id, '-', pv.id),
+    pv.barcode = CONCAT('893', LPAD(pv.id, 10, '0')),
+    pv.cost_price = ROUND((p.base_price + pv.price_modifier) * 0.55, -3),
+    pv.weight_grams = CASE p.product_type WHEN 'apparel' THEN 450 WHEN 'bag' THEN 650 WHEN 'beads' THEN 250 ELSE 800 END,
+    pv.length_cm = CASE p.product_type WHEN 'apparel' THEN 32 WHEN 'bag' THEN 35 WHEN 'beads' THEN 15 ELSE 30 END,
+    pv.width_cm = CASE p.product_type WHEN 'apparel' THEN 25 WHEN 'bag' THEN 28 WHEN 'beads' THEN 12 ELSE 25 END,
+    pv.height_cm = CASE p.product_type WHEN 'apparel' THEN 6 WHEN 'bag' THEN 10 WHEN 'beads' THEN 5 ELSE 12 END;
+
+-- Bộ sưu tập mở rộng có nguồn tham khảo và ảnh được lưu local trong dự án.
+INSERT INTO `product`
+(`id`,`category_id`,`name`,`slug`,`description`,`base_price`,`old_price`,`sold_count`,`reserved_quantity`,`returned_count`,`status`,`is_featured`,`product_type`) VALUES
+(1150,111,'Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen','ao-trang-truong-sam-7-vat-nau-den-lien-hoa','Thiết kế trường sam bảy vạt trang nghiêm, màu nâu đen, phù hợp khi đi lễ và sinh hoạt Phật sự. Có đủ size S, M, L, XL và bộ ảnh chi tiết nhiều góc.',560000,600000,0,0,0,1,1,'apparel'),
+(1151,111,'Áo Tràng Lót Lông Màu Xám','ao-trang-lot-long-mau-xam-lien-hoa','Áo tràng hai lớp giữ ấm dành cho thời tiết lạnh, tông xám nhã, phom dài kín đáo. Bộ ảnh thể hiện tổng thể, chất vải và các góc chi tiết.',1790000,1990000,0,0,0,1,0,'apparel'),
+(1152,112,'Áo Tràng Phật Tử Dáng Dài Màu Nâu','ao-trang-phat-tu-dang-dai-mau-nau-lien-hoa','Áo tràng Phật tử dáng dài màu nâu, thiết kế gọn tay và kín đáo để lễ chùa, tụng kinh. Size L và XL có cộng giá theo lượng vải sử dụng.',340000,390000,0,0,0,1,0,'apparel'),
+(1153,111,'Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò','ao-trang-truong-sam-7-vat-vang-bo-lien-hoa','Trường sam bảy vạt màu vàng bò, kiểu dáng trang nghiêm dành cho sinh hoạt Phật sự. Ảnh sản phẩm gồm toàn cảnh và các góc chi tiết.',530000,NULL,0,0,0,1,0,'apparel'),
+(1154,112,'Áo Dài Đi Chùa Cổ Tròn Thêu Sen Lụa Tằm','ao-dai-di-chua-co-tron-theu-sen-lua-tam-lien-hoa','Áo dài đi chùa cổ tròn thêu sen, chất liệu lụa tằm mềm rủ. Có ba màu Nâu, Kem và Lam; khi chọn màu, ảnh sản phẩm và tồn kho thay đổi tương ứng.',360000,400000,0,0,0,1,1,'apparel'),
+(1155,112,'Bộ Đồ Đi Chùa Nữ Cổ Tròn Thêu Hoa Sala Linen','bo-do-di-chua-nu-co-tron-theu-hoa-sala-linen-lien-hoa','Bộ đồ đi chùa nữ cổ tròn phối thêu hoa Sala, vải linen thoáng nhẹ. Có tám màu thật với ảnh riêng cho từng màu và đủ size S, M, L, XL.',299000,330000,0,0,0,1,1,'apparel');
+
+INSERT INTO `product_sources`
+(`product_id`,`source_site`,`source_product_url`,`source_name`,`usage_note`) VALUES
+(1150,'Pháp Duyên','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-nau-den-nhieu-kich-co/','Áo Tràng Trường Sam 7 Vạt Mầu Nâu Đen Cao Cấp Cho Nam, Nữ, Nhiều Kích Cỡ','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
+(1151,'Pháp Duyên','https://phapduyen.com/san-pham/ao-trang-lot-long-mau-xam-size-37-cao-155cm/','Áo Tràng Lót Lông Màu Xám','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
+(1152,'Pháp Duyên','https://phapduyen.com/san-pham/ao-trang-phat-tu-mau-nau-sx-dai-loan/','Áo Tràng Phật Tử Màu Nâu, Áo Tràng Nâu Áo Lam Dài Phật Tử Đi Lễ Chùa','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
+(1153,'Pháp Duyên','https://phapduyen.com/san-pham/ao-trang-truong-sam-7-vat-mau-vang/','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
+(1154,'Shop Hoan Hỷ','https://shophoanhy.com/quan-ao-phat-tu/ao-dai-di-chua-co-tron-theu-sen-vai-lua-tam-uot-mau-nau.html','Áo dài đi chùa cổ tròn thêu sen vải lụa tằm ướt','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.'),
+(1155,'Shop Hoan Hỷ','https://shophoanhy.com/quan-ao-phat-tu/bo-do-lam-di-chua-nu-co-tron-phoi-theu-hoa-sala-vai-linen-mau-kem.html','Bộ đồ lam đi chùa nữ cổ tròn phối thêu hoa Sala - vải linen','Dữ liệu và hình ảnh tham khảo cho đồ án học tập; cần xác nhận quyền sử dụng trước khi kinh doanh thực tế.');
+
+-- Không bịa URL nguồn cho catalog cũ. Mỗi sản phẩm chưa có nguồn được gắn
+-- nhãn minh bạch là dữ liệu học tập và không được dùng để kinh doanh thật.
+INSERT INTO `product_sources`
+(`product_id`,`source_site`,`source_product_url`,`source_name`,`usage_note`)
+SELECT p.id,
+       'Catalog cũ của đồ án',
+       CONCAT('internal://legacy-catalog/',p.id),
+       p.name,
+       'Nguồn gốc và quyền sử dụng ảnh chưa được xác minh; chỉ dùng để minh họa trong đồ án học tập, không dùng cho kinh doanh thực tế.'
+FROM `product` p
+LEFT JOIN `product_sources` ps ON ps.product_id=p.id
+WHERE ps.id IS NULL;
+
+INSERT INTO `product_images` (`product_id`,`image_url`,`alt_text`,`is_primary`) VALUES
+(1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/01.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 1',1),
+(1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/02.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 2',0),
+(1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/03.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 3',0),
+(1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/04.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 4',0),
+(1150,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/05.jpg','Áo Tràng Trường Sam 7 Vạt Màu Nâu Đen - ảnh 5',0),
+(1151,'public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/01.jpg','Áo Tràng Lót Lông Màu Xám - ảnh 1',1),
+(1151,'public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/02.jpg','Áo Tràng Lót Lông Màu Xám - ảnh 2',0),
+(1151,'public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/03.jpg','Áo Tràng Lót Lông Màu Xám - ảnh 3',0),
+(1151,'public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/04.jpg','Áo Tràng Lót Lông Màu Xám - ảnh 4',0),
+(1151,'public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/05.jpg','Áo Tràng Lót Lông Màu Xám - ảnh 5',0),
+(1152,'public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/01.jpg','Áo Tràng Phật Tử Dáng Dài Màu Nâu - ảnh 1',1),
+(1152,'public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/02.jpg','Áo Tràng Phật Tử Dáng Dài Màu Nâu - ảnh 2',0),
+(1152,'public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/03.jpg','Áo Tràng Phật Tử Dáng Dài Màu Nâu - ảnh 3',0),
+(1152,'public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/04.jpg','Áo Tràng Phật Tử Dáng Dài Màu Nâu - ảnh 4',0),
+(1152,'public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/05.jpg','Áo Tràng Phật Tử Dáng Dài Màu Nâu - ảnh 5',0),
+(1153,'public/uploads/products/imported/phapduyen/truong-sam-vang-bo/01-full.png','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò - ảnh toàn thân',1),
+(1153,'public/uploads/products/imported/phapduyen/truong-sam-vang-bo/02.jpg','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò - ảnh 2',0),
+(1153,'public/uploads/products/imported/phapduyen/truong-sam-vang-bo/03.jpg','Áo Tràng Trường Sam 7 Vạt Màu Vàng Bò - ảnh 3',0),
+(1154,'public/uploads/products/imported/hoanhy/ao-dai-theu-sen/nau.jpg','Áo Dài Đi Chùa Cổ Tròn Thêu Sen Lụa Tằm - màu Nâu',1),
+(1154,'public/uploads/products/imported/hoanhy/ao-dai-theu-sen/kem.jpg','Áo Dài Đi Chùa Cổ Tròn Thêu Sen Lụa Tằm - màu Kem',0),
+(1154,'public/uploads/products/imported/hoanhy/ao-dai-theu-sen/lam.jpg','Áo Dài Đi Chùa Cổ Tròn Thêu Sen Lụa Tằm - màu Lam',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/kem.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Kem',1),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/trang.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Trắng',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/vang-bo.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Vàng bò',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/xanh-ngoc.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Xanh ngọc',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/tim-ruoc.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Tím ruốc',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/tim-mon.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Tím môn',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/nau.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Nâu',0),
+(1155,'public/uploads/products/imported/hoanhy/bo-do-sala/lam.jpg','Bộ Đồ Đi Chùa Thêu Hoa Sala - màu Lam',0);
+
+INSERT INTO `product_variants`
+(`product_id`,`sku`,`barcode`,`size`,`color`,`image_url`,`stock_quantity`,`price_modifier`,`cost_price`,`weight_grams`,`length_cm`,`width_cm`,`height_cm`,`status`)
+SELECT p.product_id,
+       CONCAT('LH-IMP-',p.product_id,'-',p.color_code,'-',s.size),
+       CONCAT('8939',LPAD(p.product_id * 100 + s.seq,9,'0')),
+       s.size,p.color,p.image_url,
+       CASE p.product_id
+         WHEN 1150 THEN ELT(s.seq,8,10,9,6)
+         WHEN 1151 THEN ELT(s.seq,3,5,4,2)
+         WHEN 1152 THEN ELT(s.seq,10,12,10,8)
+         ELSE ELT(s.seq,7,8,7,5)
+       END,
+       CASE WHEN p.product_id=1152 AND s.seq>=3 THEN 30000 ELSE 0 END,
+       ROUND((p.base_price + CASE WHEN p.product_id=1152 AND s.seq>=3 THEN 30000 ELSE 0 END) * 0.55,-3),
+       450,32,25,6,1
+FROM (
+  SELECT 1150 product_id,'ND' color_code,'Nâu đen' color,'public/uploads/products/imported/phapduyen/ao-trang-nau-den/01.jpg' image_url,560000 base_price
+  UNION ALL SELECT 1151,'XAM','Xám','public/uploads/products/imported/phapduyen/ao-trang-lot-long-xam/01.jpg',1790000
+  UNION ALL SELECT 1152,'NAU','Nâu','public/uploads/products/imported/phapduyen/ao-trang-phat-tu-nau/01.jpg',340000
+  UNION ALL SELECT 1153,'VB','Vàng bò','public/uploads/products/imported/phapduyen/truong-sam-vang-bo/01-full.png',530000
+) p
+CROSS JOIN (
+  SELECT 1 seq,'S' size UNION ALL SELECT 2,'M' UNION ALL SELECT 3,'L' UNION ALL SELECT 4,'XL'
+) s;
+
+INSERT INTO `product_variants`
+(`product_id`,`sku`,`barcode`,`size`,`color`,`image_url`,`stock_quantity`,`price_modifier`,`cost_price`,`weight_grams`,`length_cm`,`width_cm`,`height_cm`,`status`)
+SELECT 1154,
+       CONCAT('LH-IMP-1154-',c.color_code,'-',s.size),
+       CONCAT('8939',LPAD(115400 + c.seq * 4 + s.seq,9,'0')),
+       s.size,c.color,c.image_url,ELT(s.seq,9,11,10,7),0,198000,450,32,25,6,1
+FROM (
+  SELECT 0 seq,'NAU' color_code,'Nâu' color,'public/uploads/products/imported/hoanhy/ao-dai-theu-sen/nau.jpg' image_url
+  UNION ALL SELECT 1,'KEM','Kem','public/uploads/products/imported/hoanhy/ao-dai-theu-sen/kem.jpg'
+  UNION ALL SELECT 2,'LAM','Lam','public/uploads/products/imported/hoanhy/ao-dai-theu-sen/lam.jpg'
+) c
+CROSS JOIN (SELECT 1 seq,'S' size UNION ALL SELECT 2,'M' UNION ALL SELECT 3,'L' UNION ALL SELECT 4,'XL') s;
+
+INSERT INTO `product_variants`
+(`product_id`,`sku`,`barcode`,`size`,`color`,`image_url`,`stock_quantity`,`price_modifier`,`cost_price`,`weight_grams`,`length_cm`,`width_cm`,`height_cm`,`status`)
+SELECT 1155,
+       CONCAT('LH-IMP-1155-',c.color_code,'-',s.size),
+       CONCAT('8939',LPAD(115500 + c.seq * 4 + s.seq,9,'0')),
+       s.size,c.color,c.image_url,ELT(s.seq,8,10,9,6),0,164000,450,32,25,6,1
+FROM (
+  SELECT 0 seq,'KEM' color_code,'Kem' color,'public/uploads/products/imported/hoanhy/bo-do-sala/kem.jpg' image_url
+  UNION ALL SELECT 1,'TRANG','Trắng','public/uploads/products/imported/hoanhy/bo-do-sala/trang.jpg'
+  UNION ALL SELECT 2,'VB','Vàng bò','public/uploads/products/imported/hoanhy/bo-do-sala/vang-bo.jpg'
+  UNION ALL SELECT 3,'XN','Xanh ngọc','public/uploads/products/imported/hoanhy/bo-do-sala/xanh-ngoc.jpg'
+  UNION ALL SELECT 4,'TR','Tím ruốc','public/uploads/products/imported/hoanhy/bo-do-sala/tim-ruoc.jpg'
+  UNION ALL SELECT 5,'TM','Tím môn','public/uploads/products/imported/hoanhy/bo-do-sala/tim-mon.jpg'
+  UNION ALL SELECT 6,'NAU','Nâu','public/uploads/products/imported/hoanhy/bo-do-sala/nau.jpg'
+  UNION ALL SELECT 7,'LAM','Lam','public/uploads/products/imported/hoanhy/bo-do-sala/lam.jpg'
+) c
+CROSS JOIN (SELECT 1 seq,'S' size UNION ALL SELECT 2,'M' UNION ALL SELECT 3,'L' UNION ALL SELECT 4,'XL') s;
 
 INSERT INTO `post_categories` (`id`,`name`) VALUES
 (1,'Cẩm nang đi chùa');
@@ -2063,6 +2477,15 @@ INSERT INTO `posts` (`id`,`category_id`,`title`,`content`,`thumbnail`) VALUES
 (1,1,'Gợi ý chọn trang phục đi chùa trang nhã','Ưu tiên trang phục kín đáo, màu sắc nhã nhặn và chất liệu thoải mái khi đi chùa hoặc ngồi thiền.','assets/images/lam-hero-temple.jpg');
 
 INSERT INTO `schema_migrations` (`version`) VALUES
-('paceup_db_v1_single_import');
+('paceup_db_v1_single_import'),
+('commerce_operations_v1'),
+('commerce_profit_snapshot_v1'),
+('cleanup_legacy_categories_v1'),
+('commerce_invoice_sequence_v1'),
+('critical_business_v10'),
+('critical_business_v12'),
+('catalog_source_disclosure_v13');
+INSERT IGNORE INTO `schema_migrations` (`version`) VALUES
+('household_sales_invoice_v11');
 
 -- Không seed đơn hàng, giỏ hàng hoặc giao dịch giày cũ.

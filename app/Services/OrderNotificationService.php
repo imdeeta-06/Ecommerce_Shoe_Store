@@ -28,7 +28,7 @@ class OrderNotificationService {
         return $this->queue(
             $order,
             'order_created',
-            'PaceUp đã tiếp nhận đơn hàng ' . $orderCode,
+            'Liên Hoa đã tiếp nhận đơn hàng ' . $orderCode,
             $this->buildCreatedHtml($order),
             $recipient
         );
@@ -83,6 +83,51 @@ class OrderNotificationService {
         $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
         $stmt->execute();
         $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $this->deliver($notifications);
+    }
+
+    /**
+     * Gửi đúng một thông báo vừa được tạo cho một đơn hàng.
+     * Luồng này dùng cho email giao dịch thời gian thực, không quét và gửi
+     * hàng loạt các thông báo cũ đang nằm trong hàng đợi quản trị.
+     */
+    public function processForOrder(int $orderId, string $notificationType): array {
+        if (!MailService::isConfigured()) {
+            return [
+                'success' => false,
+                'sent' => 0,
+                'failed' => 0,
+                'message' => 'SMTP chưa được cấu hình. Thông báo vẫn được giữ trong hàng đợi.'
+            ];
+        }
+
+        if ($orderId <= 0 || !preg_match('/^[a-z0-9_]{1,60}$/', $notificationType)) {
+            return [
+                'success' => false,
+                'sent' => 0,
+                'failed' => 0,
+                'message' => 'Thông báo đơn hàng không hợp lệ.'
+            ];
+        }
+
+        $stmt = $this->db->prepare("SELECT * FROM order_notifications
+            WHERE order_id = :order_id
+              AND notification_type = :notification_type
+              AND status IN ('pending', 'failed')
+              AND attempt_count < 3
+              AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
+            ORDER BY id DESC
+            LIMIT 1");
+        $stmt->execute([
+            'order_id' => $orderId,
+            'notification_type' => $notificationType
+        ]);
+
+        return $this->deliver($stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    private function deliver(array $notifications): array {
         $sent = 0;
         $failed = 0;
 
@@ -165,9 +210,9 @@ class OrderNotificationService {
         $name = htmlspecialchars((string)($order['shipping_name'] ?? $order['user_name'] ?? 'bạn'), ENT_QUOTES, 'UTF-8');
         $rows = $this->buildItemRows($order['items'] ?? []);
         return $this->layout(
-            'Chào ' . $name . ', PaceUp đã tiếp nhận đơn hàng <strong>' . htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') . '</strong>.',
+            'Chào ' . $name . ', Liên Hoa đã tiếp nhận đơn hàng <strong>' . htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') . '</strong>.',
             $rows,
-            'Trạng thái hiện tại: Chờ xác nhận. Nhân viên PaceUp sẽ kiểm tra tồn kho và liên hệ khi đơn được xác nhận.',
+            'Trạng thái hiện tại: Chờ xác nhận. Nhân viên Liên Hoa sẽ kiểm tra tồn kho và liên hệ khi đơn được xác nhận.',
             $order
         );
     }
@@ -183,10 +228,12 @@ class OrderNotificationService {
     }
 
     private function layout(string $intro, string $rows, string $statusText, array $order): string {
-        $trackingUrl = App::url('tracking?order_code=' . urlencode((string)$order['order_code']) . '&phone=' . urlencode((string)$order['shipping_phone']));
+        $trackingUrl = App::publicUrl('tracking?order_code=' . urlencode((string)$order['order_code']) . '&phone=' . urlencode((string)$order['shipping_phone']));
         return '<!doctype html><html lang="vi"><body style="font-family:Arial,sans-serif;color:#111;line-height:1.6;">'
-            . '<h2>PaceUp</h2><p>' . $intro . '</p><p>' . $statusText . '</p>'
+            . '<h2>Liên Hoa</h2><p>' . $intro . '</p><p>' . $statusText . '</p>'
             . '<table style="width:100%;max-width:680px;border-collapse:collapse;">' . $rows . '</table>'
+            . '<p><strong>Tiền trước thuế:</strong> ' . number_format((float)($order['taxable_amount'] ?? 0), 0, ',', '.') . ' ₫<br>'
+            . '<strong>Thuế GTGT (đã gồm trong giá):</strong> ' . number_format((float)($order['tax_amount'] ?? 0), 0, ',', '.') . ' ₫</p>'
             . '<p style="margin-top:24px;"><strong>Tổng tiền:</strong> ' . number_format((float)$order['final_amount'], 0, ',', '.') . ' ₫</p>'
             . '<p><a href="' . htmlspecialchars($trackingUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;">Tra cứu đơn hàng</a></p>'
             . '<p style="font-size:12px;color:#777;">Đây là email giao dịch liên quan đến đơn hàng của bạn.</p></body></html>';

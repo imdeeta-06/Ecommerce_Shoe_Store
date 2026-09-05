@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Models\Product;
 use App\Services\UploadService;
+use App\Services\TaxService;
 
 class ProductController {
     private $productModel;
@@ -17,12 +18,12 @@ class ProductController {
         $filters = [
             'keyword' => $_GET['keyword'] ?? '',
             'category_id' => $_GET['category_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-            'gender' => $_GET['gender'] ?? ''
+            'status' => $_GET['status'] ?? ''
         ];
 
         $products = $this->productModel->getAllProducts($filters);
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/index.php';
@@ -32,6 +33,7 @@ class ProductController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $productId = $this->productModel->createProduct($this->productPayload());
+                $this->productModel->ensureDefaultVariant($productId);
 
                 if (!empty($_FILES['image']['name'])) {
                     $imagePath = UploadService::image($_FILES['image'], 'products');
@@ -53,6 +55,7 @@ class ProductController {
         $variants = [];
         $images = [];
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/form.php';
@@ -91,6 +94,7 @@ class ProductController {
         $variants = $this->productModel->getProductVariants($id);
         $images = $this->productModel->getProductImages($id);
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/form.php';
@@ -149,8 +153,10 @@ class ProductController {
                 'size' => $size,
                 'color' => $color,
                 'stock_quantity' => 0,
-                'price_modifier' => max(0, (float)($_POST['price_modifier'] ?? 0))
+                'price_modifier' => max(0, (float)($_POST['price_modifier'] ?? 0)),
+                ...$this->variantOperationsPayload()
             ]);
+            $this->ensureVariantCodes($variantId, $productId);
             if ($stockQuantity > 0) {
                 $this->productModel->updateStock($variantId, $stockQuantity, 'Tồn đầu kỳ khi tạo phân loại sản phẩm');
             }
@@ -186,8 +192,10 @@ class ProductController {
             $this->productModel->updateProductVariant($id, [
                 'size' => $size,
                 'color' => $color,
-                'price_modifier' => max(0, (float)($_POST['price_modifier'] ?? 0))
+                'price_modifier' => max(0, (float)($_POST['price_modifier'] ?? 0)),
+                ...$this->variantOperationsPayload()
             ]);
+            $this->ensureVariantCodes($id, $productId);
             if ($stockDelta !== 0) {
                 $this->productModel->updateStock($id, $stockDelta, 'Điều chỉnh tồn kho từ màn hình sản phẩm');
             }
@@ -270,19 +278,24 @@ class ProductController {
         if ($basePrice < 0) {
             throw new \RuntimeException('Giá gốc không được âm.');
         }
+        $oldPriceInput = trim((string)($_POST['old_price'] ?? ''));
+        $oldPrice = $oldPriceInput === '' ? null : (float)$oldPriceInput;
+        if ($oldPrice !== null && $oldPrice < $basePrice) {
+            throw new \RuntimeException('Giá niêm yết phải lớn hơn hoặc bằng giá bán hiện tại.');
+        }
 
         $status = (int)($_POST['status'] ?? 1);
         if (!in_array($status, [0, 1], true)) {
             $status = 1;
         }
 
-        $gender = $_POST['gender'] ?? null;
-        $gender = in_array($gender, ['men', 'women'], true) ? $gender : null;
-
         $slug = $this->slugify($_POST['slug'] ?? $name);
         if ($this->productModel->productSlugExists($slug, $productId)) {
             throw new \RuntimeException('Slug sản phẩm đã tồn tại. Vui lòng chọn slug khác.');
         }
+        $unitName=mb_substr(trim((string)($_POST['unit_name']??'Cái')),0,30,'UTF-8')?:'Cái';
+        $taxCategory = TaxService::normalizeCategory(trim((string)($_POST['tax_category'] ?? 'standard_reduced')));
+        $taxRate = TaxService::rateFor($taxCategory, $_POST['tax_rate'] ?? null);
 
         return [
             'category_id' => $categoryId,
@@ -290,8 +303,11 @@ class ProductController {
             'slug' => $slug,
             'description' => trim($_POST['description'] ?? ''),
             'base_price' => $basePrice,
-            'type' => trim($_POST['type'] ?? ''),
-            'gender' => $gender,
+            'old_price' => $oldPrice,
+            'product_type' => $productId ? ($this->productModel->getProductForAdmin($productId)['product_type'] ?? 'apparel') : 'apparel',
+            'unit_name'=>$unitName,
+            'tax_category' => $taxCategory,
+            'tax_rate' => $taxRate,
             'status' => $status,
             'is_featured' => !empty($_POST['is_featured']) ? 1 : 0
         ];
@@ -308,18 +324,45 @@ class ProductController {
     }
 
     private function variantColor($value) {
-        $allowed = ['Black', 'Red', 'White'];
-        return in_array($value, $allowed, true) ? $value : 'Black';
+        $value = trim((string)$value);
+        return $value !== '' ? mb_substr($value, 0, 50, 'UTF-8') : 'Mặc định';
     }
 
     private function variantSize($value) {
         $value = trim((string)$value);
-        if (preg_match('/^\d{2}$/', $value)) {
-            $value = 'EU ' . $value;
+        return $value !== '' ? mb_substr($value, 0, 50, 'UTF-8') : 'Mặc định';
+    }
+
+    private function variantOperationsPayload(): array {
+        $imageUrl = trim((string)($_POST['image_url'] ?? ''));
+        if (mb_strlen($imageUrl, 'UTF-8') > 500) {
+            throw new \RuntimeException('Đường dẫn ảnh biến thể quá dài.');
+        }
+        if ($imageUrl !== ''
+            && !preg_match('#^https?://#i', $imageUrl)
+            && !str_starts_with($imageUrl, 'public/uploads/')) {
+            throw new \RuntimeException('Ảnh biến thể phải là ảnh đã tải lên sản phẩm hoặc URL HTTP/HTTPS hợp lệ.');
         }
 
-        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
-        return in_array($value, $allowed, true) ? $value : 'EU 42';
+        return [
+            'sku' => trim((string)($_POST['sku'] ?? '')) ?: null,
+            'barcode' => trim((string)($_POST['barcode'] ?? '')) ?: null,
+            'image_url' => $imageUrl !== '' ? $imageUrl : null,
+            'status' => (int)($_POST['status'] ?? 1) === 0 ? 0 : 1,
+            'cost_price' => max(0, (float)($_POST['cost_price'] ?? 0)),
+            'weight_grams' => max(1, (int)($_POST['weight_grams'] ?? 500)),
+            'length_cm' => max(0.1, (float)($_POST['length_cm'] ?? 25)),
+            'width_cm' => max(0.1, (float)($_POST['width_cm'] ?? 20)),
+            'height_cm' => max(0.1, (float)($_POST['height_cm'] ?? 5))
+        ];
+    }
+
+    private function ensureVariantCodes(int $variantId, int $productId): void {
+        $variant = $this->productModel->getProductVariant($variantId);
+        $update = [];
+        if (empty($variant['sku'])) $update['sku'] = 'LH-' . $productId . '-' . $variantId;
+        if (empty($variant['barcode'])) $update['barcode'] = '893' . str_pad((string)$variantId, 10, '0', STR_PAD_LEFT);
+        if ($update) $this->productModel->updateProductVariant($variantId, $update);
     }
 
     private function requireAdmin() {
