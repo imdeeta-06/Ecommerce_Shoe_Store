@@ -4,23 +4,31 @@ $isEdit = !empty($product);
 $variantSizes = ['Free Size', 'S', 'M', 'L', '8 mm', '10 mm', '12 mm', '14 mm', '16 mm', '18 mm', '20 mm'];
 $variantColors = ['White', 'Brown', 'Gray', 'Blue'];
 $title = $isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
+$currentTaxCategory = \App\Services\TaxService::normalizeCategory((string)($product['tax_category'] ?? 'standard_reduced'));
+$currentTaxRate = \App\Services\TaxService::rateFor($currentTaxCategory, $product['tax_rate'] ?? null);
 adminStart($title, 'products', $flash ?? null);
 ?>
+
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+.product-form-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:2rem}.product-info-grid{grid-template-columns:1fr 1fr}.product-field-wide{grid-column:span 2}.product-form-actions{border-top:1px solid var(--admin-border);margin:2rem -1.5rem 0;padding:1.5rem 1.5rem 0;display:flex;justify-content:flex-end;gap:1rem}
+@media(max-width:850px){.product-form-layout{grid-template-columns:1fr}.product-info-grid{grid-template-columns:1fr}.product-field-wide{grid-column:auto}}
+@media(max-width:600px){.product-form-actions{margin:1.5rem -1rem 0;padding:1rem 1rem 0}.product-form-actions .admin-btn{flex:1}.product-form-layout aside{padding:1rem!important}}
+</style>
 
 <form class="admin-panel" method="post" enctype="multipart/form-data" action="<?= $isEdit ? BASE_URL . 'admin/products/edit?id=' . (int)$product['id'] : BASE_URL . 'admin/products/create' ?>">
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int)$product['id'] ?>">
     <?php endif; ?>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <div class="product-form-layout">
         <section>
             <div class="admin-panel-title">
                 <div>Thông tin chung</div>
                 <p style="color: var(--admin-text-light); font-size: 0.85rem; font-weight: normal; text-transform: none; margin-top: 0.25rem;">Các thông tin hiển thị trên trang cửa hàng.</p>
             </div>
 
-            <div class="admin-grid" style="grid-template-columns: 1fr 1fr;">
-                <div class="admin-field" style="grid-column: span 2;">
+            <div class="admin-grid product-info-grid">
+                <div class="admin-field product-field-wide">
                     <label>Tên sản phẩm *</label>
                     <input type="text" name="name" required value="<?= adminE($product['name'] ?? '') ?>" placeholder="Ví dụ: Áo tràng Hải Thanh Đài Loan">
                 </div>
@@ -52,6 +60,19 @@ adminStart($title, 'products', $flash ?? null);
                 <div class="admin-field">
                     <label>Đơn vị tính</label>
                     <input name="unit_name" maxlength="30" value="<?= adminE($product['unit_name'] ?? 'Cái') ?>" placeholder="Cái, Bộ, Chuỗi...">
+                </div>
+                <div class="admin-field">
+                    <label>Phân loại thuế GTGT *</label>
+                    <select name="tax_category" id="taxCategory" required onchange="syncTaxRate()">
+                        <?php foreach (($taxCategories ?? []) as $code => $tax): ?>
+                            <option value="<?= adminE($code) ?>" data-rate="<?= adminE($tax['rate']) ?>" <?= $currentTaxCategory === $code ? 'selected' : '' ?>><?= adminE($tax['label']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="color:var(--admin-text-light);">Phải phân loại theo hồ sơ hàng hóa thực tế; hệ thống không đoán thuế từ tên sản phẩm.</small>
+                </div>
+                <div class="admin-field">
+                    <label>Thuế suất lưu trên sản phẩm (%)</label>
+                    <input id="taxRate" name="tax_rate" type="number" min="0" max="100" step="0.01" readonly value="<?= adminE($currentTaxRate) ?>">
                 </div>
                 <div class="admin-field">
                     <label>Trạng thái hiển thị</label>
@@ -88,15 +109,19 @@ adminStart($title, 'products', $flash ?? null);
         </aside>
     </div>
 
-    <div style="border-top: 1px solid var(--admin-border); margin: 2rem -1.5rem 0 -1.5rem; padding: 1.5rem 1.5rem 0 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
+    <div class="product-form-actions">
         <a class="admin-btn light" href="<?= BASE_URL ?>admin/products">Hủy bỏ</a>
         <button class="admin-btn primary" type="submit"><?= $isEdit ? 'Lưu thay đổi' : 'Tạo sản phẩm' ?></button>
     </div>
 </form>
 
+<script nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+function syncTaxRate(){const s=document.getElementById('taxCategory');const r=document.getElementById('taxRate');if(s&&r)r.value=s.options[s.selectedIndex].dataset.rate||'0';}
+</script>
+
 <?php if ($isEdit): ?>
     <section class="admin-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+        <div class="admin-section-head" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
             <div>
                 <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Thư viện ảnh</div>
                 <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Quản lý tất cả hình ảnh của sản phẩm.</p>
@@ -138,7 +163,7 @@ adminStart($title, 'products', $flash ?? null);
     </section>
 
     <section class="admin-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
+        <div class="admin-section-head" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--admin-border); padding-bottom: 1rem;">
             <div>
                 <div class="admin-panel-title" style="margin-bottom: 0; border: none; padding: 0;">Phân loại biến thể</div>
                 <p style="color: var(--admin-text-light); font-size: 0.9rem; margin-top: 0.25rem;">Quản lý kích cỡ, màu sắc, tồn kho và chênh lệch giá.</p>

@@ -12,7 +12,7 @@ include __DIR__ . '/../partials/header.php';
         <h2 class="client-section-title">1. Thông tin người bán mô phỏng</h2>
         <p><strong><?= $e($store['legal_name']) ?></strong><br>Mã số thuế: <?= $e($store['tax_code']) ?> · Giấy ĐKKD: <?= $e($store['business_registration']) ?><br>Địa chỉ: <?= $e($store['address']) ?><br>Điện thoại: <?= $e($store['phone']) ?> · Email: <?= $e($store['email']) ?> · Giờ hỗ trợ: <?= $e($store['support_hours']) ?>.</p>
         <h2 class="client-section-title">2. Thông tin hàng hóa và giá bán</h2>
-        <p>Tên, hình ảnh, size, màu, tồn kho và giá được công bố trên từng trang sản phẩm. Hình ảnh trong bản đồ án có tính minh họa; màu thực tế có thể chênh lệch theo màn hình. Liên Hoa được mô hình hóa là hộ kinh doanh áp dụng phương pháp trực tiếp trên doanh thu, vì vậy giá niêm yết, đơn giá và tổng thanh toán là giá gộp khách phải trả; hóa đơn bán hàng không tách giá trước thuế, thuế suất hoặc tiền thuế GTGT.</p>
+        <p>Tên, hình ảnh, size, màu, tồn kho và giá được công bố trên từng trang sản phẩm. Hình ảnh trong bản đồ án có tính minh họa; màu thực tế có thể chênh lệch theo màn hình. Giá niêm yết là giá đã gồm thuế GTGT nếu mặt hàng thuộc diện chịu thuế. Checkout tách tiền trước thuế và tiền thuế theo phân loại của từng mặt hàng; việc tách thuế không làm tăng tổng giá đã công bố.</p>
         <h2 class="client-section-title">3. Đặt hàng và hình thành giao dịch</h2>
         <p>Khách phải cung cấp tên, số điện thoại và địa chỉ chính xác, chọn sản phẩm, phương thức thanh toán và tích đồng ý điều khoản. Đơn ở trạng thái “Chờ xác nhận” mới là đề nghị mua hàng. Giao dịch được Liên Hoa chấp nhận khi đơn chuyển sang “Đã xác nhận”. Hệ thống lưu phiên bản điều khoản, thời điểm và dữ liệu kỹ thuật của lần chấp thuận để đối chiếu.</p>
         <h2 class="client-section-title">4. Thanh toán</h2>
@@ -28,7 +28,7 @@ include __DIR__ . '/../partials/header.php';
         <h2 class="client-section-title">9. Trách nhiệm và bồi thường</h2>
         <p>Liên Hoa chịu trách nhiệm về hàng giao sai, thiếu hoặc lỗi thuộc phạm vi chính sách, tối đa theo thiệt hại trực tiếp có chứng cứ và nghĩa vụ pháp luật bắt buộc. Không loại trừ quyền lợi người tiêu dùng mà pháp luật quy định. Khách chịu trách nhiệm về tính chính xác của thông tin và không được lạm dụng website, gian lận khuyến mại hoặc xâm phạm hệ thống.</p>
         <h2 class="client-section-title">10. Chứng từ và thay đổi điều khoản</h2>
-        <p>Phiếu xác nhận đơn hàng và hóa đơn bán hàng trong đồ án <strong>không thay thế hóa đơn điện tử hợp pháp</strong>. Điều khoản mới chỉ áp dụng cho đơn được tạo sau ngày hiệu lực; đơn cũ tiếp tục đối chiếu theo phiên bản đã lưu, trừ khi pháp luật bắt buộc áp dụng khác.</p>
+        <p>Phiếu xác nhận đơn hàng và hóa đơn GTGT mô phỏng trong đồ án <strong>không thay thế hóa đơn điện tử hợp pháp</strong>. Điều khoản mới chỉ áp dụng cho đơn được tạo sau ngày hiệu lực; đơn cũ tiếp tục đối chiếu theo phiên bản đã lưu, trừ khi pháp luật bắt buộc áp dụng khác.</p>
     </article>
 </main>
 <?php include __DIR__ . '/../partials/footer.php'; ?>

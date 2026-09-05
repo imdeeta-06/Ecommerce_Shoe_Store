@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Middleware\AuthMiddleware;
 use App\Models\Cart;
+use App\Services\TaxService;
 
 class CartController {
     public function index() {
@@ -150,6 +151,11 @@ class CartController {
         } else {
             $items = $cartModel->getCartBySessionId($sessionId);
         }
+        foreach ($items as &$item) {
+            $item['tax_category'] = TaxService::normalizeCategory((string)($item['tax_category'] ?? 'standard_reduced'));
+            $item['tax_rate'] = TaxService::rateFor($item['tax_category'], $item['tax_rate'] ?? null);
+        }
+        unset($item);
         
         $totalQuantity = $cartModel->countCartItems($userId, $sessionId);
 

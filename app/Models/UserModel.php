@@ -49,7 +49,7 @@ class UserModel extends BaseModel {
     }
 
     private function loginAttemptHashes(string $email,string $ip): array {
-        $pepper = trim((string)getenv('APP_SECURITY_KEY'));
+        $pepper = trim((string)\App\Core\App::env('APP_SECURITY_KEY'));
         if ($pepper === '') {
             throw new \RuntimeException('Thiếu APP_SECURITY_KEY để bảo vệ giới hạn đăng nhập.');
         }

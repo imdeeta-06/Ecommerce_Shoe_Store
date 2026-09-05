@@ -103,8 +103,8 @@ if (!function_exists('adminStart')) {
             --font-ui: 'Outfit', sans-serif;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { max-width: 100%; overflow-x: hidden; }
-        body { font-family: var(--font-ui); background: var(--admin-bg); color: var(--admin-text); display: flex; min-height: 100vh; }
+        html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+        body { font-family: var(--font-ui); background: var(--admin-bg); color: var(--admin-text); display: flex; min-height: 100vh; min-height: 100dvh; }
 
         .admin-sidebar { width: 260px; background: var(--admin-sidebar); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; transition: all 0.3s ease; }
         .admin-sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -112,13 +112,13 @@ if (!function_exists('adminStart')) {
         .admin-sidebar-close { display: none; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; padding: 0.5rem 1rem; line-height: 1; }
         .admin-sidebar-backdrop { display: none; }
         
-        .admin-nav { flex: 1; padding: 1.5rem 0; overflow-y: auto; }
+        .admin-nav { flex: 1; min-height: 0; padding: 1rem 0 max(1.5rem, env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
         .admin-nav ul { list-style: none; }
         .admin-nav a { display: flex; align-items: center; padding: 0.85rem 2rem; color: #9ca3af; text-decoration: none; font-weight: 500; font-size: 0.95rem; border-left: 3px solid transparent; transition: all 0.2s; }
         .admin-nav a:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .admin-nav a.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff; font-weight: 600; }
 
-        .admin-main { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; }
+        .admin-main { flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%; min-height: 100vh; min-height: 100dvh; }
         .admin-topbar { height: 70px; background: #fff; border-bottom: 1px solid var(--admin-border); display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; flex-shrink: 0; }
         .admin-topbar-left { display: flex; align-items: center; gap: 1rem; }
         .admin-sidebar-toggle { display: none; flex-direction: column; justify-content: space-between; width: 24px; height: 18px; background: transparent; border: none; cursor: pointer; padding: 0; }
@@ -132,6 +132,7 @@ if (!function_exists('adminStart')) {
         .admin-content { padding: 2rem; flex: 1; overflow-y: auto; max-width: 100%; }
         .admin-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
         .admin-title h1 { font-size: 1.75rem; font-weight: 700; color: #111; letter-spacing: -0.02em; }
+        .admin-section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 
         .admin-panel { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); max-width: 100%; }
         .admin-panel-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--admin-border); }
@@ -147,6 +148,7 @@ if (!function_exists('adminStart')) {
             width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #111; font-family: var(--font-ui); font-size: 0.95rem; transition: all 0.2s;
         }
         .admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { border-color: #111; outline: none; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+        input[type="file"] { max-width: 100%; }
 
         .admin-table-wrapper { background: #fff; border: 1px solid var(--admin-border); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); width: 100%; max-width: 100%; -webkit-overflow-scrolling: touch; }
         .admin-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
@@ -170,28 +172,6 @@ if (!function_exists('adminStart')) {
         .admin-badge.error { background: #fee2e2; color: #991b1b; }
         .admin-badge.warning { background: #fef9c3; color: #854d0e; }
         .admin-badge.neutral { background: #f3f4f6; color: #374151; }
-        @media (max-width: 900px) {
-            .admin-sidebar { width: 210px; }
-            .admin-content { padding: 1.25rem; }
-            .admin-topbar { padding: 0 1.25rem; }
-        }
-        @media (max-width: 680px) {
-            .admin-sidebar { width: 64px; }
-            .admin-brand { padding: 1rem 0; text-align: center; font-size: 0; }
-            .admin-brand:first-letter { font-size: 1.4rem; }
-            .admin-nav a { padding: 0.8rem 0; justify-content: center; font-size: 0; }
-            .admin-nav a:first-letter { font-size: 1rem; }
-            .admin-topbar { flex-wrap: wrap; padding: 0.75rem 1rem; }
-            .admin-topbar-title { display: none; }
-            .admin-search { order: 1; flex-basis: 100%; max-width: none; }
-            .admin-user { margin-left: auto; gap: 0.4rem; }
-            .admin-user span { display: none; }
-            .admin-content { padding: 1rem; }
-            .admin-title h1 { font-size: 1.4rem; }
-            .admin-form-layout, .admin-grid { grid-template-columns: 1fr !important; }
-            .admin-panel { padding: 1rem; }
-        }
-
         .admin-flash { margin-bottom: 1.5rem; padding: 1rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.95rem; display: flex; align-items: center; gap: 0.75rem; }
         .admin-flash.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .admin-flash.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
@@ -216,20 +196,31 @@ if (!function_exists('adminStart')) {
                 position: fixed;
                 top: 0;
                 left: 0;
-                width: 280px;
-                max-width: 85vw;
+                width: 310px;
+                max-width: 88vw;
                 height: 100vh;
                 height: 100dvh;
                 z-index: 3000;
                 transform: translateX(-100%);
                 box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
+                visibility: hidden;
+                transition: transform .25s ease, visibility .25s ease;
             }
             .admin-sidebar.active {
                 transform: translateX(0);
+                visibility: visible;
             }
+            .admin-sidebar-header { flex: 0 0 auto; min-height: 74px; padding-top: env(safe-area-inset-top); }
+            .admin-brand { padding: 1.15rem 1.5rem; font-size: 1.55rem; white-space: nowrap; }
             .admin-sidebar-close {
                 display: block;
+                width: 52px;
+                height: 52px;
+                margin-right: .35rem;
+                border-radius: 10px;
             }
+            .admin-sidebar-close:hover, .admin-sidebar-close:focus-visible { background: rgba(255,255,255,.1); outline: 2px solid rgba(255,255,255,.75); outline-offset: -2px; }
+            .admin-nav a { justify-content: flex-start; padding: .82rem 1.5rem; font-size: .95rem; line-height: 1.35; }
             .admin-sidebar-backdrop {
                 display: block;
                 position: fixed;
@@ -250,6 +241,7 @@ if (!function_exists('adminStart')) {
             .admin-topbar {
                 padding: 0 1.25rem;
                 height: 64px;
+                min-height: 64px;
             }
             .admin-content {
                 padding: 1.5rem 1.25rem;
@@ -261,7 +253,9 @@ if (!function_exists('adminStart')) {
 
         @media (max-width: 600px) {
             .admin-topbar {
-                padding: 0 1rem;
+                padding: env(safe-area-inset-top) max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));
+                height: calc(60px + env(safe-area-inset-top));
+                min-height: calc(60px + env(safe-area-inset-top));
             }
             .admin-topbar-title {
                 display: none;
@@ -269,8 +263,12 @@ if (!function_exists('adminStart')) {
             .admin-user span {
                 display: none;
             }
+            .admin-user { margin-left: auto; gap: .45rem; min-width: 0; }
+            .admin-user img { width: 32px; height: 32px; }
+            .admin-logout { margin-left: 0; font-size: .82rem; }
+            .admin-sidebar-toggle { width: 28px; height: 21px; padding: 1px; }
             .admin-content {
-                padding: 1.25rem 0.85rem;
+                padding: 1.1rem max(.8rem, env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) max(.8rem, env(safe-area-inset-left));
             }
             .admin-title {
                 flex-direction: column;
@@ -285,6 +283,11 @@ if (!function_exists('adminStart')) {
                 grid-template-columns: 1fr;
                 gap: 1rem;
             }
+            .admin-form-layout { grid-template-columns: 1fr !important; }
+            .admin-search-bar { max-width: none; flex-direction: column; align-items: stretch; gap: .5rem; }
+            .admin-search-bar label { flex: none; }
+            .admin-section-head { flex-direction: column; align-items: stretch; }
+            .admin-section-head > .admin-btn { width: 100%; }
             .stat-card {
                 padding: 1rem;
             }
@@ -298,10 +301,25 @@ if (!function_exists('adminStart')) {
                 padding: 0.75rem 0.5rem;
                 font-size: 0.82rem;
             }
+            .admin-table-wrapper { border-radius: 10px; }
+            .admin-table { min-width: 560px; }
             .admin-btn {
-                padding: 0.5rem 0.85rem;
+                min-height: 42px;
+                padding: 0.55rem 0.85rem;
                 font-size: 0.82rem;
             }
+            .admin-title > .admin-actions { width: 100%; }
+            .admin-title > .admin-actions .admin-btn { flex: 1 1 auto; }
+            .admin-flash { padding: .85rem 1rem; font-size: .9rem; }
+            details > div { max-width: calc(100vw - 2rem); right: 0; }
+        }
+
+        @media (max-width: 380px) {
+            .admin-sidebar { max-width: 92vw; }
+            .admin-brand { padding-left: 1.15rem; font-size: 1.35rem; }
+            .admin-logout { font-size: .78rem; }
+            .admin-content { padding-left: .65rem; padding-right: .65rem; }
+            .admin-panel { padding: .85rem; }
         }
     </style>
 </head>
@@ -333,7 +351,7 @@ if (!function_exists('adminStart')) {
         document.addEventListener('submit', event => secureForm(event.target), true);
     })();
     </script>
-    <aside class="admin-sidebar" id="adminSidebar">
+    <aside class="admin-sidebar" id="adminSidebar" aria-label="Menu quản trị">
         <div class="admin-sidebar-header">
             <a href="<?= BASE_URL ?>admin" class="admin-brand">Liên Hoa</a>
             <button type="button" class="admin-sidebar-close" id="adminSidebarClose" aria-label="Đóng menu">&times;</button>
@@ -349,7 +367,8 @@ if (!function_exists('adminStart')) {
                 <li><a href="<?= BASE_URL ?>admin/coupons" class="<?= $active === 'coupons' ? 'active' : '' ?>">Mã giảm giá</a></li>
                 <li><a href="<?= BASE_URL ?>admin/after-sales" class="<?= $active === 'after-sales' ? 'active' : '' ?>">Đổi trả & bảo hành</a></li>
                 <li><a href="<?= BASE_URL ?>admin/marketing" class="<?= $active === 'marketing' ? 'active' : '' ?>">Marketing</a></li>
-                <li><a href="<?= BASE_URL ?>admin/invoices" class="<?= $active === 'invoices' ? 'active' : '' ?>">Hóa đơn bán hàng</a></li>
+                <li><a href="<?= BASE_URL ?>admin/invoices" class="<?= $active === 'invoices' ? 'active' : '' ?>">Hóa đơn GTGT</a></li>
+                <li><a href="<?= BASE_URL ?>admin/tax-report" class="<?= $active === 'tax-report' ? 'active' : '' ?>">Báo cáo doanh thu & Thuế</a></li>
                 <li><a href="<?= BASE_URL ?>admin/support" class="<?= $active === 'support' ? 'active' : '' ?>">Hỗ trợ khách hàng</a></li>
                 <li><a href="<?= BASE_URL ?>admin?page=users">Khách hàng</a></li>
                 <li><a href="<?= BASE_URL ?>admin?page=settings">Cài đặt</a></li>
@@ -362,7 +381,7 @@ if (!function_exists('adminStart')) {
     <main class="admin-main">
         <header class="admin-topbar">
             <div class="admin-topbar-left">
-                <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" aria-label="Mở menu quản trị">
+                <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" aria-label="Mở menu quản trị" aria-controls="adminSidebar" aria-expanded="false">
                     <span></span>
                     <span></span>
                     <span></span>
@@ -406,12 +425,23 @@ if (!function_exists('adminEnd')) {
         function toggleSidebar(open) {
             if (sidebar) sidebar.classList.toggle('active', open);
             if (backdrop) backdrop.classList.toggle('active', open);
+            if (toggleBtn) toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
             document.body.style.overflow = open ? 'hidden' : '';
+            if (open && closeBtn) closeBtn.focus();
         }
 
         if (toggleBtn) toggleBtn.addEventListener('click', function() { toggleSidebar(true); });
         if (closeBtn) closeBtn.addEventListener('click', function() { toggleSidebar(false); });
         if (backdrop) backdrop.addEventListener('click', function() { toggleSidebar(false); });
+        if (sidebar) sidebar.querySelectorAll('a').forEach(function(link) {
+            link.addEventListener('click', function() { toggleSidebar(false); });
+        });
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && sidebar && sidebar.classList.contains('active')) toggleSidebar(false);
+        });
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 992) toggleSidebar(false);
+        });
     });
     </script>
 </body>

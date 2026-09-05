@@ -10,6 +10,7 @@ use App\Models\UserModel;
 use App\Services\OrderNotificationService;
 use App\Services\PayPalService;
 use App\Services\ShippingService;
+use App\Services\TaxService;
 
 class CheckoutController {
     public function index() {
@@ -19,6 +20,8 @@ class CheckoutController {
         $checkoutUser = $userModel->findById((int)$_SESSION['user_id']);
         $checkoutAddresses = $userModel->getAddresses((int)$_SESSION['user_id']);
         $paypalCheckout = (new PayPalService())->checkoutConfig();
+        $shippingTaxCategory = TaxService::shippingCategory();
+        $shippingTaxRate = TaxService::rateFor($shippingTaxCategory);
         require __DIR__ . '/../Views/checkout.php';
     }
 
@@ -358,6 +361,8 @@ class CheckoutController {
             'discount_percent' => (float)($coupon['discount_percent'] ?? 0),
             'code' => $coupon['code'],
             'coupon_id' => (int)$coupon['id']
+            ,'product_id' => !empty($coupon['product_id']) ? (int)$coupon['product_id'] : null
+            ,'category_id' => !empty($coupon['category_id']) ? (int)$coupon['category_id'] : null
         ]);
     }
 
@@ -367,7 +372,7 @@ class CheckoutController {
     }
 
     private function absoluteUrl(string $path): string {
-        $configured = rtrim(trim((string)(getenv('APP_PUBLIC_URL') ?: '')), '/');
+        $configured = rtrim(trim((string)(\App\Core\App::env('APP_PUBLIC_URL') ?: '')), '/');
         if (preg_match('#^https?://#i', $configured)) {
             return $configured . '/' . ltrim($path, '/');
         }

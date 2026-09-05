@@ -74,7 +74,7 @@ class Router {
 
     private function serverError($message) {
         http_response_code(500);
-        $debug = strtolower((string) getenv('APP_DEBUG'));
+        $debug = strtolower((string) App::env('APP_DEBUG'));
 
         if (in_array($debug, ['1', 'true', 'yes', 'on'], true)) {
             echo '500 Server Error: ' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');

@@ -55,7 +55,7 @@ class Database {
         // chạy chủ động từ CLI với RUN_SCHEMA_MIGRATIONS=1 để lỗi không bị che
         // khuất và schema không rơi vào trạng thái nửa cũ nửa mới.
         $runMigrations = PHP_SAPI === 'cli'
-            && in_array(strtolower(trim((string)getenv('RUN_SCHEMA_MIGRATIONS'))), ['1', 'true', 'yes', 'on'], true);
+            && in_array(strtolower(trim((string)\App\Core\App::env('RUN_SCHEMA_MIGRATIONS'))), ['1', 'true', 'yes', 'on'], true);
         if (!$runMigrations) {
             self::$schemaReady = true;
             return;
@@ -78,6 +78,7 @@ class Database {
             $this->migrateInvoiceSequenceSchema();
             $this->migrateCriticalBusinessV9();
             $this->migrateHouseholdSalesInvoiceSchema();
+            $this->migrateVatSalesSchema();
             $this->migrateCatalogSourceDisclosure();
             $stmt = $this->connection->prepare('SELECT 1 FROM schema_migrations WHERE version = :version LIMIT 1');
             $stmt->execute(['version' => 'ecommerce_business_v8']);
@@ -647,6 +648,93 @@ class Database {
                 SELECT invoice_series,MAX(invoice_number) FROM electronic_invoices GROUP BY invoice_series
                 ON DUPLICATE KEY UPDATE current_number=GREATEST(current_number,VALUES(current_number))");
         }
+        $this->connection->prepare('INSERT INTO schema_migrations(version) VALUES(:version)')->execute(['version' => $version]);
+    }
+
+    private function migrateVatSalesSchema(): void {
+        $version = 'vat_sales_v14';
+        $check = $this->connection->prepare('SELECT 1 FROM schema_migrations WHERE version=:version LIMIT 1');
+        $check->execute(['version' => $version]);
+        if ($check->fetchColumn()) return;
+
+        if ($this->tableExists('product')) {
+            $this->addColumnIfMissing('product', 'tax_category', "VARCHAR(30) NOT NULL DEFAULT 'standard_reduced' AFTER `unit_name`");
+            $this->addColumnIfMissing('product', 'tax_rate', "DECIMAL(5,2) NOT NULL DEFAULT 8.00 AFTER `tax_category`");
+        }
+        if ($this->tableExists('orders')) {
+            $this->addColumnIfMissing('orders', 'taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `shipping_fee`");
+            $this->addColumnIfMissing('orders', 'tax_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `taxable_amount`");
+            $this->addColumnIfMissing('orders', 'non_taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `tax_amount`");
+            $this->addColumnIfMissing('orders', 'shipping_tax_category', "VARCHAR(30) NOT NULL DEFAULT 'standard_reduced' AFTER `non_taxable_amount`");
+            $this->addColumnIfMissing('orders', 'shipping_tax_rate', "DECIMAL(5,2) NOT NULL DEFAULT 8.00 AFTER `shipping_tax_category`");
+            $this->addColumnIfMissing('orders', 'shipping_tax_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `shipping_tax_rate`");
+            $this->addColumnIfMissing('orders', 'prices_include_tax', "TINYINT(1) NOT NULL DEFAULT 1 AFTER `shipping_tax_amount`");
+        }
+        if ($this->tableExists('order_items')) {
+            $this->addColumnIfMissing('order_items', 'tax_category_snapshot', "VARCHAR(30) NOT NULL DEFAULT 'standard_reduced' AFTER `unit_name_snapshot`");
+            $this->addColumnIfMissing('order_items', 'tax_rate_snapshot', "DECIMAL(5,2) NOT NULL DEFAULT 8.00 AFTER `tax_category_snapshot`");
+            $this->addColumnIfMissing('order_items', 'taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `tax_rate_snapshot`");
+            $this->addColumnIfMissing('order_items', 'tax_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `taxable_amount`");
+        }
+        if ($this->tableExists('electronic_invoices')) {
+            $this->addColumnIfMissing('electronic_invoices', 'taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `buyer_address`");
+            $this->addColumnIfMissing('electronic_invoices', 'tax_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `taxable_amount`");
+            $this->addColumnIfMissing('electronic_invoices', 'non_taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `tax_amount`");
+        }
+        if ($this->tableExists('electronic_invoice_items')) {
+            $this->addColumnIfMissing('electronic_invoice_items', 'tax_category', "VARCHAR(30) NOT NULL DEFAULT 'standard_reduced' AFTER `unit_name`");
+            $this->addColumnIfMissing('electronic_invoice_items', 'tax_rate', "DECIMAL(5,2) NOT NULL DEFAULT 8.00 AFTER `tax_category`");
+            $this->addColumnIfMissing('electronic_invoice_items', 'taxable_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `tax_rate`");
+            $this->addColumnIfMissing('electronic_invoice_items', 'tax_amount', "DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER `taxable_amount`");
+        }
+
+        if ($this->tableExists('order_items') && $this->tableExists('product')) {
+            $this->connection->exec("UPDATE order_items oi LEFT JOIN product p ON p.id=oi.product_id
+                SET oi.tax_category_snapshot=COALESCE(p.tax_category,'standard_reduced'),
+                    oi.tax_rate_snapshot=COALESCE(p.tax_rate,8),
+                    oi.taxable_amount=CASE WHEN COALESCE(p.tax_category,'standard_reduced')='not_subject' THEN 0 ELSE ROUND(GREATEST(0,oi.price_at_time*oi.quantity-COALESCE(oi.discount_amount,0))/(1+COALESCE(p.tax_rate,8)/100),2) END,
+                    oi.tax_amount=CASE WHEN COALESCE(p.tax_category,'standard_reduced')='not_subject' THEN 0 ELSE ROUND(GREATEST(0,oi.price_at_time*oi.quantity-COALESCE(oi.discount_amount,0))-ROUND(GREATEST(0,oi.price_at_time*oi.quantity-COALESCE(oi.discount_amount,0))/(1+COALESCE(p.tax_rate,8)/100),2),2) END");
+        }
+        if ($this->tableExists('orders') && $this->tableExists('order_items')) {
+            $this->connection->exec("UPDATE orders o LEFT JOIN (
+                    SELECT order_id,SUM(taxable_amount) taxable_amount,SUM(tax_amount) tax_amount,
+                        SUM(CASE WHEN tax_category_snapshot='not_subject' THEN GREATEST(0,price_at_time*quantity-COALESCE(discount_amount,0)) ELSE 0 END) non_taxable_amount
+                    FROM order_items GROUP BY order_id
+                ) x ON x.order_id=o.id
+                SET o.shipping_tax_category='standard_reduced',o.shipping_tax_rate=8,o.shipping_tax_amount=ROUND(o.shipping_fee-ROUND(o.shipping_fee/1.08,2),2),
+                    o.taxable_amount=COALESCE(x.taxable_amount,0)+ROUND(o.shipping_fee/1.08,2),
+                    o.tax_amount=COALESCE(x.tax_amount,0)+ROUND(o.shipping_fee-ROUND(o.shipping_fee/1.08,2),2),
+                    o.non_taxable_amount=COALESCE(x.non_taxable_amount,0),o.prices_include_tax=1");
+        }
+        if ($this->tableExists('electronic_invoices')) {
+            if ($this->tableExists('orders')) {
+                $this->connection->exec("UPDATE electronic_invoices i JOIN orders o ON o.id=i.order_id
+                    SET i.taxable_amount=o.taxable_amount,i.tax_amount=o.tax_amount,i.non_taxable_amount=o.non_taxable_amount
+                    WHERE i.invoice_type='original'");
+            }
+            $this->connection->exec("UPDATE electronic_invoices SET invoice_series=CONCAT('1C',DATE_FORMAT(issued_at,'%y'),'TLI') WHERE invoice_series REGEXP '^2C[0-9]{2}D'");
+            if ($this->tableExists('document_sequences')) {
+                $this->connection->exec("INSERT INTO document_sequences(series,current_number)
+                    SELECT invoice_series,MAX(invoice_number) FROM electronic_invoices GROUP BY invoice_series
+                    ON DUPLICATE KEY UPDATE current_number=GREATEST(current_number,VALUES(current_number))");
+            }
+        }
+        if ($this->tableExists('electronic_invoice_items')) {
+            if ($this->tableExists('order_items')) {
+                $this->connection->exec("UPDATE electronic_invoice_items ii JOIN order_items oi ON oi.id=ii.order_item_id
+                    SET ii.tax_category=oi.tax_category_snapshot,ii.tax_rate=oi.tax_rate_snapshot,
+                        ii.taxable_amount=oi.taxable_amount,ii.tax_amount=oi.tax_amount");
+            }
+            if ($this->tableExists('electronic_invoices') && $this->tableExists('orders')) {
+                $this->connection->exec("UPDATE electronic_invoice_items ii
+                    JOIN electronic_invoices i ON i.id=ii.invoice_id
+                    JOIN orders o ON o.id=i.order_id
+                    SET ii.tax_category=o.shipping_tax_category,ii.tax_rate=o.shipping_tax_rate,
+                        ii.taxable_amount=GREATEST(0,ii.total_amount-o.shipping_tax_amount),ii.tax_amount=o.shipping_tax_amount
+                    WHERE ii.order_item_id IS NULL AND ii.item_name='Phí giao hàng' AND i.invoice_type='original'");
+            }
+        }
+
         $this->connection->prepare('INSERT INTO schema_migrations(version) VALUES(:version)')->execute(['version' => $version]);
     }
 

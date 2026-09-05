@@ -1,12 +1,17 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-adminStart('Hóa đơn bán hàng', 'invoices', !empty($flash) ? [
+adminStart('Hóa đơn GTGT mô phỏng', 'invoices', !empty($flash) ? [
     'type' => isset($flash['error']) ? 'error' : 'success',
     'message' => implode(' ', $flash),
 ] : null);
 ?>
+<style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
+.invoice-summary-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem}.invoice-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+@media(max-width:700px){.invoice-summary-head{align-items:stretch;flex-direction:column}.invoice-summary-head input{width:100%;min-height:42px}.invoice-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:380px){.invoice-summary-grid{grid-template-columns:1fr}}
+</style>
 
-<p style="color:#666;line-height:1.7;margin:-1rem 0 1.5rem;">Hộ kinh doanh áp dụng phương pháp trực tiếp trên doanh thu: giá bán và tổng tiền là số tiền thanh toán gộp, không tách thuế GTGT trên hóa đơn bán hàng. Dữ liệu đồ án không thay thế hóa đơn điện tử hợp pháp.</p>
+<p style="color:#666;line-height:1.7;margin:-1rem 0 1.5rem;">Giá bán là giá đã gồm VAT. Thuế được tách theo phân loại của từng sản phẩm và được lưu tại thời điểm đặt hàng. Dữ liệu đồ án không thay thế hóa đơn điện tử hợp pháp.</p>
 
 <div class="admin-grid" style="align-items:start;">
     <section class="admin-panel" style="margin-bottom:0;">
@@ -16,25 +21,27 @@ adminStart('Hóa đơn bán hàng', 'invoices', !empty($flash) ? [
             <div class="admin-field"><label>Tên người mua</label><input name="buyer_name" placeholder="Mặc định lấy theo người nhận"></div>
             <div class="admin-field"><label>Mã số thuế người mua (nếu có)</label><input name="buyer_tax_code" maxlength="30" placeholder="Ví dụ: 0101234567"></div>
             <div class="admin-field"><label>Địa chỉ người mua</label><input name="buyer_address" placeholder="Mặc định lấy theo địa chỉ giao hàng"></div>
-            <button class="admin-btn primary" <?= empty($eligibleOrders) ? 'disabled' : '' ?> style="width:100%;justify-content:center;">Phát hành hóa đơn bán hàng</button>
+            <button class="admin-btn primary" <?= empty($eligibleOrders) ? 'disabled' : '' ?> style="width:100%;justify-content:center;">Phát hành hóa đơn GTGT mô phỏng</button>
         </form>
     </section>
 
     <section class="admin-panel" style="margin-bottom:0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="invoice-summary-head">
             <h2 class="admin-panel-title" style="margin:0;">Sổ doanh thu hóa đơn</h2>
             <form method="get"><input type="month" name="month" value="<?= adminE($report['month']) ?>" onchange="this.form.submit()"></form>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+        <div class="invoice-summary-grid">
             <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:1rem;border-radius:8px;"><small>SỐ HÓA ĐƠN</small><div style="font-size:1.5rem;font-weight:700;"><?= (int)$report['invoice_count'] ?></div></div>
             <div style="background:#fef2f2;border:1px solid #fecaca;padding:1rem;border-radius:8px;"><small>ĐÃ HỦY</small><div style="font-size:1.5rem;font-weight:700;color:#b91c1c;"><?= (int)$report['canceled_count'] ?></div></div>
             <div style="background:#eef6f4;border:1px solid #b9d8d3;padding:1rem;border-radius:8px;"><small>TỔNG THANH TOÁN</small><div style="font-size:1.25rem;font-weight:700;color:#245b55;"><?= adminMoney($report['total_amount']) ?></div></div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:1rem;border-radius:8px;"><small>TIỀN TRƯỚC THUẾ</small><div style="font-size:1.25rem;font-weight:700;"><?= adminMoney($report['taxable_amount'] ?? 0) ?></div></div>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;padding:1rem;border-radius:8px;"><small>THUẾ GTGT</small><div style="font-size:1.25rem;font-weight:700;"><?= adminMoney($report['tax_amount'] ?? 0) ?></div></div>
         </div>
     </section>
 </div>
 
 <section class="admin-panel" style="margin-top:1.5rem;">
-    <h2 class="admin-panel-title">Sổ hóa đơn bán hàng</h2>
+    <h2 class="admin-panel-title">Sổ hóa đơn GTGT mô phỏng</h2>
     <div class="admin-table-wrapper">
         <table class="admin-table">
             <thead><tr><th>Mẫu số/Ký hiệu/Số</th><th>Đơn hàng</th><th>Loại</th><th>Ngày phát hành</th><th>Tổng thanh toán</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>

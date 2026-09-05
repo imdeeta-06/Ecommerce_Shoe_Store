@@ -13,20 +13,18 @@
 -- Tài khoản khách:    customer@lienhoa.local / Customer@12345
 -- ============================================================================
 
-CREATE DATABASE IF NOT EXISTS `paceup_db`
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-
-USE `paceup_db`;
+-- Đã bỏ CREATE DATABASE & USE để tương thích với InfinityFree
 SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `schema_migrations`;
 CREATE TABLE `schema_migrations` (
   `version` varchar(100) NOT NULL,
   `applied_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(100) NOT NULL,
@@ -44,9 +42,9 @@ CREATE TABLE `user` (
   UNIQUE KEY `user_email_unique` (`email`),
   UNIQUE KEY `user_google_id_unique` (`google_id`),
   KEY `user_role_status_idx` (`role`,`status`)
-  ,CONSTRAINT `user_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `auth_otps`;
 CREATE TABLE `auth_otps` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -60,6 +58,7 @@ CREATE TABLE `auth_otps` (
   CONSTRAINT `auth_otps_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `login_attempts`;
 CREATE TABLE `login_attempts` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `email_hash` char(64) NOT NULL,
@@ -71,6 +70,7 @@ CREATE TABLE `login_attempts` (
   KEY `login_attempt_cleanup_idx` (`attempted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `user_addresses`;
 CREATE TABLE `user_addresses` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -85,6 +85,7 @@ CREATE TABLE `user_addresses` (
   CONSTRAINT `user_addresses_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `password_reset_otp`;
 CREATE TABLE `password_reset_otp` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(100) NOT NULL,
@@ -95,6 +96,7 @@ CREATE TABLE `password_reset_otp` (
   KEY `password_reset_lookup_idx` (`email`,`otp_code`,`is_used`,`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
@@ -106,6 +108,7 @@ CREATE TABLE `categories` (
   CONSTRAINT `categories_status_check` CHECK (`status` IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product`;
 CREATE TABLE `product` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `category_id` int unsigned DEFAULT NULL,
@@ -121,6 +124,8 @@ CREATE TABLE `product` (
   `is_featured` tinyint(1) NOT NULL DEFAULT 0,
   `product_type` enum('apparel','bag','beads','accessory') NOT NULL,
   `unit_name` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_slug_unique` (`slug`),
   KEY `product_catalog_idx` (`category_id`,`status`,`is_featured`),
@@ -132,6 +137,7 @@ CREATE TABLE `product` (
   CONSTRAINT `product_category_fk` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_variants`;
 CREATE TABLE `product_variants` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
@@ -159,6 +165,7 @@ CREATE TABLE `product_variants` (
   CONSTRAINT `product_variants_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_images`;
 CREATE TABLE `product_images` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
@@ -171,6 +178,7 @@ CREATE TABLE `product_images` (
   CONSTRAINT `product_images_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_sources`;
 CREATE TABLE `product_sources` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int unsigned NOT NULL,
@@ -185,6 +193,7 @@ CREATE TABLE `product_sources` (
   CONSTRAINT `product_sources_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `inventory_logs`;
 CREATE TABLE `inventory_logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `variant_id` int unsigned NOT NULL,
@@ -196,6 +205,7 @@ CREATE TABLE `inventory_logs` (
   CONSTRAINT `inventory_logs_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `cart`;
 CREATE TABLE `cart` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -214,6 +224,7 @@ CREATE TABLE `cart` (
   CONSTRAINT `cart_owner_check` CHECK ((`user_id` IS NOT NULL AND `session_id` IS NULL) OR (`user_id` IS NULL AND `session_id` IS NOT NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `wishlist`;
 CREATE TABLE `wishlist` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -224,6 +235,7 @@ CREATE TABLE `wishlist` (
   CONSTRAINT `wishlist_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `coupons`;
 CREATE TABLE `coupons` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `code` varchar(50) NOT NULL,
@@ -245,6 +257,7 @@ CREATE TABLE `coupons` (
   CONSTRAINT `coupons_product_fk` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_code` varchar(50) NOT NULL,
@@ -253,6 +266,13 @@ CREATE TABLE `orders` (
   `coupon_id` int unsigned DEFAULT NULL,
   `final_amount` decimal(12,2) NOT NULL,
   `shipping_fee` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `non_taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `shipping_tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `shipping_tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `shipping_tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `prices_include_tax` tinyint(1) NOT NULL DEFAULT 1,
   `shipping_name` varchar(100) NOT NULL,
   `shipping_phone` varchar(20) NOT NULL,
   `shipping_address` varchar(255) NOT NULL,
@@ -286,6 +306,7 @@ CREATE TABLE `orders` (
   CONSTRAINT `orders_coupon_fk` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_items`;
 CREATE TABLE `order_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -299,6 +320,10 @@ CREATE TABLE `order_items` (
   `variant_size_snapshot` varchar(50) DEFAULT NULL,
   `variant_color_snapshot` varchar(50) DEFAULT NULL,
   `unit_name_snapshot` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category_snapshot` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate_snapshot` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`id`),
   KEY `order_items_order_idx` (`order_id`),
   KEY `order_items_product_idx` (`product_id`),
@@ -309,6 +334,7 @@ CREATE TABLE `order_items` (
   CONSTRAINT `order_items_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_status_logs`;
 CREATE TABLE `order_status_logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -322,6 +348,7 @@ CREATE TABLE `order_status_logs` (
   CONSTRAINT `order_status_logs_user_fk` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `payments`;
 CREATE TABLE `payments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -347,6 +374,7 @@ CREATE TABLE `payments` (
   CONSTRAINT `payments_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `coupon_usages`;
 CREATE TABLE `coupon_usages` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `coupon_id` int unsigned NOT NULL,
@@ -361,6 +389,7 @@ CREATE TABLE `coupon_usages` (
   CONSTRAINT `coupon_usages_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `reviews`;
 CREATE TABLE `reviews` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -381,6 +410,7 @@ CREATE TABLE `reviews` (
   CONSTRAINT `reviews_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `daily_revenue_reports`;
 CREATE TABLE `daily_revenue_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `report_date` date NOT NULL,
@@ -394,6 +424,7 @@ CREATE TABLE `daily_revenue_reports` (
   UNIQUE KEY `daily_revenue_date_unique` (`report_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `product_sales_reports`;
 CREATE TABLE `product_sales_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `report_date` date NOT NULL,
@@ -407,6 +438,7 @@ CREATE TABLE `product_sales_reports` (
   CONSTRAINT `product_sales_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_sales_recognition`;
 CREATE TABLE `order_sales_recognition` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -416,6 +448,7 @@ CREATE TABLE `order_sales_recognition` (
   CONSTRAINT `order_sales_recognition_order_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `after_sale_requests`;
 CREATE TABLE `after_sale_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -456,6 +489,7 @@ CREATE TABLE `after_sale_requests` (
   CONSTRAINT `after_sale_replacement_variant_fk` FOREIGN KEY (`replacement_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `after_sale_evidence`;
 CREATE TABLE `after_sale_evidence` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `request_id` int unsigned NOT NULL,
@@ -466,6 +500,7 @@ CREATE TABLE `after_sale_evidence` (
   CONSTRAINT `after_sale_evidence_request_fk` FOREIGN KEY (`request_id`) REFERENCES `after_sale_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `payment_refunds`;
 CREATE TABLE `payment_refunds` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -490,6 +525,7 @@ CREATE TABLE `payment_refunds` (
   CONSTRAINT `payment_refund_after_sale_fk` FOREIGN KEY (`after_sale_request_id`) REFERENCES `after_sale_requests` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `paypal_webhook_events`;
 CREATE TABLE `paypal_webhook_events` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `event_id` varchar(100) NOT NULL,
@@ -506,6 +542,7 @@ CREATE TABLE `paypal_webhook_events` (
   KEY `paypal_webhook_status_idx` (`processing_status`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `banner`;
 CREATE TABLE `banner` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `image_url` varchar(500) NOT NULL,
@@ -514,6 +551,7 @@ CREATE TABLE `banner` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `newsletter_subscriptions`;
 CREATE TABLE `newsletter_subscriptions` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(255) NOT NULL,
@@ -535,6 +573,7 @@ CREATE TABLE `newsletter_subscriptions` (
   KEY `newsletter_status_idx` (`status`,`consented_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `newsletter_campaigns`;
 CREATE TABLE `newsletter_campaigns` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(150) NOT NULL,
@@ -552,6 +591,7 @@ CREATE TABLE `newsletter_campaigns` (
   CONSTRAINT `newsletter_campaign_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `newsletter_campaign_recipients`;
 CREATE TABLE `newsletter_campaign_recipients` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` int unsigned NOT NULL,
@@ -573,6 +613,7 @@ CREATE TABLE `newsletter_campaign_recipients` (
   CONSTRAINT `newsletter_recipient_subscription_fk` FOREIGN KEY (`subscription_id`) REFERENCES `newsletter_subscriptions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `analytics_events`;
 CREATE TABLE `analytics_events` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `anonymous_session` char(64) NOT NULL,
@@ -592,6 +633,7 @@ CREATE TABLE `analytics_events` (
   UNIQUE KEY `analytics_purchase_order_unique` (`event_type`,`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `setting`;
 CREATE TABLE `setting` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `key_name` varchar(50) NOT NULL,
@@ -600,6 +642,7 @@ CREATE TABLE `setting` (
   UNIQUE KEY `setting_key_unique` (`key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `logs`;
 CREATE TABLE `logs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -610,6 +653,7 @@ CREATE TABLE `logs` (
   CONSTRAINT `logs_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `custom_notes`;
 CREATE TABLE `custom_notes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `entity_type` varchar(50) NOT NULL,
@@ -619,6 +663,7 @@ CREATE TABLE `custom_notes` (
   KEY `custom_notes_entity_idx` (`entity_type`,`entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `cart_reminders`;
 CREATE TABLE `cart_reminders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -638,6 +683,7 @@ CREATE TABLE `cart_reminders` (
   CONSTRAINT `cart_reminder_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `order_notifications`;
 CREATE TABLE `order_notifications` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -659,6 +705,7 @@ CREATE TABLE `order_notifications` (
   CONSTRAINT `order_notifications_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `support_tickets`;
 CREATE TABLE `support_tickets` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `ticket_code` varchar(40) NOT NULL,
@@ -682,6 +729,7 @@ CREATE TABLE `support_tickets` (
   CONSTRAINT `support_tickets_user_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `shipping_rates`;
 CREATE TABLE `shipping_rates` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `carrier_code` varchar(50) NOT NULL,
@@ -699,6 +747,7 @@ CREATE TABLE `shipping_rates` (
   KEY `shipping_rate_active_idx` (`status`,`region_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `suppliers`;
 CREATE TABLE `suppliers` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `supplier_code` varchar(50) NOT NULL,
@@ -715,6 +764,7 @@ CREATE TABLE `suppliers` (
   UNIQUE KEY `supplier_code_unique` (`supplier_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `purchase_orders`;
 CREATE TABLE `purchase_orders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `po_code` varchar(50) NOT NULL,
@@ -736,6 +786,7 @@ CREATE TABLE `purchase_orders` (
   CONSTRAINT `purchase_order_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `purchase_order_items`;
 CREATE TABLE `purchase_order_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `purchase_order_id` int unsigned NOT NULL,
@@ -750,6 +801,7 @@ CREATE TABLE `purchase_order_items` (
   CONSTRAINT `purchase_item_variant_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `supplier_payables`;
 CREATE TABLE `supplier_payables` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `supplier_id` int unsigned NOT NULL,
@@ -768,6 +820,7 @@ CREATE TABLE `supplier_payables` (
   CONSTRAINT `supplier_payable_order_fk` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `supplier_payments`;
 CREATE TABLE `supplier_payments` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `payable_id` int unsigned NOT NULL,
@@ -782,6 +835,7 @@ CREATE TABLE `supplier_payments` (
   CONSTRAINT `supplier_payment_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `electronic_invoices`;
 CREATE TABLE `electronic_invoices` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `order_id` int unsigned NOT NULL,
@@ -793,6 +847,9 @@ CREATE TABLE `electronic_invoices` (
   `buyer_name` varchar(180) NOT NULL,
   `buyer_tax_code` varchar(30) DEFAULT NULL,
   `buyer_address` varchar(500) DEFAULT NULL,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `non_taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   `total_amount` decimal(14,2) NOT NULL,
   `adjustment_reason` varchar(500) DEFAULT NULL,
   `issued_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -807,6 +864,7 @@ CREATE TABLE `electronic_invoices` (
   CONSTRAINT `electronic_invoice_user_fk` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `electronic_invoice_items`;
 CREATE TABLE `electronic_invoice_items` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `invoice_id` int unsigned NOT NULL,
@@ -814,6 +872,10 @@ CREATE TABLE `electronic_invoice_items` (
   `item_name` varchar(255) NOT NULL,
   `variant_description` varchar(255) DEFAULT NULL,
   `unit_name` varchar(30) NOT NULL DEFAULT 'Cái',
+  `tax_category` varchar(30) NOT NULL DEFAULT 'standard_reduced',
+  `tax_rate` decimal(5,2) NOT NULL DEFAULT 8.00,
+  `taxable_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   `quantity` decimal(12,2) NOT NULL,
   `unit_price` decimal(14,2) NOT NULL,
   `discount_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
@@ -824,6 +886,7 @@ CREATE TABLE `electronic_invoice_items` (
   CONSTRAINT `electronic_invoice_item_order_item_fk` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `document_sequences`;
 CREATE TABLE `document_sequences` (
   `series` varchar(30) NOT NULL,
   `current_number` int unsigned NOT NULL DEFAULT 0,
@@ -831,6 +894,7 @@ CREATE TABLE `document_sequences` (
   PRIMARY KEY (`series`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `electronic_invoice_events`;
 CREATE TABLE `electronic_invoice_events` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `invoice_id` int unsigned NOT NULL,
@@ -844,12 +908,14 @@ CREATE TABLE `electronic_invoice_events` (
   CONSTRAINT `electronic_invoice_event_user_fk` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `post_categories`;
 CREATE TABLE `post_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `posts`;
 CREATE TABLE `posts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `category_id` int unsigned DEFAULT NULL,

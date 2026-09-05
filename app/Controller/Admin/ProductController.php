@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Models\Product;
 use App\Services\UploadService;
+use App\Services\TaxService;
 
 class ProductController {
     private $productModel;
@@ -22,6 +23,7 @@ class ProductController {
 
         $products = $this->productModel->getAllProducts($filters);
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/index.php';
@@ -53,6 +55,7 @@ class ProductController {
         $variants = [];
         $images = [];
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/form.php';
@@ -91,6 +94,7 @@ class ProductController {
         $variants = $this->productModel->getProductVariants($id);
         $images = $this->productModel->getProductImages($id);
         $categories = $this->productModel->getAllCategories();
+        $taxCategories = TaxService::categories();
         $flash = $this->pullFlash();
 
         require __DIR__ . '/../../Views/admin/products/form.php';
@@ -290,6 +294,8 @@ class ProductController {
             throw new \RuntimeException('Slug sản phẩm đã tồn tại. Vui lòng chọn slug khác.');
         }
         $unitName=mb_substr(trim((string)($_POST['unit_name']??'Cái')),0,30,'UTF-8')?:'Cái';
+        $taxCategory = TaxService::normalizeCategory(trim((string)($_POST['tax_category'] ?? 'standard_reduced')));
+        $taxRate = TaxService::rateFor($taxCategory, $_POST['tax_rate'] ?? null);
 
         return [
             'category_id' => $categoryId,
@@ -300,6 +306,8 @@ class ProductController {
             'old_price' => $oldPrice,
             'product_type' => $productId ? ($this->productModel->getProductForAdmin($productId)['product_type'] ?? 'apparel') : 'apparel',
             'unit_name'=>$unitName,
+            'tax_category' => $taxCategory,
+            'tax_rate' => $taxRate,
             'status' => $status,
             'is_featured' => !empty($_POST['is_featured']) ? 1 : 0
         ];

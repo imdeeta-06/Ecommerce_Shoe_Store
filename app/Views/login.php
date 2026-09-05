@@ -5,7 +5,7 @@ $success = isset($_GET['registered'])
     : (\App\Helpers\SessionHelper::getFlash('success') ?? '');
 $oldEmail = $_SESSION['login_old']['email'] ?? '';
 unset($_SESSION['login_old']);
-$googleClientId = trim((string)(getenv('GOOGLE_CLIENT_ID') ?: (defined('GOOGLE_CLIENT_ID') ? GOOGLE_CLIENT_ID : '')));
+$googleClientId = trim((string)(\App\Core\App::env('GOOGLE_CLIENT_ID') ?: (defined('GOOGLE_CLIENT_ID') ? GOOGLE_CLIENT_ID : '')));
 ?>
 <!DOCTYPE html>
 <html lang="vi">

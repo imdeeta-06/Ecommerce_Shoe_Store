@@ -34,6 +34,8 @@ class ElectronicInvoice extends BaseModel {
         if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
         $stmt = $this->db->prepare("SELECT COUNT(*) invoice_count,
                 COALESCE(SUM(CASE WHEN status<>'canceled' THEN total_amount ELSE 0 END),0) total_amount,
+                COALESCE(SUM(CASE WHEN status<>'canceled' THEN taxable_amount ELSE 0 END),0) taxable_amount,
+                COALESCE(SUM(CASE WHEN status<>'canceled' THEN tax_amount ELSE 0 END),0) tax_amount,
                 SUM(status='canceled') canceled_count
             FROM electronic_invoices WHERE DATE_FORMAT(issued_at,'%Y-%m')=:month");
         $stmt->execute(['month' => $month]);
@@ -50,20 +52,20 @@ class ElectronicInvoice extends BaseModel {
             $order = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$order || !in_array($order['status'], ['delivered','completed'], true)
                 || ($order['payment_state'] ?? '') !== 'paid') {
-                throw new \RuntimeException('Chỉ phát hành hóa đơn bán hàng cho đơn đã giao và đã thanh toán.');
+                throw new \RuntimeException('Chỉ phát hành hóa đơn GTGT cho đơn đã giao và đã thanh toán.');
             }
             $exists = $this->db->prepare("SELECT id FROM electronic_invoices
                 WHERE order_id=:id AND invoice_type='original' LIMIT 1");
             $exists->execute(['id' => $orderId]);
-            if ($exists->fetchColumn()) throw new \RuntimeException('Đơn hàng đã có hóa đơn bán hàng.');
+            if ($exists->fetchColumn()) throw new \RuntimeException('Đơn hàng đã có hóa đơn GTGT.');
 
             $series = $this->salesInvoiceSeries();
             $number = $this->nextNumber($series);
             $insert = $this->db->prepare("INSERT INTO electronic_invoices
                 (order_id,invoice_type,invoice_series,invoice_number,status,buyer_name,buyer_tax_code,
-                 buyer_address,total_amount,created_by)
+                 buyer_address,taxable_amount,tax_amount,non_taxable_amount,total_amount,created_by)
                 VALUES (:order_id,'original',:series,:number,'issued',:buyer_name,:buyer_tax_code,
-                 :buyer_address,:total,:admin)");
+                 :buyer_address,:taxable,:tax,:non_taxable,:total,:admin)");
             $insert->execute([
                 'order_id' => $orderId,
                 'series' => $series,
@@ -71,14 +73,17 @@ class ElectronicInvoice extends BaseModel {
                 'buyer_name' => trim((string)($buyer['buyer_name'] ?? '')) ?: $order['shipping_name'],
                 'buyer_tax_code' => trim((string)($buyer['buyer_tax_code'] ?? '')) ?: null,
                 'buyer_address' => trim((string)($buyer['buyer_address'] ?? '')) ?: $order['shipping_address'],
+                'taxable' => $order['taxable_amount'] ?? 0,
+                'tax' => $order['tax_amount'] ?? 0,
+                'non_taxable' => $order['non_taxable_amount'] ?? 0,
                 'total' => $order['final_amount'],
                 'admin' => $adminId,
             ]);
             $invoiceId = (int)$this->db->lastInsertId();
             $this->createInvoiceItems($invoiceId, $order);
-            $this->event($invoiceId, 'issued', 'Phát hành hóa đơn bán hàng', $adminId);
+            $this->event($invoiceId, 'issued', 'Phát hành hóa đơn GTGT mô phỏng', $adminId);
             $this->db->commit();
-            return ['success' => true, 'message' => 'Đã phát hành hóa đơn bán hàng.', 'id' => $invoiceId];
+            return ['success' => true, 'message' => 'Đã phát hành hóa đơn GTGT mô phỏng.', 'id' => $invoiceId];
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
@@ -108,11 +113,16 @@ class ElectronicInvoice extends BaseModel {
 
             $series = $this->salesInvoiceSeries();
             $number = $this->nextNumber($series);
+            $baseTotal = (float)$original['total_amount'];
+            $ratio = $baseTotal != 0.0 ? $totalDelta / $baseTotal : 0.0;
+            $taxableDelta = round((float)($original['taxable_amount'] ?? 0) * $ratio, 2);
+            $taxDelta = round((float)($original['tax_amount'] ?? 0) * $ratio, 2);
+            $nonTaxableDelta = round($totalDelta - $taxableDelta - $taxDelta, 2);
             $insert = $this->db->prepare("INSERT INTO electronic_invoices
                 (order_id,original_invoice_id,invoice_type,invoice_series,invoice_number,status,
-                 buyer_name,buyer_tax_code,buyer_address,total_amount,adjustment_reason,created_by)
+                 buyer_name,buyer_tax_code,buyer_address,taxable_amount,tax_amount,non_taxable_amount,total_amount,adjustment_reason,created_by)
                 VALUES (:order_id,:original_id,'adjustment',:series,:number,'issued',
-                 :buyer_name,:buyer_tax_code,:buyer_address,:total,:reason,:admin)");
+                 :buyer_name,:buyer_tax_code,:buyer_address,:taxable,:tax,:non_taxable,:total,:reason,:admin)");
             $insert->execute([
                 'order_id' => $original['order_id'],
                 'original_id' => $invoiceId,
@@ -121,21 +131,24 @@ class ElectronicInvoice extends BaseModel {
                 'buyer_name' => $original['buyer_name'],
                 'buyer_tax_code' => $original['buyer_tax_code'],
                 'buyer_address' => $original['buyer_address'],
+                'taxable' => $taxableDelta,
+                'tax' => $taxDelta,
+                'non_taxable' => $nonTaxableDelta,
                 'total' => $totalDelta,
                 'reason' => trim($reason),
                 'admin' => $adminId,
             ]);
             $adjustmentId = (int)$this->db->lastInsertId();
             $this->db->prepare("INSERT INTO electronic_invoice_items
-                (invoice_id,item_name,unit_name,quantity,unit_price,discount_amount,total_amount)
-                VALUES (:invoice_id,'Điều chỉnh tổng tiền hóa đơn','Lần',1,:unit_price,0,:total)")
-                ->execute(['invoice_id' => $adjustmentId, 'unit_price' => $totalDelta, 'total' => $totalDelta]);
+                (invoice_id,item_name,unit_name,tax_category,tax_rate,taxable_amount,tax_amount,quantity,unit_price,discount_amount,total_amount)
+                VALUES (:invoice_id,'Điều chỉnh tổng tiền hóa đơn','Lần','mixed_adjustment',0,:taxable,:tax,1,:unit_price,0,:total)")
+                ->execute(['invoice_id' => $adjustmentId, 'taxable' => $taxableDelta, 'tax' => $taxDelta, 'unit_price' => $totalDelta, 'total' => $totalDelta]);
             $this->db->prepare("UPDATE electronic_invoices SET status='adjusted' WHERE id=:id")
                 ->execute(['id' => $invoiceId]);
             $this->event($invoiceId, 'adjusted', trim($reason), $adminId);
             $this->event($adjustmentId, 'issued', 'Hóa đơn điều chỉnh cho #' . $invoiceId, $adminId);
             $this->db->commit();
-            return ['success' => true, 'message' => 'Đã lập hóa đơn bán hàng điều chỉnh.'];
+            return ['success' => true, 'message' => 'Đã lập hóa đơn GTGT điều chỉnh.'];
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
@@ -214,9 +227,9 @@ class ElectronicInvoice extends BaseModel {
             LEFT JOIN product p ON p.id=oi.product_id WHERE oi.order_id=:order_id ORDER BY oi.id");
         $stmt->execute(['order_id' => (int)$order['id']]);
         $insert = $this->db->prepare("INSERT INTO electronic_invoice_items
-            (invoice_id,order_item_id,item_name,variant_description,unit_name,quantity,unit_price,
+            (invoice_id,order_item_id,item_name,variant_description,unit_name,tax_category,tax_rate,taxable_amount,tax_amount,quantity,unit_price,
              discount_amount,total_amount)
-            VALUES (:invoice_id,:order_item_id,:item_name,:variant,:unit_name,:quantity,:unit_price,
+            VALUES (:invoice_id,:order_item_id,:item_name,:variant,:unit_name,:tax_category,:tax_rate,:taxable,:tax,:quantity,:unit_price,
              :discount,:total)");
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $gross = (float)$item['price_at_time'] * (int)$item['quantity'];
@@ -227,6 +240,10 @@ class ElectronicInvoice extends BaseModel {
                 'item_name' => $item['product_name_snapshot'],
                 'variant' => trim(($item['variant_size_snapshot'] ?? '') . ' / ' . ($item['variant_color_snapshot'] ?? ''), ' /'),
                 'unit_name' => trim((string)($item['unit_name_snapshot'] ?? $item['unit_name'] ?? 'Cái')) ?: 'Cái',
+                'tax_category' => $item['tax_category_snapshot'] ?? 'standard_reduced',
+                'tax_rate' => $item['tax_rate_snapshot'] ?? 8,
+                'taxable' => $item['taxable_amount'] ?? 0,
+                'tax' => $item['tax_amount'] ?? 0,
                 'quantity' => (int)$item['quantity'],
                 'unit_price' => $item['price_at_time'],
                 'discount' => $discount,
@@ -240,6 +257,10 @@ class ElectronicInvoice extends BaseModel {
                 'item_name' => 'Phí giao hàng',
                 'variant' => null,
                 'unit_name' => 'Lần',
+                'tax_category' => $order['shipping_tax_category'] ?? 'standard_reduced',
+                'tax_rate' => $order['shipping_tax_rate'] ?? 8,
+                'taxable' => max(0, (float)$order['shipping_fee'] - (float)($order['shipping_tax_amount'] ?? 0)),
+                'tax' => $order['shipping_tax_amount'] ?? 0,
                 'quantity' => 1,
                 'unit_price' => $order['shipping_fee'],
                 'discount' => 0,
@@ -252,8 +273,8 @@ class ElectronicInvoice extends BaseModel {
         $store = require __DIR__ . '/../../config/store.php';
         $suffix = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string)($store['invoice']['series_suffix'] ?? 'LI')));
         $suffix = substr($suffix ?: 'LI', 0, 2);
-        // Mẫu số 2: hóa đơn bán hàng; C: có mã; D: loại hóa đơn bán hàng.
-        return '2C' . date('y') . 'D' . str_pad($suffix, 2, 'X');
+        // Mẫu số 1: hóa đơn GTGT mô phỏng; C: có mã; T: loại hóa đơn GTGT.
+        return '1C' . date('y') . 'T' . str_pad($suffix, 2, 'X');
     }
 
     private function nextNumber(string $series): int {

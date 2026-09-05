@@ -118,6 +118,8 @@ $avgRating = $ratingStats['avg_rating'] ?? 0;
 $totalReviews = $ratingStats['total_reviews'] ?? 0;
 $compareAtPrice = !empty($product['compare_at_price']) ? (float)$product['compare_at_price'] : 0;
 $basePrice = (float)($product['base_price'] ?? 0);
+$displayTaxCategory = \App\Services\TaxService::normalizeCategory((string)($product['tax_category'] ?? 'standard_reduced'));
+$displayTaxRate = \App\Services\TaxService::rateFor($displayTaxCategory, $product['tax_rate'] ?? null);
 ?>
 
 <style nonce="<?= htmlspecialchars(\App\Core\App::cspNonce(), ENT_QUOTES, 'UTF-8') ?>">
@@ -829,6 +831,7 @@ $basePrice = (float)($product['base_price'] ?? 0);
                     <?php endif; ?>
                 </div>
             </div>
+            <p style="margin:-.4rem 0 1rem;color:#64748b;font-size:.85rem;"><?= $displayTaxCategory === 'not_subject' ? 'Mặt hàng không chịu thuế GTGT' : 'Giá đã gồm thuế GTGT ' . number_format($displayTaxRate, 2, ',', '.') . '%' ?></p>
 
             <!-- Color Options -->
             <?php if (!empty($availableColors)): ?>

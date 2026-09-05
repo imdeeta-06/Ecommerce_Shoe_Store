@@ -1,6 +1,6 @@
 # Liên Hoa — đồ án website thương mại điện tử
 
-Liên Hoa là website PHP/MySQL mô phỏng cửa hàng đồ lam, pháp phục và vật dụng đi chùa. Toàn bộ tên pháp nhân, mã số thuế, nhà cung cấp, hóa đơn bán hàng và giao dịch trong dự án đều là dữ liệu phục vụ học tập, không phải thông tin kinh doanh hoặc hóa đơn hợp pháp.
+Liên Hoa là website PHP/MySQL mô phỏng cửa hàng đồ lam, pháp phục và vật dụng đi chùa. Toàn bộ tên pháp nhân, mã số thuế, nhà cung cấp, hóa đơn GTGT và giao dịch trong dự án đều là dữ liệu phục vụ học tập, không phải thông tin kinh doanh hoặc hóa đơn hợp pháp.
 
 ## Chức năng chính
 
@@ -11,7 +11,7 @@ Liên Hoa là website PHP/MySQL mô phỏng cửa hàng đồ lam, pháp phục 
 - Đổi trả/hoàn tiền một phần, phân bổ giảm giá, hoàn tiền cộng dồn và luồng giao sản phẩm thay thế.
 - Đánh giá chỉ dành cho sản phẩm đã mua; wishlist, hồ sơ, sổ địa chỉ và ticket hỗ trợ của khách.
 - Nhà cung cấp, đơn nhập nhiều dòng, nhận hàng từng phần, giá vốn bình quân, lịch sử trả công nợ và lợi nhuận gộp đã trừ hàng hoàn.
-- Hóa đơn bán hàng cho hộ kinh doanh theo phương pháp trực tiếp trên doanh thu: giá gộp, dòng hàng/đơn vị tính/số lượng/giảm giá, phát hành, điều chỉnh, hủy và sổ doanh thu theo tháng.
+- VAT mô phỏng theo từng mặt hàng: giá đã gồm thuế, phân bổ giảm giá trước thuế, snapshot thuế suất, hóa đơn GTGT, điều chỉnh, hủy và sổ doanh thu/thuế theo tháng.
 - Newsletter có double opt-in, phân nhóm, chiến dịch, gửi mail, open rate và click rate.
 - CSRF cho request thay đổi dữ liệu, khóa tài khoản, security headers và chặn truy cập trực tiếp file nội bộ.
 
@@ -23,14 +23,18 @@ Liên Hoa là website PHP/MySQL mô phỏng cửa hàng đồ lam, pháp phục 
 
 Sao chép `.env.example` thành `.env` rồi sửa các biến `DB_*` theo máy đang chạy. `config/database.php` chỉ đọc biến môi trường; không ghi tài khoản database trực tiếp vào source.
 
-## Cài đặt database
+## Cài đặt và nâng cấp database
 
-Chỉ dùng một file duy nhất: `Database/paceup_db.sql`.
+Với cài đặt mới chưa có dữ liệu, import `Database/paceup_db.sql`.
 
-1. Bật Apache và MySQL trong MAMP.
-2. Mở `http://localhost:8888/phpMyAdmin5/`.
-3. Nếu đã có database `paceup_db` cũ, chọn database đó, vào **Operations** và chọn **Drop the database**.
-4. Vào tab **Import**, chọn `Database/paceup_db.sql`, giữ charset `utf-8` rồi bấm **Import**.
+Với website/database đang hoạt động, **không Drop database và không import đè file đầy đủ**. Hãy xuất một bản sao lưu SQL, chọn đúng database hiện tại trong phpMyAdmin, rồi import riêng `Database/migrations/20260903_vat_sales.sql`. Migration này chỉ thêm trường VAT và tách số liệu thuế cho dữ liệu cũ; không xóa sản phẩm, tài khoản, đơn hàng hoặc giao dịch và không đổi tổng tiền khách đã trả.
+
+Quy trình an toàn:
+
+1. Bật Apache và MySQL trong MAMP, rồi mở `http://localhost:8888/phpMyAdmin5/` (local) hoặc phpMyAdmin của hosting.
+2. Chọn đúng database, vào **Export → Quick → SQL** và tải bản sao lưu về máy.
+3. Vẫn tại database đó, vào **Import**, chọn `Database/migrations/20260903_vat_sales.sql`, giữ charset `utf-8` rồi bấm **Import**.
+4. Chỉ sau khi migration báo thành công mới cập nhật các file PHP lên website.
 
 Các script cũ `seed.php`, `migrate_auth.php`, `check*.php`, `debug*.php`, `query_orders.php`, `patch.js` và `test_db.php` đã được loại khỏi bản nộp. Không chạy file PHP chẩn đoán trực tiếp qua trình duyệt.
 
@@ -61,15 +65,15 @@ Tài khoản demo:
 - Đơn chuyển khoản phải được admin ghi nhận mã giao dịch/đã nhận tiền trước khi chuyển sang giao hàng.
 - Mỗi dòng đơn lưu giá bán, phần giảm giá và giá vốn tại thời điểm mua để hoàn tiền và lợi nhuận không thay đổi khi giá hiện tại đổi.
 - Đơn nhập có nhiều dòng; mỗi lần nhận chỉ ghi số thực nhận, tăng kho, tính lại giá vốn và tăng công nợ tương ứng. Mỗi lần trả công nợ có một dòng lịch sử riêng.
-- Chỉ đơn đã giao/hoàn thành và đã thanh toán mới được phát hành hóa đơn bán hàng mô phỏng.
+- Chỉ đơn đã giao/hoàn thành và đã thanh toán mới được phát hành hóa đơn GTGT mô phỏng.
 - Hủy chứng từ gốc sẽ hủy các chứng từ điều chỉnh liên quan; mọi phát hành, điều chỉnh và hủy đều lưu sự kiện.
 - Email newsletter chỉ được đưa vào chiến dịch sau khi chủ email bấm liên kết xác nhận.
 
-## Hóa đơn bán hàng mô phỏng
+## Hóa đơn GTGT mô phỏng
 
-Cấu hình tại `config/store.php` mô hình hóa người bán là hộ kinh doanh nộp thuế theo phương pháp trực tiếp trên doanh thu. Đơn giá và thành tiền trên hóa đơn là giá bán gộp; hệ thống không tách giá trước VAT, thuế suất hoặc tiền VAT.
+Cấu hình tại `config/store.php` mô hình hóa người bán theo phương pháp khấu trừ. Giá bán trên website là giá đã gồm VAT; hệ thống tách ngược tiền trước thuế và tiền thuế theo phân loại của từng sản phẩm, phân bổ giảm giá trước khi tính thuế và lưu snapshot trên từng dòng đơn. Mức `standard_reduced` là 8% đến hết 31/12/2026 rồi tự trở về 10%; quản trị viên vẫn phải kiểm tra hồ sơ hàng hóa và chọn 0%, 5%, 8%, 10% hoặc không chịu thuế cho đúng mặt hàng thực tế.
 
-Trang **Admin → Hóa đơn bán hàng** cho phép phát hành mẫu số/ký hiệu/số hóa đơn, lập điều chỉnh, hủy và xem sổ doanh thu hóa đơn. Đây là mô hình nghiệp vụ cho đồ án; không ký số, không cấp mã cơ quan thuế và không thay thế phần mềm hóa đơn điện tử được pháp luật công nhận.
+Trang **Admin → Hóa đơn GTGT** cho phép phát hành mẫu số/ký hiệu/số hóa đơn, lập điều chỉnh, hủy và xem sổ doanh thu/thuế. Đây là mô hình nghiệp vụ cho đồ án; không ký số, không cấp mã cơ quan thuế và không thay thế phần mềm hóa đơn điện tử được pháp luật công nhận.
 
 ## PayPal, email và newsletter
 
