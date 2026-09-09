@@ -12,6 +12,29 @@ class UserController {
         $this->userModel = new UserModel();
     }
 
+    public function index() {
+        $keyword = trim((string)($_GET['keyword'] ?? ''));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $result = $this->userModel->getAll(['keyword' => $keyword], $page, 20);
+        $users = $result['data'];
+        $totalPages = max(1, (int)ceil($result['total'] / 20));
+        $flash = \App\Helpers\SessionHelper::getAllFlash();
+        require __DIR__ . '/../../Views/admin/users/index.php';
+    }
+
+    public function updateStatus() {
+        $id = (int)($_POST['user_id'] ?? 0);
+        $status = (string)($_POST['status'] ?? '');
+        $user = $this->userModel->findById($id);
+        if (!$user || $user['role'] === 'admin' || !in_array($status, ['0', '1'], true)) {
+            \App\Helpers\SessionHelper::setFlash('error', 'Chỉ được khóa hoặc mở khóa tài khoản khách hàng hợp lệ.');
+        } else {
+            $this->userModel->updateStatus($id, (int)$status);
+            \App\Helpers\SessionHelper::setFlash('success', $status === '1' ? 'Đã mở khóa khách hàng.' : 'Đã khóa khách hàng.');
+        }
+        $this->redirect('admin/users');
+    }
+
     public function create() {
         $errors = [];
         $old = [
@@ -68,8 +91,8 @@ class UserController {
                     'password' => password_hash($password, PASSWORD_DEFAULT)
                 ]);
 
-                $_SESSION['admin_success'] = 'Admin account created successfully.';
-                $this->redirect('admin/products');
+                \App\Helpers\SessionHelper::setFlash('success', 'Đã tạo tài khoản quản trị.');
+                $this->redirect('admin/users');
             }
         }
 
@@ -77,14 +100,7 @@ class UserController {
     }
 
     private function requireAdmin() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header('Location: ' . BASE_URL . 'login');
-            exit;
-        }
+        \App\Middleware\AuthMiddleware::requireAdmin();
     }
 
     private function redirect($path) {

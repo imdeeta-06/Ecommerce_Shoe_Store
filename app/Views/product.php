@@ -752,10 +752,26 @@ $displayTaxRate = \App\Services\TaxService::rateFor($displayTaxCategory, $produc
     .pd-gallery { position: static; }
 }
 @media(max-width: 576px) {
+    .product-detail-container { margin: 1rem auto 2.5rem; padding: 0 .85rem; }
+    .pd-breadcrumb { margin-bottom: 1rem; font-size: .78rem; gap: .35rem; }
+    .pd-grid { gap: 1.5rem; }
+    .pd-main-view { border-radius: 12px; }
+    .pd-thumb { width: 62px; height: 62px; }
     .pd-actions-row { flex-direction: column; }
+    .pd-actions-row > * { width: 100%; }
     .pd-services { grid-template-columns: 1fr; }
     .pd-price-current { font-size: 1.6rem; }
     .pd-title-text { font-size: 1.7rem; }
+    .related-section { margin-top: 3rem; padding-top: 2rem; }
+    .related-section h3 { font-size: 1.35rem; margin-bottom: 1.25rem; }
+    .related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .related-card { border-radius: 10px; }
+    .related-img { aspect-ratio: 4 / 5; padding: 0; overflow: hidden; }
+    .related-img img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+    .related-info { padding: .65rem; }
+    .r-title { font-size: .8rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .r-cat { font-size: .7rem; }
+    .r-price { font-size: .85rem; }
 }
 </style>
 
@@ -907,11 +923,11 @@ $displayTaxRate = \App\Services\TaxService::rateFor($displayTaxCategory, $produc
             <div class="pd-services">
                 <div class="pd-service-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                    <span>Freeship đơn từ 500.000đ</span>
+                    <span>Phí giao hàng theo khu vực tại thanh toán</span>
                 </div>
                 <div class="pd-service-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                    <span>Đổi trả dễ dàng trong 30 ngày</span>
+                    <span>Đổi trả trong 7 ngày theo chính sách</span>
                 </div>
                 <div class="pd-service-item">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>

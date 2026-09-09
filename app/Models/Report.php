@@ -48,18 +48,15 @@ class Report extends BaseModel {
             $revenueByDay[$date] = 0;
         }
 
-        $revenueStmt = $this->db->prepare("SELECT
-                DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at)) AS report_date,
-                COALESCE(SUM(GREATEST(0, o.final_amount - COALESCE(pr.refunded_amount, 0))), 0) AS revenue
+        $paymentJoin = RevenueRecognition::paymentJoin();
+        $dateExpr = RevenueRecognition::dateExpression();
+        $revenueStmt = $this->db->prepare("SELECT DATE($dateExpr) AS report_date,
+                COALESCE(SUM(GREATEST(0, o.final_amount - COALESCE(p.refunded_amount, 0))), 0) AS revenue
             FROM orders o
-            LEFT JOIN (
-                SELECT order_id, MAX(refunded_amount) AS refunded_amount
-                FROM payments
-                GROUP BY order_id
-            ) pr ON pr.order_id = o.id
+            $paymentJoin
             WHERE o.status IN ('delivered', 'completed')
-              AND DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at)) >= :start_date
-            GROUP BY DATE(COALESCE(o.delivered_at, o.completed_at, o.created_at))");
+              AND DATE($dateExpr) >= :start_date
+            GROUP BY DATE($dateExpr)");
         $revenueStmt->execute(['start_date' => $dayStart->format('Y-m-d')]);
         foreach ($revenueStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             if (array_key_exists($row['report_date'], $revenueByDay)) {
@@ -96,41 +93,23 @@ class Report extends BaseModel {
 
     // 1. Doanh thu thực nhận: chỉ tính đơn đã giao/hoàn thành và trừ hoàn tiền.
     public function calculateTotalRevenue($startDate = null, $endDate = null) {
-        $query = "SELECT COALESCE(SUM(final_amount), 0) as total_revenue FROM orders WHERE status IN ('delivered', 'completed')";
+        $paymentJoin = RevenueRecognition::paymentJoin();
+        $dateExpr = RevenueRecognition::dateExpression();
+        $query = "SELECT COALESCE(SUM(GREATEST(0, o.final_amount - COALESCE(p.refunded_amount, 0))), 0)
+            FROM orders o $paymentJoin
+            WHERE o.status IN ('delivered', 'completed')";
         $params = [];
-
         if ($startDate) {
-            $query .= " AND DATE(created_at) >= :start_date";
+            $query .= " AND DATE($dateExpr) >= :start_date";
             $params['start_date'] = $startDate;
         }
         if ($endDate) {
-            $query .= " AND DATE(created_at) <= :end_date";
+            $query .= " AND DATE($dateExpr) <= :end_date";
             $params['end_date'] = $endDate;
         }
-
         $stmt = $this->db->prepare($query);
         $stmt->execute($params);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        $revenue = (float)($result['total_revenue'] ?? 0);
-
-        $refundQuery = "SELECT COALESCE(SUM(r.refund_amount), 0)
-            FROM after_sale_requests r
-            JOIN orders o ON o.id = r.order_id
-            WHERE r.status IN ('refunded', 'completed')";
-        $refundParams = [];
-        if ($startDate) {
-            $refundQuery .= " AND DATE(COALESCE(r.refund_processed_at, o.delivered_at, o.created_at)) >= :refund_start_date";
-            $refundParams['refund_start_date'] = $startDate;
-        }
-        if ($endDate) {
-            $refundQuery .= " AND DATE(COALESCE(r.refund_processed_at, o.delivered_at, o.created_at)) <= :refund_end_date";
-            $refundParams['refund_end_date'] = $endDate;
-        }
-        $refundStmt = $this->db->prepare($refundQuery);
-        $refundStmt->execute($refundParams);
-
-        return max(0, $revenue - (float)$refundStmt->fetchColumn());
+        return (float)$stmt->fetchColumn();
     }
 
     // 2. Thống kê / Lọc các sản phẩm bị hủy nhiều nhất (Nằm trong các đơn hàng 'canceled')

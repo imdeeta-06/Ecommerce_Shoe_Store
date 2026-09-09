@@ -37,7 +37,9 @@ class OrderController {
             (int)($_POST['order_id'] ?? 0),
             (string)($_POST['status'] ?? 'pending'),
             trim((string)($_POST['note'] ?? '')),
-            (int)($_SESSION['user_id'] ?? 0)
+            (int)($_SESSION['user_id'] ?? 0),
+            true,
+            ($_POST['cod_collected'] ?? '') === '1'
         );
         SessionHelper::setFlash($result['success'] ? 'success' : 'error', $result['message']);
         SessionHelper::redirect('/admin/orders/view?id=' . (int)($_POST['order_id'] ?? 0));

@@ -9,16 +9,8 @@ class TaxReport extends BaseModel {
     public function build(string $period, string $month, int $year, int $quarter): array {
         [$start, $end, $label] = $this->resolvePeriod($period, $month, $year, $quarter);
 
-        // Gom thanh toán theo đơn để không nhân đôi doanh thu khi một đơn có
-        // nhiều bản ghi thanh toán/hoàn tiền. Cú pháp này tương thích MySQL 5.7+.
-        $paymentJoin = "JOIN (
-                SELECT order_id,
-                    MAX(refunded_amount) AS refunded_amount,
-                    MAX(CASE WHEN payment_state IN ('paid','partially_refunded','refunded') THEN 1 ELSE 0 END) AS is_settled
-                FROM payments
-                GROUP BY order_id
-            ) p ON p.order_id=o.id AND p.is_settled=1";
-        $dateExpr = 'COALESCE(o.completed_at,o.delivered_at,o.created_at)';
+        $paymentJoin = RevenueRecognition::paymentJoin();
+        $dateExpr = RevenueRecognition::dateExpression();
         $factor = "CASE WHEN o.final_amount>0 THEN
                 GREATEST(0,o.final_amount-LEAST(o.final_amount,COALESCE(p.refunded_amount,0)))/o.final_amount
             ELSE 0 END";

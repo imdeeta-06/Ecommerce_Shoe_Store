@@ -46,6 +46,21 @@ include __DIR__ . '/partials/header.php';
     .checkout-summary-section { position: static; }
     .form-row { flex-direction: column; gap: 0; }
 }
+@media (max-width: 640px) {
+    .checkout-layout { gap: 1.5rem; }
+    .checkout-summary-section { padding: 1.25rem; border-radius: 12px; }
+    .payment-method { padding: .9rem; gap: .7rem; align-items: flex-start; }
+    .payment-method label { font-size: .82rem; line-height: 1.45; letter-spacing: .4px; }
+    .payment-method-copy label { flex-wrap: wrap; }
+    .payment-method-copy label img { max-width: 145px; height: 28px !important; }
+    .summary-item { gap: .75rem; margin-bottom: 1rem; align-items: flex-start; }
+    .summary-item img { width: 58px; height: 72px; flex: 0 0 58px; }
+    .summary-item-name { font-size: .82rem; line-height: 1.4; letter-spacing: .3px; }
+    .summary-row, .summary-total { gap: 1rem; letter-spacing: .3px; }
+    .summary-row span:last-child, .summary-total span:last-child { text-align: right; }
+    #couponInputWrap { gap: .6rem !important; }
+    #couponInputWrap .client-btn { padding-left: 1rem; padding-right: 1rem; }
+}
 </style>
 
 <div class="client-page">

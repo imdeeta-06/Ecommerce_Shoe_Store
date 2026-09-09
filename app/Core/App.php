@@ -42,6 +42,7 @@ namespace App\Core {
 
         public static function bootstrap() {
             self::loadEnv();
+            date_default_timezone_set('Asia/Ho_Chi_Minh');
             self::defineBaseUrl();
             self::enforceProductionHttps();
             self::sendSecurityHeaders();
@@ -81,6 +82,12 @@ namespace App\Core {
                         $value = trim($parts[1]);
                         // Remove quotes if present
                         $value = trim($value, '"\'');
+                        // Explicit process configuration must win over .env (CLI,
+                        // tests and hosting settings must not connect to another DB).
+                        $processValue = function_exists('getenv') ? getenv($name) : false;
+                        if ($processValue !== false) {
+                            $value = $processValue;
+                        }
 
                         if (!array_key_exists($name, self::$environment)) {
                             self::$environment[$name] = $value;
@@ -217,8 +224,8 @@ namespace App\Core {
                 return;
             }
 
-            $configured = self::env('APP_BASE_URL');
-            if ($configured !== false && trim($configured) !== '') {
+            $configured = (string)self::env('APP_BASE_URL', '');
+            if (trim($configured) !== '') {
                 define('BASE_URL', self::normalizeBaseUrl($configured));
                 return;
             }
@@ -358,6 +365,9 @@ namespace App\Core {
             $router->add('/analytics/event', 'PageController', 'recordAnalytics');
 
             $router->add('/admin', 'Admin\\DashboardController', 'index');
+            $router->add('/admin/users', 'Admin\\UserController', 'index');
+            $router->add('/admin/users/status', 'Admin\\UserController', 'updateStatus');
+            $router->add('/admin/settings', 'Admin\\SettingsController', 'index');
             $router->add('/admin/users/create', 'Admin\UserController', 'create');
             $router->add('/admin/products', 'Admin\ProductController', 'index');
             $router->add('/admin/products/create', 'Admin\ProductController', 'create');
@@ -539,6 +549,7 @@ namespace App\Core {
                 '/admin/products/variants/update',
                 '/admin/products/variants/delete',
                 '/admin/products/images/primary',
+                '/admin/users/status',
                 '/admin/products/images/delete',
                 '/admin/categories/create',
                 '/admin/categories/delete',

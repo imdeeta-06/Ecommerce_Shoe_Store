@@ -52,7 +52,7 @@
             <li><a href="<?= BASE_URL ?>admin?page=orders">Đơn hàng</a></li>
             <li><a href="<?= BASE_URL ?>admin/inventory">Kho hàng</a></li>
             <li><a href="<?= BASE_URL ?>admin?page=coupons">Mã giảm giá</a></li>
-            <li><a href="<?= BASE_URL ?>admin?page=users" class="active">Người dùng</a></li>
+            <li><a href="<?= BASE_URL ?>admin/users" class="active">Người dùng</a></li>
             <li><a href="<?= BASE_URL ?>admin?page=settings">Cài đặt</a></li>
         </ul>
     </aside>
@@ -60,7 +60,7 @@
     <main class="admin-content">
         <div class="admin-header">
             <h2>Thêm quản trị viên</h2>
-            <a href="<?= BASE_URL ?>admin?page=users" style="font-weight: 600; font-family: var(--font-ui); color: #111;">&larr; Back to Users</a>
+            <a href="<?= BASE_URL ?>admin/users" style="font-weight: 600; font-family: var(--font-ui); color: #111;">&larr; Back to Users</a>
         </div>
 
         <?php if (!empty($errors)): ?>
@@ -105,7 +105,7 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
-                <a href="<?= BASE_URL ?>admin?page=users" class="btn" style="padding: 0.85rem 1.5rem; background: #f5f5f5; color: #333; border-radius: 6px; text-decoration: none; font-weight: 600;">Cancel</a>
+                <a href="<?= BASE_URL ?>admin/users" class="btn" style="padding: 0.85rem 1.5rem; background: #f5f5f5; color: #333; border-radius: 6px; text-decoration: none; font-weight: 600;">Cancel</a>
                 <button type="submit" class="btn btn-dark" style="padding: 0.85rem 1.5rem; border-radius: 6px;">Create Admin</button>
             </div>
         </form>

@@ -3,7 +3,7 @@ RewriteEngine On
 
 # Không cho web server phục vụ mã nguồn, cấu hình, SQL, script bảo trì
 # hoặc các view PHP nội bộ khi document root trỏ vào thư mục dự án.
-RewriteRule ^(?:app|config|Database|scripts|\.git|\.vs)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:app|config|Database|scripts|tests|\.git|\.vs)(?:/|$) - [F,L,NC]
 RewriteRule ^public/views(?:/|$) - [F,L,NC]
 RewriteRule ^public/assets/index\.php$ - [F,L,NC]
 # Chỉ front controller index.php được gọi trực tiếp ở thư mục gốc.

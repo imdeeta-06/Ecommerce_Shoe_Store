@@ -366,14 +366,7 @@ class ProductController {
     }
 
     private function requireAdmin() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header('Location: ' . BASE_URL . 'login');
-            exit;
-        }
+        \App\Middleware\AuthMiddleware::requireAdmin();
     }
 
     private function redirect($path) {

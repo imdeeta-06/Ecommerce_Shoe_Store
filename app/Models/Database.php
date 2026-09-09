@@ -23,6 +23,7 @@ class Database {
             $this->connection = new PDO($dsn, $config['user'], $config['password']);
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $this->connection->exec("SET time_zone = '+07:00'");
             $this->ensureEcommerceSchema();
         } catch (PDOException $e) {
             error_log('Database connection failed: ' . $e->getMessage());

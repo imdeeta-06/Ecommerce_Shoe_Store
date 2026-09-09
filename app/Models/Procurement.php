@@ -134,10 +134,12 @@ class Procurement extends BaseModel {
     }
 
     public function grossProfit(): array {
+        $paymentJoin = RevenueRecognition::paymentJoin();
         $stmt=$this->db->query("SELECT
             COALESCE(SUM(GREATEST(0, oi.price_at_time*oi.quantity-COALESCE(oi.discount_amount,0)-COALESCE(r.refund_amount,0))),0) net_sales,
             COALESCE(SUM(oi.unit_cost_snapshot*GREATEST(0,oi.quantity-COALESCE(r.reversed_quantity,0))),0) cogs
             FROM order_items oi JOIN orders o ON o.id=oi.order_id
+            $paymentJoin
             LEFT JOIN (
                 SELECT order_item_id, SUM(refund_amount) refund_amount, SUM(sales_reversed_quantity) reversed_quantity
                 FROM after_sale_requests WHERE status IN('refunded','completed') GROUP BY order_item_id

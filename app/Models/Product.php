@@ -176,7 +176,6 @@ class Product extends BaseModel {
     }
 
     public function getProductWithImages($id) {
-        $this->ensureDefaultVariant($id);
         $sql = "SELECT p.*, p.base_price AS price, p.old_price AS compare_at_price, c.name AS category
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id

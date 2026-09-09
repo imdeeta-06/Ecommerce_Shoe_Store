@@ -256,7 +256,7 @@ class UserModel extends BaseModel {
             $stmt = $this->db->prepare('DELETE FROM user_addresses WHERE id = ? AND user_id = ?');
             $stmt->execute([(int)$addressId, (int)$userId]);
             if ((int)$address['is_default'] === 1) {
-                $replacement = $this->db->prepare('SELECT id FROM user_addresses WHERE user_id = ? AND status = 1 ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE');
+                $replacement = $this->db->prepare('SELECT id FROM user_addresses WHERE user_id = ? AND status = 1 ORDER BY id DESC LIMIT 1 FOR UPDATE');
                 $replacement->execute([(int)$userId]);
                 $replacementId = (int)$replacement->fetchColumn();
                 if ($replacementId > 0) {

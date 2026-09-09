@@ -370,8 +370,8 @@ if (!function_exists('adminStart')) {
                 <li><a href="<?= BASE_URL ?>admin/invoices" class="<?= $active === 'invoices' ? 'active' : '' ?>">Hóa đơn GTGT</a></li>
                 <li><a href="<?= BASE_URL ?>admin/tax-report" class="<?= $active === 'tax-report' ? 'active' : '' ?>">Báo cáo doanh thu & Thuế</a></li>
                 <li><a href="<?= BASE_URL ?>admin/support" class="<?= $active === 'support' ? 'active' : '' ?>">Hỗ trợ khách hàng</a></li>
-                <li><a href="<?= BASE_URL ?>admin?page=users">Khách hàng</a></li>
-                <li><a href="<?= BASE_URL ?>admin?page=settings">Cài đặt</a></li>
+                <li><a href="<?= BASE_URL ?>admin/users" class="<?= $active === 'users' ? 'active' : '' ?>">Khách hàng</a></li>
+                <li><a href="<?= BASE_URL ?>admin/settings" class="<?= $active === 'settings' ? 'active' : '' ?>">Cấu hình hệ thống</a></li>
                 <li><a href="<?= BASE_URL ?>" style="margin-top: 2rem; color: #60a5fa;">Xem trang chủ</a></li>
             </ul>
         </nav>

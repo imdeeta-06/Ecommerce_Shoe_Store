@@ -13,6 +13,10 @@ adminStart('Chi tiết đơn hàng ' . $order['order_code'], 'orders', !empty($f
             <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
             <div class="admin-field"><label>Chuyển trạng thái</label><select name="status"><?php foreach ($statusLabels as $status => $label): ?><option value="<?= $status ?>" <?= $order['status'] === $status ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></div>
             <div class="admin-field"><label>Ghi chú</label><textarea name="note" rows="3" placeholder="Ví dụ: Đã xác nhận đủ tồn kho; hoặc lý do giao thất bại/khách từ chối nhận..."></textarea></div>
+            <p style="margin-bottom:1rem;color:#666;">Doanh thu chỉ ghi nhận khi người nhận đã nhận hàng và đơn đã thanh toán. Tiền trả trước chưa được tính vào doanh thu khi đang giao.</p>
+            <?php if ($order['status'] === 'shipping' && ($order['payment']['payment_method'] ?? '') === 'cod' && ($order['payment']['payment_state'] ?? '') === 'pending'): ?>
+            <label style="display:flex;gap:.6rem;align-items:flex-start;margin-bottom:1rem;"><input type="checkbox" name="cod_collected" value="1" style="width:auto;margin-top:.25rem;"> Người nhận đã nhận hàng và đã trả đủ <?= adminMoney($order['final_amount']) ?> tiền COD (bắt buộc khi chọn Giao thành công).</label>
+            <?php endif; ?>
             <button class="admin-btn primary" type="submit">Cập nhật trạng thái</button>
         </form>
     </section>

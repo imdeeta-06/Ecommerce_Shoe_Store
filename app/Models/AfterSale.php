@@ -24,37 +24,37 @@ class AfterSale extends BaseModel {
             return ['success' => false, 'message' => 'Yêu cầu bảo hành cần ít nhất một ảnh bằng chứng sản phẩm lỗi.'];
         }
 
-        $stmt = $this->db->prepare("SELECT oi.id, oi.order_id, oi.quantity AS item_quantity, oi.price_at_time, oi.discount_amount,
-                o.status, o.user_id, o.delivered_at, o.created_at, o.total_amount, o.final_amount, o.shipping_fee, pv.product_id
-            FROM order_items oi
-            JOIN orders o ON o.id = oi.order_id
-            LEFT JOIN product_variants pv ON pv.id = oi.variant_id
-            WHERE oi.id = :order_item_id AND o.user_id = :user_id LIMIT 1");
-        $stmt->execute(['order_item_id' => $orderItemId, 'user_id' => $userId]);
-        $item = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$item || !in_array($item['status'], ['delivered', 'completed'], true)) {
-            return ['success' => false, 'message' => 'Chỉ được tạo yêu cầu sau bán hàng sau khi đơn đã giao thành công.'];
-        }
-
-        $deadline = $this->calculateDeadline($item, $type);
-        if ($deadline < new \DateTimeImmutable('now')) {
-            return ['success' => false, 'message' => 'Yêu cầu đã quá thời hạn đổi trả/bảo hành theo chính sách.'];
-        }
-
-        $maxQuantity = max(1, (int)$item['item_quantity']);
-        if ($requestedQuantity < 1 || $requestedQuantity > $maxQuantity) {
-            return ['success' => false, 'message' => 'Số lượng yêu cầu không hợp lệ.'];
-        }
-        $stmt = $this->db->prepare("SELECT COALESCE(SUM(CASE WHEN status = 'rejected' THEN 0 ELSE COALESCE(NULLIF(approved_quantity, 0), requested_quantity) END), 0)
-            FROM after_sale_requests WHERE order_item_id = :order_item_id");
-        $stmt->execute(['order_item_id' => $orderItemId]);
-        $alreadyRequested = (int)$stmt->fetchColumn();
-        if ($alreadyRequested + $requestedQuantity > $maxQuantity) {
-            return ['success' => false, 'message' => 'Số lượng yêu cầu vượt quá số lượng đã mua hoặc đã có yêu cầu trước đó.'];
-        }
-
         try {
             $this->db->beginTransaction();
+            $stmt = $this->db->prepare("SELECT oi.id, oi.order_id, oi.quantity AS item_quantity, oi.price_at_time, oi.discount_amount,
+                    o.status, o.user_id, o.delivered_at, o.created_at, o.total_amount, o.final_amount, o.shipping_fee, pv.product_id
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+                WHERE oi.id = :order_item_id AND o.user_id = :user_id LIMIT 1 FOR UPDATE");
+            $stmt->execute(['order_item_id' => $orderItemId, 'user_id' => $userId]);
+            $item = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$item || !in_array($item['status'], ['delivered', 'completed'], true)) {
+                throw new \RuntimeException('Chỉ được tạo yêu cầu sau bán hàng sau khi đơn đã giao thành công.');
+            }
+
+            $deadline = $this->calculateDeadline($item, $type);
+            if ($deadline < new \DateTimeImmutable('now')) {
+                throw new \RuntimeException('Yêu cầu đã quá thời hạn đổi trả/bảo hành theo chính sách.');
+            }
+
+            $maxQuantity = max(1, (int)$item['item_quantity']);
+            if ($requestedQuantity < 1 || $requestedQuantity > $maxQuantity) {
+                throw new \RuntimeException('Số lượng yêu cầu không hợp lệ.');
+            }
+            $stmt = $this->db->prepare("SELECT COALESCE(SUM(CASE WHEN status = 'rejected' THEN 0 ELSE COALESCE(NULLIF(approved_quantity, 0), requested_quantity) END), 0)
+                FROM after_sale_requests WHERE order_item_id = :order_item_id");
+            $stmt->execute(['order_item_id' => $orderItemId]);
+            $alreadyRequested = (int)$stmt->fetchColumn();
+            if ($alreadyRequested + $requestedQuantity > $maxQuantity) {
+                throw new \RuntimeException('Số lượng yêu cầu vượt quá số lượng đã mua hoặc đã có yêu cầu trước đó.');
+            }
+
             $refundAmount = in_array($type, self::REFUND_TYPES, true)
                 ? $this->calculateRefundAmount($item, $requestedQuantity)
                 : 0;
@@ -354,9 +354,16 @@ class AfterSale extends BaseModel {
     }
 
     private function completeRefundInTransaction(array $request, string $transactionCode, string $note): void {
-        $existing = $this->db->prepare('SELECT id FROM payment_refunds WHERE merchant_reference = :reference OR provider_refund_id = :code LIMIT 1');
-        $existing->execute(['reference' => 'after-sale-' . (int)$request['id'], 'code' => trim($transactionCode)]);
-        if ($existing->fetchColumn()) return;
+        $existing = $this->db->prepare('SELECT merchant_reference FROM payment_refunds WHERE merchant_reference = :reference OR provider_refund_id = :code LIMIT 1');
+        $reference = 'after-sale-' . (int)$request['id'];
+        $existing->execute(['reference' => $reference, 'code' => trim($transactionCode)]);
+        $existingReference = $existing->fetchColumn();
+        if ($existingReference !== false) {
+            if ($existingReference !== $reference) {
+                throw new \RuntimeException('Mã giao dịch hoàn tiền đã được sử dụng cho yêu cầu khác.');
+            }
+            return;
+        }
         $quantity = max(1, (int)$request['approved_quantity']);
         $this->reverseDeliveredSales($request, $quantity);
         $this->markPaymentRefunded((int)$request['order_id'], (int)$request['id'], (float)$request['refund_amount'], $transactionCode);
@@ -484,12 +491,12 @@ class AfterSale extends BaseModel {
             throw new \RuntimeException('Vui lòng nhập đơn vị vận chuyển hoặc mã vận đơn của chuyến giao thay thế.');
         }
 
-        $stmt = $this->db->prepare("SELECT pv.id, pv.product_id, pv.stock_quantity, pv.reserved_quantity, p.name, p.status AS product_status
+        $stmt = $this->db->prepare("SELECT pv.id, pv.product_id, pv.stock_quantity, pv.reserved_quantity, pv.status AS variant_status, p.name, p.status AS product_status
             FROM product_variants pv JOIN product p ON p.id = pv.product_id
             WHERE pv.id = :id FOR UPDATE");
         $stmt->execute(['id' => $variantId]);
         $variant = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$variant || (int)$variant['product_status'] !== 1 || (int)$variant['product_id'] !== (int)$request['original_product_id']) {
+        if (!$variant || (int)$variant['variant_status'] !== 1 || (int)$variant['product_status'] !== 1 || (int)$variant['product_id'] !== (int)$request['original_product_id']) {
             throw new \RuntimeException('Variant thay thế không hợp lệ hoặc không thuộc sản phẩm ban đầu.');
         }
 

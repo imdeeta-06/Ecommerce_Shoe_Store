@@ -37,7 +37,7 @@ class CartController {
             $cartModel = new Cart();
 
             $db = \App\Models\Database::getInstance()->getConnection();
-            $stmt = $db->prepare("SELECT pv.id, pv.stock_quantity, pv.status AS variant_status, p.name, p.status AS product_status
+            $stmt = $db->prepare("SELECT pv.id, GREATEST(0, CAST(pv.stock_quantity AS SIGNED) - CAST(pv.reserved_quantity AS SIGNED)) AS stock_quantity, pv.status AS variant_status, p.name, p.status AS product_status
                                   FROM product_variants pv
                                   JOIN product p ON p.id = pv.product_id
                                   WHERE pv.id = :variant_id LIMIT 1");

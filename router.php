@@ -7,7 +7,7 @@
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $file = __DIR__ . $uri;
 
-$protectedPrefixes = ['/app/', '/config/', '/Database/', '/scripts/', '/.git/', '/.vs/', '/public/views/'];
+$protectedPrefixes = ['/app/', '/config/', '/Database/', '/scripts/', '/tests/', '/.git/', '/.vs/', '/public/views/'];
 $protectedFiles = [
     '/seed.php',
     '/migrate_auth.php',

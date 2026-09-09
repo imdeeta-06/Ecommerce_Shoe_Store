@@ -451,7 +451,7 @@ class Order extends BaseModel {
         return $result ? (int)$result['total'] : 0;
     }
 
-    public function updateStatus($id, $status, $note = '', $changedBy = null, bool $sendNotificationNow = true) {
+    public function updateStatus($id, $status, $note = '', $changedBy = null, bool $sendNotificationNow = true, bool $codCollected = false) {
         $orderId = (int)$id;
         $status = $this->normalizeStatus($status);
 
@@ -487,13 +487,30 @@ class Order extends BaseModel {
                     throw new \Exception('Đơn hàng phải ở trạng thái Đang giao trước khi xác nhận giao thành công.');
                 }
 
-                if ($order['status'] === 'pending' && $status === 'confirmed') {
-                    $payment = $this->getPaymentByOrderId($orderId);
-                    if ($payment
-                        && in_array($payment['payment_method'], ['bank_transfer', 'paypal'], true)
-                        && $payment['payment_state'] !== 'paid') {
-                        throw new \Exception('Đơn trả trước chỉ được xác nhận sau khi hệ thống ghi nhận thanh toán thành công.');
+                if (in_array($status, ['confirmed', 'preparing', 'shipping', 'delivered'], true)) {
+                    $paymentStmt = $this->db->prepare('SELECT * FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1 FOR UPDATE');
+                    $paymentStmt->execute([$orderId]);
+                    $payment = $paymentStmt->fetch(PDO::FETCH_ASSOC);
+                    if (!$payment) {
+                        throw new \RuntimeException('Đơn hàng thiếu thông tin thanh toán. Vui lòng kiểm tra trước khi tiếp tục.');
                     }
+                    if ($payment['payment_method'] !== 'cod' && $payment['payment_state'] !== 'paid') {
+                        throw new \RuntimeException('Đơn trả trước phải được xác minh đã nhận tiền trước khi xử lý hoặc giao thành công.');
+                    }
+                    if ($payment['payment_method'] === 'cod') {
+                        if (!in_array($payment['payment_state'], ['pending', 'paid'], true)) {
+                            throw new \RuntimeException('Trạng thái thanh toán COD không cho phép tiếp tục giao hàng.');
+                        }
+                        if ($status === 'delivered' && $payment['payment_state'] !== 'paid' && !$codCollected) {
+                            throw new \RuntimeException('Vui lòng xác nhận người nhận đã nhận hàng và đã trả đủ tiền COD.');
+                        }
+                        if ($status === 'delivered' && $codCollected) {
+                            $note = trim($note . ' Đã xác nhận người nhận nhận hàng và thanh toán đủ tiền COD.');
+                        }
+                    }
+                }
+
+                if ($order['status'] === 'pending' && $status === 'confirmed') {
                     $this->deductStockForConfirmedOrder($orderId);
                 }
 
@@ -533,8 +550,8 @@ class Order extends BaseModel {
                 ]);
 
                 if ($status === 'delivered') {
-                    $this->recognizeDeliveredSales($orderId);
                     $this->markPaymentPaid($orderId);
+                    $this->recognizeDeliveredSales($orderId);
                 } elseif ($status === 'canceled') {
                     $this->markPaymentCanceled($orderId);
                     if (!empty($order['coupon_id'])) {
@@ -1109,7 +1126,7 @@ class Order extends BaseModel {
         $stmt = $this->db->prepare("UPDATE payments
             SET payment_status = 1, payment_state = 'paid', paid_at = COALESCE(paid_at, NOW())
             WHERE order_id = :order_id AND payment_method = 'cod'
-              AND payment_state NOT IN ('refunded', 'refund_pending', 'partially_refunded')");
+              AND payment_state = 'pending'");
         $stmt->execute(['order_id' => $orderId]);
     }
 

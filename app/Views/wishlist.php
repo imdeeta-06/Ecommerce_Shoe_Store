@@ -1,6 +1,6 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
-<main style="min-height: 70vh; padding: 2rem; max-width: 1200px; margin: 0 auto; font-family: var(--font-body);">
+<main class="wishlist-page">
     <h1 style="font-family: var(--font-ui); font-size: 2rem; margin-bottom: 2rem;">Danh sách yêu thích</h1>
     
     <?php if (!isset($_SESSION['user_id'])): ?>
@@ -11,7 +11,7 @@
             <a href="<?= BASE_URL ?>login" style="display: inline-block; padding: 1rem 2rem; background: #111; color: #fff; text-decoration: none; border-radius: 100px; font-weight: 500;">Đăng nhập ngay</a>
         </div>
     <?php else: ?>
-        <div id="wishlist-container" style="display: <?= empty($wishlistItems) ? 'none' : 'grid' ?>; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 2rem;">
+        <div id="wishlist-container" class="wishlist-grid" style="display: <?= empty($wishlistItems) ? 'none' : 'grid' ?>;">
             <?php foreach ($wishlistItems as $item): ?>
                 <?php 
                     $imgUrl = $item['image_url'];
@@ -30,20 +30,20 @@
                         }
                     }
                 ?>
-                <div class="wishlist-item" id="wishlist-item-<?= $item['product_id'] ?>" style="border: 1px solid #eee; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
-                    <div style="background: #f5f5f5; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative;">
-                        <img src="<?= htmlspecialchars($imgUrl) ?>" alt="<?= htmlspecialchars($item['name']) ?>" style="width: 100%; height: 100%; object-fit: contain; padding: 1rem;">
-                        <button onclick="removeFromWishlist(<?= $item['product_id'] ?>)" style="position: absolute; top: 10px; right: 10px; background: #fff; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <div class="wishlist-item" id="wishlist-item-<?= $item['product_id'] ?>">
+                    <div class="wishlist-image-wrap">
+                        <img src="<?= htmlspecialchars($imgUrl) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+                        <button class="wishlist-remove" onclick="removeFromWishlist(<?= $item['product_id'] ?>)" aria-label="Xóa <?= htmlspecialchars($item['name']) ?> khỏi danh sách yêu thích">
                             ✕
                         </button>
                     </div>
-                    <div style="padding: 1rem; display: flex; flex-direction: column; flex: 1;">
-                        <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;"><a href="<?= BASE_URL ?>product?id=<?= $item['product_id'] ?>" style="color: inherit; text-decoration: none;"><?= htmlspecialchars($item['name']) ?></a></h3>
-                        <div style="font-weight: 600; margin-bottom: 1rem; margin-top: auto;">
+                    <div class="wishlist-item-body">
+                        <h3><a href="<?= BASE_URL ?>product?id=<?= $item['product_id'] ?>"><?= htmlspecialchars($item['name']) ?></a></h3>
+                        <div class="wishlist-price">
                             <?php if (!empty($item['old_price']) && (float)$item['old_price'] > (float)$item['price']): ?><del class="product-price-old"><?= number_format($item['old_price'], 0, ',', '.') ?> ₫</del><?php endif; ?>
                             <?= number_format($item['price'], 0, ',', '.') ?> ₫
                         </div>
-                        <button onclick="addToCartFromWishlist(<?= $item['product_id'] ?>)" style="width: 100%; padding: 0.8rem; background: #111; color: #fff; border: none; border-radius: 100px; font-weight: 500; cursor: pointer;">
+                        <button class="wishlist-add-cart" onclick="addToCartFromWishlist(<?= $item['product_id'] ?>)">
                             Thêm vào giỏ
                         </button>
                     </div>

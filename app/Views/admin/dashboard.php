@@ -53,7 +53,7 @@ adminStart('Bảng điều khiển', 'dashboard', $flash ?? null);
                 <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
             </div>
         </div>
-        <div class="stat-change up">Doanh thu thực nhận</div>
+        <div class="stat-change up">Đã giao, đã thanh toán, trừ tiền đã hoàn</div>
     </article>
 
     <article class="stat-card">
